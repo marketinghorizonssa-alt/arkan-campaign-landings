@@ -1,8 +1,5 @@
 (()=>{
   const cfg=window.ARKAN_CONFIG||{};
-  const push=(event,data={})=>{window.dataLayer=window.dataLayer||[];window.dataLayer.push({event,...data});};
-  document.querySelectorAll('.track-call').forEach(a=>a.addEventListener('click',()=>push('click_call',{page_path:location.pathname})));
-  document.querySelectorAll('.track-whatsapp').forEach(a=>a.addEventListener('click',()=>push('click_whatsapp',{page_path:location.pathname})));
   const form=document.getElementById('leadForm');
   if(!form)return;
   const visible=['full_name','phone','city','property_type','employer_type'];
@@ -19,9 +16,7 @@
   let saved={};
   try{saved=JSON.parse(localStorage.getItem('arkan_lead_draft_v2')||'{}')}catch{}
   visible.forEach(k=>{if(saved[k]&&form.elements[k])form.elements[k].value=saved[k];});
-  let started=false;
   form.addEventListener('input',()=>{
-    if(!started){started=true;push('form_start',{landing_page_id:form.elements.landing_page_id.value,page_path:location.pathname});}
     const draft={};visible.forEach(k=>draft[k]=form.elements[k]?.value||'');
     localStorage.setItem('arkan_lead_draft_v2',JSON.stringify(draft));
   });
@@ -58,10 +53,9 @@
       localStorage.removeItem('arkan_lead_draft_v2');
       sessionStorage.setItem('arkan_lead_preview',JSON.stringify({...data,lead_id:result.lead_token||''}));
       sessionStorage.setItem('arkan_lead_token',result.lead_token||'');
-      push('lead_form_success',{landing_page_id:data.landing_page_id,lead_token:result.lead_token||'',duplicate:!!result.duplicate});
+      document.dispatchEvent(new CustomEvent('arkan:lead-success',{detail:{landing_page_id:data.landing_page_id||'',lead_token:result.lead_token||'',duplicate:!!result.duplicate}}));
       location.href=cfg.thankYou||'/تم-استلام-الطلب/';
     }catch(err){
-      push('form_submit_error',{landing_page_id:data.landing_page_id,error:String(err&&err.message||'submit_failed')});
       status.textContent='تعذر إرسال الطلب الآن. جرّب مرة أخرى أو تواصل معنا عبر واتساب.';
       button.disabled=false;button.textContent=original;
     }

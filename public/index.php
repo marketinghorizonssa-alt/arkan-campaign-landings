@@ -12,6 +12,19 @@ header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 if (REVIEW_MODE) header('X-Robots-Tag: noindex, nofollow, noarchive');
 
+function releaseHeadMarkup(): string {
+    $verification = GOOGLE_SITE_VERIFICATION !== ''
+        ? '<meta name="google-site-verification" content="' . e(GOOGLE_SITE_VERIFICATION) . '">'
+        : '';
+    $gtm = '<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({\'gtm.start\':new Date().getTime(),event:\'gtm.js\'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!==\'dataLayer\'?\'&l=\'+l:\'\';j.async=true;j.src=\'https://www.googletagmanager.com/gtm.js?id=\'+i+dl;f.parentNode.insertBefore(j,f);})(window,document,\'script\',\'dataLayer\',\'' . e(GTM_PUBLIC_ID) . '\');</script>';
+    return $verification . $gtm;
+}
+
+function renderHtml(string $html): string {
+    $html = str_replace('/assets/site.js?v=4', '/assets/site.js?v=5', $html);
+    return str_replace('</head>', releaseHeadMarkup() . '</head>', $html);
+}
+
 $path = requestedPath();
 if ($path === '/api/lead') handleLeadSubmit();
 if ($path === '/lead-feed.csv') handleLeadFeed();
@@ -32,11 +45,11 @@ if ($path === '/sitemap.xml') {
 }
 if ($path === '/health') {
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok'=>true,'mode'=>REVIEW_MODE?'review':'production','brand'=>'arkan-executive','lead_store'=>'sqlite'], JSON_UNESCAPED_UNICODE); exit;
+    echo json_encode(['ok'=>true,'mode'=>REVIEW_MODE?'review':'production','brand'=>'arkan-executive','lead_store'=>'sqlite','gtm'=>GTM_PUBLIC_ID], JSON_UNESCAPED_UNICODE); exit;
 }
-if ($path === '/سياسة-الخصوصية/') { echo privacyHtml(); exit; }
-if ($path === '/تم-استلام-الطلب/') { echo thankYouHtml(); exit; }
-if (isset($pages[$path])) { echo pageHtml($path, $pages[$path], $leadEndpoint); exit; }
+if ($path === '/سياسة-الخصوصية/') { echo renderHtml(privacyHtml()); exit; }
+if ($path === '/تم-استلام-الطلب/') { echo renderHtml(thankYouHtml()); exit; }
+if (isset($pages[$path])) { echo renderHtml(pageHtml($path, $pages[$path], $leadEndpoint)); exit; }
 
 http_response_code(404);
-echo '<!doctype html><html lang="ar" dir="rtl">' . headHtml('الصفحة غير موجودة | أركان التنفيذية','الصفحة غير موجودة.','/') . '<body>' . headerHtml() . '<main class="error-page"><div><h1>الصفحة غير موجودة</h1><a class="btn btn-primary" href="/">العودة للرئيسية</a></div></main>' . footerHtml() . '</body></html>';
+echo renderHtml('<!doctype html><html lang="ar" dir="rtl">' . headHtml('الصفحة غير موجودة | أركان التنفيذية','الصفحة غير موجودة.','/') . '<body>' . headerHtml() . '<main class="error-page"><div><h1>الصفحة غير موجودة</h1><a class="btn btn-primary" href="/">العودة للرئيسية</a></div></main>' . footerHtml() . '</body></html>');
