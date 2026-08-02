@@ -48,14 +48,18 @@ function leadDb(): PDO {
 function handleLeadSubmit(): never {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') jsonResponse(['ok' => false, 'error' => 'method_not_allowed'], 405);
     $data = readJsonBody();
-    $allowedProperties = ['وحدة جاهزة','بناء ذاتي','رهن عقاري'];
-    $allowedEmployers = ['حكومي مدني','حكومي عسكري','شبه حكومي','قطاع خاص','متقاعد'];
+    $propertyAliases = ['ready_unit'=>'وحدة جاهزة','self_build'=>'بناء ذاتي','mortgage'=>'رهن عقاري'];
+    $employerAliases = ['civil_gov'=>'حكومي مدني','military_gov'=>'حكومي عسكري','semi_gov'=>'شبه حكومي','private'=>'قطاع خاص','retired'=>'متقاعد'];
+    $allowedProperties = array_values($propertyAliases);
+    $allowedEmployers = array_values($employerAliases);
     $name = cleanText($data['full_name'] ?? '', 120);
     $phone = cleanText($data['phone'] ?? '', 32);
     $normalizedPhone = normalizeSaudiPhone($phone);
     $city = cleanText($data['city'] ?? '', 80);
-    $property = cleanText($data['property_type'] ?? '', 80);
-    $employer = cleanText($data['employer_type'] ?? '', 80);
+    $propertyInput = cleanText($data['property_type'] ?? '', 80);
+    $employerInput = cleanText($data['employer_type'] ?? '', 80);
+    $property = $propertyAliases[$propertyInput] ?? $propertyInput;
+    $employer = $employerAliases[$employerInput] ?? $employerInput;
     $consent = in_array($data['privacy_consent'] ?? null, [1, '1', true, 'true', 'on'], true);
     $nameLength = function_exists('mb_strlen') ? mb_strlen($name, 'UTF-8') : strlen($name);
     if ($nameLength < 2 || $normalizedPhone === '' || $city === '' || !in_array($property, $allowedProperties, true) || !in_array($employer, $allowedEmployers, true) || !$consent) {
