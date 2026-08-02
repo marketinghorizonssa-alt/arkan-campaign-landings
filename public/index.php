@@ -1,15 +1,20 @@
 <?php
 declare(strict_types=1);
+
 require __DIR__ . '/app/config.php';
 require __DIR__ . '/app/helpers.php';
+require __DIR__ . '/app/leads.php';
 require __DIR__ . '/app/views.php';
 
+date_default_timezone_set('Asia/Riyadh');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 if (REVIEW_MODE) header('X-Robots-Tag: noindex, nofollow, noarchive');
 
 $path = requestedPath();
+if ($path === '/api/lead') handleLeadSubmit();
+if ($path === '/lead-feed.csv') handleLeadFeed();
 if (isset($legacy[$path])) sendRedirect($legacy[$path]);
 if ($path !== '/' && !str_ends_with($path, '/') && !in_array($path, ['/robots.txt','/sitemap.xml','/health'], true)) sendRedirect($path . '/');
 
@@ -27,11 +32,11 @@ if ($path === '/sitemap.xml') {
 }
 if ($path === '/health') {
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok'=>true,'mode'=>REVIEW_MODE?'review':'production','brand'=>'arkan-executive'], JSON_UNESCAPED_UNICODE); exit;
+    echo json_encode(['ok'=>true,'mode'=>REVIEW_MODE?'review':'production','brand'=>'arkan-executive','lead_store'=>'sqlite'], JSON_UNESCAPED_UNICODE); exit;
 }
 if ($path === '/سياسة-الخصوصية/') { echo privacyHtml(); exit; }
 if ($path === '/تم-استلام-الطلب/') { echo thankYouHtml(); exit; }
 if (isset($pages[$path])) { echo pageHtml($path, $pages[$path], $leadEndpoint); exit; }
 
 http_response_code(404);
-echo '<!doctype html><html lang="ar" dir="rtl">' . headHtml('الصفحة غير موجودة | أركان التنفيذية','الصفحة المطلوبة غير موجودة.','/') . '<body>' . headerHtml() . '<main class="error-page"><div><h1>الصفحة غير موجودة</h1><p>يمكنك العودة للرئيسية أو التواصل مباشرة.</p><a class="btn btn-primary" href="/">العودة للرئيسية</a></div></main>' . footerHtml() . '</body></html>';
+echo '<!doctype html><html lang="ar" dir="rtl">' . headHtml('الصفحة غير موجودة | أركان التنفيذية','الصفحة غير موجودة.','/') . '<body>' . headerHtml() . '<main class="error-page"><div><h1>الصفحة غير موجودة</h1><a class="btn btn-primary" href="/">العودة للرئيسية</a></div></main>' . footerHtml() . '</body></html>';
