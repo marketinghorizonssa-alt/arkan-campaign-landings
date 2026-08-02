@@ -1,0 +1,76 @@
+<?php
+declare(strict_types=1);
+
+const ORIGIN = 'https://arkan-realestate-solutions.hositee.com';
+const REVIEW_MODE = true;
+
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+if (REVIEW_MODE) header('X-Robots-Tag: noindex, nofollow');
+
+$pages = [
+  '/' => ['P0','أركان التنفيذية | حلول عقارية ومالية تساعدك على التملك','حلول واستشارات عقارية ومالية لمشكلات الأهلية والالتزامات ومبلغ التمويل وشراء العقار.','حلول عقارية ومالية مخصصة','نساعدك على فهم مشكلة التمويل واختيار المسار العقاري الأنسب','ندرس وضعك ونوضح الخيارات المتاحة لمشكلات الأهلية والالتزامات ومبلغ التمويل وشراء العقار، دون ادعاء منح تمويل أو ضمان موافقة جهة تمويل.'],
+  '/حلول-التمويل-العقاري/' => ['P1','حلول التمويل العقاري والاستشارات | أركان التنفيذية','حلول واستشارات تساعدك على فهم مشكلة التمويل العقاري واختيار المسار الأنسب لحالتك.','حلول التمويل العقاري','حلول واستشارات تساعدك على اختيار المسار العقاري والمالي الأنسب','نراجع المشكلة والهدف والالتزامات الحالية، ثم نوضح الخيارات العملية المتاحة دون وعود غير واقعية أو ادعاء منح التمويل.'],
+  '/رفض-التمويل-العقاري/' => ['P2','حل رفض التمويل العقاري ورفع القدرة | أركان التنفيذية','دراسة أسباب رفض التمويل العقاري وانخفاض مبلغ التمويل والدفعة الأولى ونسبة الاستقطاع.','رفض التمويل والقدرة','حلول رفض التمويل العقاري ورفع القدرة التمويلية','نراجع سبب الرفض ونسبة الاستقطاع ومبلغ التمويل والدفعة الأولى، ونحدد المسارات التي يمكن دراستها وفق حالتك.'],
+  '/تمويل-عقاري-مع-التزامات/' => ['P3','تمويل عقاري مع قرض شخصي أو التزامات | أركان التنفيذية','تحليل أثر القرض الشخصي والالتزامات على التمويل العقاري واختيار المسار المناسب.','القرض الشخصي والالتزامات','حلول التمويل العقاري مع قرض شخصي أو التزامات قائمة','نحلل أثر القرض الشخصي والالتزامات الحالية على القدرة، ونرتب الخيارات الممكنة قبل اختيار العقار أو التقديم.'],
+  '/شراء-مديونية-عقارية/' => ['P4','شراء مديونية وإعادة تمويل وفك رهن | أركان التنفيذية','استشارات شراء ونقل المديونية وإعادة التمويل العقاري وفك الرهن وإعادة الجدولة.','المديونية وإعادة التمويل','استشارات شراء المديونية وإعادة التمويل العقاري وفك الرهن','نوضح الخيارات والمتطلبات ونساعدك على فهم المسار المناسب. أركان ليست بنكًا ولا جهة شراء مديونية مباشرة.'],
+  '/شراء-عقار-بالتمويل/' => ['P5','حلول شراء عقار بالتمويل البنكي | أركان التنفيذية','حلول شراء بيت أو فيلا أو شقة أو أرض بما يتناسب مع القدرة التمويلية والالتزامات.','اختيار العقار والمسار','حلول شراء عقار يناسب قدرتك التمويلية','نساعدك على فهم المتطلبات واختيار العقار والمسار الأنسب لمبلغ التمويل والالتزامات الحالية، دون ادعاء منح قرض مباشر.']
+];
+
+$legacy = [
+  '/solutions/' => '/حلول-التمويل-العقاري/',
+  '/rejection/' => '/رفض-التمويل-العقاري/',
+  '/obligations/' => '/تمويل-عقاري-مع-التزامات/',
+  '/debt/' => '/شراء-مديونية-عقارية/',
+  '/property/' => '/شراء-عقار-بالتمويل/',
+  '/privacy/' => '/سياسة-الخصوصية/',
+  '/thank-you/' => '/تم-استلام-الطلب/'
+];
+
+function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
+function canonical(string $path): string { return ORIGIN . $path; }
+function requestedPath(): string {
+  $raw = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+  return rawurldecode($raw);
+}
+function sendRedirect(string $target): never {
+  $query = $_SERVER['QUERY_STRING'] ?? '';
+  header('Location: ' . $target . ($query !== '' ? '?' . $query : ''), true, 301);
+  exit;
+}
+function headHtml(string $title, string $description, string $path): string {
+  $robots = REVIEW_MODE ? 'noindex,nofollow' : 'index,follow';
+  $url = canonical($path);
+  return '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    . '<title>' . e($title) . '</title><meta name="description" content="' . e($description) . '">'
+    . '<meta name="robots" content="' . $robots . '"><link rel="canonical" href="' . e($url) . '">'
+    . '<meta property="og:title" content="' . e($title) . '"><meta property="og:description" content="' . e($description) . '">'
+    . '<meta property="og:url" content="' . e($url) . '"><meta property="og:type" content="website"><style>' . css() . '</style></head>';
+}
+function css(): string { return <<<'CSS'
+:root{--n:#071c4c;--b:#1760d2;--g:#b98a43;--t:#1a2438;--m:#657084;--s:#f4f7fc;--l:#dfe6f1}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Tahoma,Arial,sans-serif;color:var(--t);line-height:1.75}a{text-decoration:none;color:inherit}.c{width:min(1140px,92%);margin:auto}.review{background:#fff4cf;color:#684900;text-align:center;padding:7px 12px;font-size:13px}.head{position:sticky;top:0;z-index:20;background:#ffffffef;border-bottom:1px solid #e8edf5}.nav{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{font-weight:900;font-size:24px;color:var(--n)}.brand span{color:var(--b)}.links{display:flex;gap:17px;font-size:14px;font-weight:700}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:12px 19px;font-weight:800;cursor:pointer}.primary{background:var(--b);color:#fff}.outline{border:1px solid var(--n);color:var(--n);background:#fff}.hero{padding:68px 0;background:linear-gradient(135deg,#f8fbff,#eaf2ff)}.grid{display:grid;grid-template-columns:1.12fr .88fr;gap:42px;align-items:center}.tag{display:inline-block;background:#e2edff;color:var(--b);padding:6px 12px;border-radius:99px;font-size:13px;font-weight:800}h1{font-size:clamp(35px,5vw,58px);line-height:1.2;color:var(--n);margin:17px 0}h2{font-size:clamp(27px,3vw,38px);color:var(--n);line-height:1.35}.lead{font-size:18px;color:var(--m)}.chips{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}.chip{background:#fff;border:1px solid #dce5f2;border-radius:99px;padding:8px 11px;font-size:13px}.note{font-size:13px;color:#657084;border-right:3px solid var(--g);padding-right:12px}.form{background:#fff;border:1px solid #e0e7f1;border-radius:22px;padding:25px;box-shadow:0 20px 60px #071c4c24}.form h2{font-size:27px;margin:0}.field{margin-top:13px}.field label{display:block;font-weight:800;font-size:14px;margin-bottom:5px}.field input,.field select{width:100%;min-height:48px;border:1px solid #ccd7e6;border-radius:10px;padding:0 11px;font:inherit}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.consent{display:flex;gap:8px;font-size:12.5px;color:var(--m);margin-top:14px}.status{font-size:13px;color:#a15d00;min-height:23px;margin-top:9px}.sec{padding:70px 0}.soft{background:var(--s)}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:17px;margin-top:25px}.card{border:1px solid var(--l);border-radius:17px;padding:22px;background:#fff}.card strong{color:var(--g)}.faq{max-width:880px}.faq details{border-bottom:1px solid var(--l);padding:16px 0}.faq summary{font-weight:800;color:var(--n);cursor:pointer}.foot{background:var(--n);color:#d9e4f7;padding:38px 0 85px}.footgrid{display:grid;grid-template-columns:2fr 1fr;gap:28px}.float{position:fixed;bottom:18px;width:56px;height:56px;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;box-shadow:0 10px 25px #0003;opacity:.55}.call{left:18px;background:var(--n)}.wa{right:18px;background:#20a45b}.privacy{max-width:850px}.thank{min-height:80vh;display:grid;place-items:center;background:var(--s)}.thankbox{background:#fff;border:1px solid var(--l);border-radius:22px;padding:40px;text-align:center;max-width:650px}@media(max-width:880px){.links{display:none}.grid{grid-template-columns:1fr}.cards,.footgrid{grid-template-columns:1fr}.two{grid-template-columns:1fr}.hero{padding:45px 0}}
+CSS; }
+function navHtml(): string { return '<a href="/حلول-التمويل-العقاري/">الحلول</a><a href="/رفض-التمويل-العقاري/">رفض التمويل</a><a href="/تمويل-عقاري-مع-التزامات/">الالتزامات</a><a href="/شراء-مديونية-عقارية/">المديونية</a><a href="/شراء-عقار-بالتمويل/">شراء العقار</a>'; }
+function formHtml(string $pageId): string { return '<aside class="form" id="form"><h2>ابدأ تقييم حالتك</h2><p>خمسة بيانات فقط للتقييم الأولي.</p><form id="leadForm"><input type="hidden" name="landing_page_id" value="' . e($pageId) . '"><div class="field"><label>الاسم</label><input name="full_name" autocomplete="name" required minlength="2"></div><div class="field"><label>رقم الجوال</label><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx" required></div><div class="field"><label>المدينة</label><input name="city" autocomplete="address-level2" required></div><div class="two"><div class="field"><label>نوع العقار</label><select name="property_type" required><option value="">اختر</option><option>وحدة جاهزة</option><option>بناء ذاتي</option><option>رهن عقاري</option></select></div><div class="field"><label>جهة العمل</label><select name="employer_type" required><option value="">اختر</option><option>حكومي مدني</option><option>حكومي عسكري</option><option>شبه حكومي</option><option>قطاع خاص</option><option>متقاعد</option></select></div></div><label class="consent"><input type="checkbox" required><span>أوافق على <a href="/سياسة-الخصوصية/" target="_blank" style="text-decoration:underline">سياسة الخصوصية</a> والتواصل بشأن طلبي.</span></label><button class="btn primary" type="submit" style="width:100%;margin-top:14px">إرسال طلب التقييم</button><div class="status" id="status"></div></form></aside>'; }
+function footerHtml(): string { return '<footer class="foot"><div class="c footgrid"><div><div class="brand" style="color:#fff">ARKAN <span>EXECUTIVE</span></div><p>حلول واستشارات عقارية ومالية تساعد على فهم المشكلة واختيار المسار المناسب.</p><small>لا نقدم قرضًا مباشرًا ولا نضمن موافقة جهة تمويل.</small></div><div><a href="/سياسة-الخصوصية/">سياسة الخصوصية</a></div></div></footer><button class="float call" aria-label="الاتصال غير مفعل" title="سيتم تفعيل الرقم بعد الاعتماد">☎</button><button class="float wa" aria-label="واتساب غير مفعل" title="سيتم تفعيل الرقم بعد الاعتماد">و</button>'; }
+function renderPage(string $path, array $p): string {
+  [$id,$title,$description,$tag,$h1,$intro] = $p;
+  $review = REVIEW_MODE ? '<div class="review">نسخة مراجعة — استقبال الطلبات وأرقام التواصل غير مفعلة حتى اعتماد الربط النهائي</div>' : '';
+  $script = <<<'JS'
+<script>const f=document.getElementById('leadForm');if(f){['full_name','phone','city','property_type','employer_type'].forEach(k=>{const x=f.elements[k],v=sessionStorage.getItem('arkan_'+k);if(v)x.value=v;x.addEventListener('change',()=>sessionStorage.setItem('arkan_'+k,x.value))});f.addEventListener('submit',e=>{e.preventDefault();document.getElementById('status').textContent='النموذج جاهز للمراجعة، وسيتم تفعيل الإرسال بعد ربط الشيت واعتماد بيانات التواصل.'})}</script>
+JS;
+  return '<!doctype html><html lang="ar" dir="rtl">' . headHtml($title,$description,$path) . '<body>' . $review . '<header class="head"><div class="c nav"><a class="brand" href="/">ARKAN <span>EXECUTIVE</span></a><nav class="links">' . navHtml() . '</nav><a class="btn outline" href="#form">ابدأ التقييم</a></div></header><main><section class="hero"><div class="c grid"><div><span class="tag">' . e($tag) . '</span><h1>' . e($h1) . '</h1><p class="lead">' . e($intro) . '</p><div class="chips"><span class="chip">دراسة المشكلة قبل اقتراح المسار</span><span class="chip">نموذج مختصر لجودة أعلى</span><span class="chip">حلول عقارية ومالية واضحة</span></div><div class="note">أركان التنفيذية ليست بنكًا ولا تمنح قرضًا مباشرًا ولا تضمن موافقة أي جهة تمويل.</div></div>' . formHtml($id) . '</div></section><section class="sec"><div class="c"><h2>كيف نساعدك؟</h2><div class="cards"><article class="card"><strong>01</strong><h3>نفهم الحالة</h3><p>نحدد سبب المشكلة والهدف العقاري المطلوب.</p></article><article class="card"><strong>02</strong><h3>نراجع الخيارات</h3><p>نرتب المسارات المتاحة بحسب القدرة والالتزامات.</p></article><article class="card"><strong>03</strong><h3>نوضح الخطوة التالية</h3><p>تحصل على توجيه أولي واضح دون وعود غير مؤكدة.</p></article></div></div></section><section class="sec soft"><div class="c faq"><h2>الأسئلة الشائعة</h2><details><summary>هل أركان بنك أو جهة تمويل؟</summary><p>لا، أركان تقدم حلولًا واستشارات عقارية ومالية ولا تمنح قرضًا مباشرًا.</p></details><details><summary>هل الموافقة مضمونة؟</summary><p>لا يمكن ضمان موافقة أي جهة؛ كل حالة تخضع للسياسات والمتطلبات الفعلية.</p></details><details><summary>لماذا النموذج مختصر؟</summary><p>نطلب البيانات الأساسية أولًا ثم نستكمل التفاصيل بعد التواصل عند الحاجة.</p></details></div></section></main>' . footerHtml() . $script . '</body></html>';
+}
+function renderPrivacy(): string { return '<!doctype html><html lang="ar" dir="rtl">' . headHtml('سياسة الخصوصية | أركان التنفيذية','سياسة خصوصية بيانات طلبات أركان التنفيذية.','/سياسة-الخصوصية/') . '<body><div class="review">مسودة للمراجعة قبل التشغيل الإنتاجي</div><header class="head"><div class="c nav"><a class="brand" href="/">ARKAN <span>EXECUTIVE</span></a><a class="btn outline" href="/">الرئيسية</a></div></header><main class="sec"><article class="c privacy"><h1>سياسة الخصوصية</h1><p>توضح هذه السياسة طريقة جمع واستخدام وحماية البيانات المقدمة عبر صفحات أركان التنفيذية.</p><h2>البيانات</h2><p>الاسم ورقم الجوال والمدينة ونوع العقار وجهة العمل، بالإضافة إلى بيانات المصدر والحملة ومعرفات النقر عند توفرها.</p><h2>الغرض</h2><p>تقييم الطلب والتواصل بشأنه وتحسين جودة الحملات والخدمة ومنع التكرار.</p><h2>الحماية والمشاركة</h2><p>يقتصر الوصول على الجهات والأشخاص المعتمدين لتشغيل الخدمة، ولا تُنشر بيانات العملاء للعامة.</p><h2>الحقوق والتواصل</h2><p>تُضاف وسيلة التواصل القانونية المعتمدة قبل تشغيل استقبال الطلبات.</p></article></main>' . footerHtml() . '</body></html>'; }
+function renderThanks(): string { return '<!doctype html><html lang="ar" dir="rtl">' . headHtml('تم استلام طلبك | أركان التنفيذية','تأكيد استلام طلب أركان التنفيذية.','/تم-استلام-الطلب/') . '<body><main class="thank"><div class="thankbox"><h1>تم استلام طلبك</h1><p>صفحة الشكر جاهزة، وتُفعّل بعد ربط حفظ الطلب بنجاح.</p><a class="btn primary" href="/">العودة للرئيسية</a></div></main></body></html>'; }
+
+$path = requestedPath();
+if ($path === '/health') { header('Content-Type: application/json; charset=utf-8'); echo json_encode(['ok'=>true,'mode'=>'review','origin'=>ORIGIN], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); exit; }
+if (isset($legacy[$path])) sendRedirect($legacy[$path]);
+if ($path !== '/' && !str_ends_with($path, '/') && isset($pages[$path . '/'])) sendRedirect($path . '/');
+if ($path === '/robots.txt') { header('Content-Type: text/plain; charset=utf-8'); echo "User-agent: *\nDisallow: /\n"; exit; }
+if ($path === '/sitemap.xml') { header('Content-Type: application/xml; charset=utf-8'); $urls = array_keys($pages); $urls[]='/سياسة-الخصوصية/'; echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'; foreach($urls as $url) echo '<url><loc>' . e(canonical($url)) . '</loc></url>'; echo '</urlset>'; exit; }
+if ($path === '/سياسة-الخصوصية/' || $path === '/سياسة-الخصوصية') { echo renderPrivacy(); exit; }
+if ($path === '/تم-استلام-الطلب/' || $path === '/تم-استلام-الطلب') { echo renderThanks(); exit; }
+if (isset($pages[$path])) { echo renderPage($path,$pages[$path]); exit; }
+http_response_code(404); echo '<!doctype html><html lang="ar" dir="rtl">' . headHtml('الصفحة غير موجودة | أركان التنفيذية','الصفحة غير موجودة.','/') . '<body><main class="thank"><div class="thankbox"><h1>الصفحة غير موجودة</h1><a class="btn primary" href="/">الرئيسية</a></div></main></body></html>';
