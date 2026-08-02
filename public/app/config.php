@@ -2,7 +2,9 @@
 declare(strict_types=1);
 
 const ORIGIN = 'https://arkan-realestate-solutions.hositee.com';
-const REVIEW_MODE = true;
+const REVIEW_MODE = false;
+const GTM_PUBLIC_ID = 'GTM-P5J6D6ND';
+const GOOGLE_SITE_VERIFICATION = '';
 const PHONE_DISPLAY = '0500 989 103';
 const PHONE_E164 = '+966500989103';
 const WHATSAPP_NUMBER = '966500989103';
