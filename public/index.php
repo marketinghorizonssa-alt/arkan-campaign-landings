@@ -20,9 +20,14 @@ function releaseHeadMarkup(): string {
     return $verification . $gtm;
 }
 
+function releaseBodyMarkup(): string {
+    return '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=' . e(GTM_PUBLIC_ID) . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
+}
+
 function renderHtml(string $html): string {
     $html = str_replace('/assets/site.js?v=4', '/assets/site.js?v=5', $html);
-    return str_replace('</head>', releaseHeadMarkup() . '</head>', $html);
+    $html = str_replace('</head>', releaseHeadMarkup() . '</head>', $html);
+    return preg_replace('/<body([^>]*)>/', '<body$1>' . releaseBodyMarkup(), $html, 1) ?: $html;
 }
 
 $path = requestedPath();
