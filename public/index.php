@@ -21,6 +21,7 @@ function releaseHeadMarkup(): string {
 }
 
 function renderHtml(string $html): string {
+    $html = str_replace('/assets/site.js?v=4', '/assets/site.js?v=5', $html);
     return str_replace('</head>', releaseHeadMarkup() . '</head>', $html);
 }
 
