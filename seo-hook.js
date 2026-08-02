@@ -1,7 +1,10 @@
 const http = require('http');
 
-const PUBLIC_ORIGIN = 'https://arkan-realestate-solutions.hositee.com';
-const LEGACY_ORIGIN = 'https://arkan-v2.hositee.com';
+const PUBLIC_ORIGIN = 'https://arkan-executive.hositee.com';
+const LEGACY_ORIGINS = [
+  'https://arkan-v2.hositee.com',
+  'https://arkan-realestate-solutions.hositee.com'
+];
 const publicToInternal = new Map([
   ['/حلول-التمويل-العقاري/', '/solutions/'],
   ['/رفض-التمويل-العقاري/', '/rejection/'],
@@ -19,10 +22,9 @@ function splitUrl(rawUrl) {
 }
 
 function rewriteText(value) {
-  let output = value.split(LEGACY_ORIGIN).join(PUBLIC_ORIGIN);
-  for (const [internalPath, publicPath] of internalToPublic) {
-    output = output.split(internalPath).join(publicPath);
-  }
+  let output = value;
+  for (const legacyOrigin of LEGACY_ORIGINS) output = output.split(legacyOrigin).join(PUBLIC_ORIGIN);
+  for (const [internalPath, publicPath] of internalToPublic) output = output.split(internalPath).join(publicPath);
   return output;
 }
 
