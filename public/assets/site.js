@@ -54,7 +54,7 @@
       sessionStorage.setItem('arkan_lead_preview',JSON.stringify({...data,lead_id:result.lead_token||''}));
       sessionStorage.setItem('arkan_lead_token',result.lead_token||'');
       document.dispatchEvent(new CustomEvent('arkan:lead-success',{detail:{landing_page_id:data.landing_page_id||'',lead_token:result.lead_token||'',duplicate:!!result.duplicate}}));
-      location.href=cfg.thankYou||'/تم-استلام-الطلب/';
+      window.setTimeout(()=>{location.href=cfg.thankYou||'/تم-استلام-الطلب/';},600);
     }catch(err){
       status.textContent='تعذر إرسال الطلب الآن. جرّب مرة أخرى أو تواصل معنا عبر واتساب.';
       button.disabled=false;button.textContent=original;
