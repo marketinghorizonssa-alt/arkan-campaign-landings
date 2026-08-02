@@ -12,8 +12,8 @@ Campaign-first Arabic landing pages for ARKAN Executive real-estate and financia
 - Visual identity and logo: client Google Drive folder.
 - Approved palette: dark navy, royal blue, and cyan with architectural imagery.
 - Phone and WhatsApp: `0500989103` / `+966500989103`.
-- Official website reference: `https://www.arkan2030.com`.
 - Social handles used in the footer: `arkanexecut` and `arkan.execut`.
+- There is no public official-website link in the footer.
 
 ## Search-aligned routes
 
@@ -25,13 +25,21 @@ Campaign-first Arabic landing pages for ARKAN Executive real-estate and financia
 - `/سياسة-الخصوصية/`
 - `/تم-استلام-الطلب/`
 
+## Lead system
+
+- The visible form contains name, mobile, city, property type, and employer type.
+- The consent checkbox is preselected in the current approved UX.
+- Submissions post to the same-origin `/api/lead` endpoint.
+- Leads are durably stored in a private SQLite database outside the public web root.
+- `lead_form_success` fires only after the server acknowledges the stored row and returns a lead ID.
+- A token-protected CSV feed supplies the Google Sheet without putting personal data in URLs or exposing the database publicly.
+- The thank-you page offers a WhatsApp follow-up containing the confirmed lead ID.
+
 ## Current mode
 
-- The default remains review mode: `noindex` and no durable lead storage.
+- The site remains `noindex` while campaign tracking, final legal data, and production QA are incomplete.
 - Call and WhatsApp links use the approved contact number.
-- Form values are retained locally for review and passed to the post-form WhatsApp handoff without placing personal data in the URL of the thank-you page.
-- `lead_form_success` is reserved for a durable Sheet/CRM acknowledgement after the lead endpoint is connected.
-- Do not switch to production until the Sheet/CRM endpoint, legal entity data, privacy contact, tracking IDs, and final QA are approved.
+- The website review banner has been removed from the customer-facing pages.
 
 ## Runtime and deployment
 
@@ -40,6 +48,6 @@ Campaign-first Arabic landing pages for ARKAN Executive real-estate and financia
 - Public runtime: modular PHP 8.5 files under `public/`.
 - Hostinger deployment is generated from a recorded GitHub commit by `scripts/hostinger-deploy.sh`.
 - The script validates all PHP files before replacing the deployed version.
-- It copies only selected approved logo, hero, and contact assets from the read-only reference website into the new deployment target.
+- It copies only selected approved logo and per-landing hero assets from the read-only reference website into the new deployment target.
 - Old English paths redirect permanently to the matching Arabic search-intent routes while preserving query parameters.
 - `arkan-v2` is an internal legacy label and must not appear in ads, canonicals, sitemaps, or Search Console.
