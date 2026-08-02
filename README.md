@@ -4,8 +4,8 @@ Campaign-first Arabic landing pages for ARKAN Executive real-estate and financia
 
 ## Canonical domain
 
-- `https://arkan-realestate-solutions.hositee.com`
-- Brand + category + service naming; do not use internal labels such as `v2`, `test`, or `new` in public URLs.
+- `https://arkan-executive.hositee.com`
+- The public host uses the approved client brand. Search relevance is handled through Arabic intent-aligned routes, page titles, H1s, ad copy, and content—not internal version labels or an overlong keyword-stuffed hostname.
 
 ## Search-aligned routes
 
@@ -22,5 +22,6 @@ Campaign-first Arabic landing pages for ARKAN Executive real-estate and financia
 - Source of truth: this GitHub repository.
 - Default branch: `main`.
 - Hostinger deployment must be generated from the recorded GitHub commit.
-- Old English staging paths redirect permanently to the matching Arabic search-intent routes.
-- The `hositee.com` subdomain is a campaign/staging host; a client-owned first-party domain is preferred before long-term SEO investment.
+- Old English paths redirect permanently to the matching Arabic search-intent routes.
+- `arkan-v2` and `arkan-realestate-solutions` are not approved for ads, canonicals, sitemaps, or Search Console.
+- A client-owned first-party domain is preferred before long-term SEO investment.
