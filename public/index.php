@@ -33,6 +33,12 @@ function renderHtml(string $html): string {
     return preg_replace('/<body([^>]*)>/', '<body$1>' . releaseBodyMarkup(), $html, 1) ?: $html;
 }
 
+function sitemapLocation(string $urlPath): string {
+    if ($urlPath === '/') return ORIGIN . '/';
+    $segments = array_values(array_filter(explode('/', trim($urlPath, '/')), static fn(string $segment): bool => $segment !== ''));
+    return ORIGIN . '/' . implode('/', array_map('rawurlencode', $segments)) . '/';
+}
+
 $path = requestedPath();
 if ($path === '/api/lead') handleLeadSubmit();
 if ($path === '/lead-feed.csv') handleLeadFeed();
@@ -41,15 +47,21 @@ if ($path !== '/' && !str_ends_with($path, '/') && !in_array($path, ['/robots.tx
 
 if ($path === '/robots.txt') {
     header('Content-Type: text/plain; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     echo REVIEW_MODE ? "User-agent: *\nDisallow: /\n" : "User-agent: *\nAllow: /\nSitemap: " . ORIGIN . "/sitemap.xml\n";
     exit;
 }
 if ($path === '/sitemap.xml') {
     header('Content-Type: application/xml; charset=utf-8');
-    $paths = array_keys($pages); $paths[] = '/سياسة-الخصوصية/';
-    echo '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-    foreach ($paths as $urlPath) echo '<url><loc>' . e(canonical($urlPath)) . '</loc></url>';
-    echo '</urlset>'; exit;
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    $paths = array_keys($pages);
+    echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    echo "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
+    foreach ($paths as $urlPath) {
+        echo '  <url><loc>' . e(sitemapLocation($urlPath)) . "</loc></url>\n";
+    }
+    echo "</urlset>\n";
+    exit;
 }
 if ($path === '/health') {
     header('Content-Type: application/json; charset=utf-8');

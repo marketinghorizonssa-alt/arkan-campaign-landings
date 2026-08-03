@@ -7,6 +7,7 @@ PRIVATE="/home/u878466595/private"
 REFERENCE="/home/u878466595/domains/hositee.com/public_html/arkan-executive/images"
 TMP="$ROOT/.deploy-$COMMIT"
 BASE="https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/$COMMIT/public"
+PHP="/opt/alt/php85/usr/bin/php"
 
 mkdir -p "$ROOT" "$TMP/app" "$TMP/assets" "$PRIVATE"
 chmod 700 "$PRIVATE"
@@ -15,13 +16,28 @@ for FILE in index.php .htaccess googlebff965ed4f5bbb83.html app/config.php app/h
   curl -fsSL "$BASE/$FILE" -o "$TMP/$FILE"
 done
 
-/opt/alt/php85/usr/bin/php -l "$TMP/index.php"
-/opt/alt/php85/usr/bin/php -l "$TMP/app/config.php"
-/opt/alt/php85/usr/bin/php -l "$TMP/app/helpers.php"
-/opt/alt/php85/usr/bin/php -l "$TMP/app/leads.php"
-/opt/alt/php85/usr/bin/php -l "$TMP/app/views.php"
+"$PHP" -l "$TMP/index.php"
+"$PHP" -l "$TMP/app/config.php"
+"$PHP" -l "$TMP/app/helpers.php"
+"$PHP" -l "$TMP/app/leads.php"
+"$PHP" -l "$TMP/app/views.php"
 
 grep -qx 'google-site-verification: googlebff965ed4f5bbb83.html' "$TMP/googlebff965ed4f5bbb83.html"
+grep -q 'robots\\.txt|sitemap\\.xml' "$TMP/.htaccess"
+
+# Validate production crawl-control output before replacing live files.
+env REQUEST_URI=/robots.txt REQUEST_METHOD=GET "$PHP" "$TMP/index.php" > "$TMP/robots.generated"
+grep -qx 'User-agent: \*' "$TMP/robots.generated"
+grep -qx 'Allow: /' "$TMP/robots.generated"
+grep -qx 'Sitemap: https://arkan-realestate-solutions.hositee.com/sitemap.xml' "$TMP/robots.generated"
+if grep -qx 'Disallow: /' "$TMP/robots.generated"; then
+  echo 'Deployment blocked: production robots output still disallows the site.' >&2
+  exit 1
+fi
+
+env REQUEST_URI=/sitemap.xml REQUEST_METHOD=GET "$PHP" "$TMP/index.php" > "$TMP/sitemap.generated"
+"$PHP" -r '$xml = simplexml_load_file($argv[1]); if ($xml === false || count($xml->url) !== 6) { fwrite(STDERR, "Invalid sitemap or unexpected URL count\n"); exit(1); }' "$TMP/sitemap.generated"
+grep -q 'https://arkan-realestate-solutions.hositee.com/' "$TMP/sitemap.generated"
 
 copy_asset() {
   SOURCE="$1"
@@ -44,6 +60,11 @@ else
 fi
 
 mkdir -p "$ROOT/app" "$ROOT/assets"
+
+# Delete stale physical crawl-control files from older builds. Apache must
+# reach index.php so REVIEW_MODE remains the single source of truth.
+rm -f "$ROOT/robots.txt" "$ROOT/sitemap.xml"
+
 install -m 0644 "$TMP/index.php" "$ROOT/index.php"
 install -m 0644 "$TMP/.htaccess" "$ROOT/.htaccess"
 install -m 0644 "$TMP/googlebff965ed4f5bbb83.html" "$ROOT/googlebff965ed4f5bbb83.html"
