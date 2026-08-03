@@ -3,7 +3,11 @@ declare(strict_types=1);
 
 function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function requestedPath(): string { return rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'); }
-function canonical(string $path): string { return ORIGIN . $path; }
+function canonical(string $path): string {
+    if ($path === '/') return ORIGIN . '/';
+    $segments = array_values(array_filter(explode('/', trim($path, '/')), static fn(string $segment): bool => $segment !== ''));
+    return ORIGIN . '/' . implode('/', array_map('rawurlencode', $segments)) . '/';
+}
 function phoneHtml(): string { return '<bdi class="phone-number" dir="ltr">' . e(PHONE_DISPLAY) . '</bdi>'; }
 function sendRedirect(string $target, int $status = 301): never {
     $query = $_SERVER['QUERY_STRING'] ?? '';
@@ -30,19 +34,21 @@ function logoHtml(string $class = ''): string {
     return '<picture><source srcset="/assets/logo.webp" type="image/webp"><img' . $classAttr . ' src="/assets/logo.jpg" alt="شعار أركان التنفيذية" width="720" height="280"></picture>';
 }
 function headHtml(string $title, string $description, string $path, string $heroImage = '/assets/hero-home.jpg'): string {
-    $robots = REVIEW_MODE ? 'noindex,nofollow,noarchive' : 'index,follow,max-image-preview:large';
+    $robots = 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1';
     $url = canonical($path);
     $schema = [
-        '@context' => 'https://schema.org', '@type' => 'ProfessionalService', 'name' => 'أركان التنفيذية',
-        'url' => ORIGIN, 'telephone' => PHONE_E164,
+        '@context' => 'https://schema.org', '@type' => 'ProfessionalService', '@id' => ORIGIN . '/#business',
+        'name' => 'أركان التنفيذية', 'url' => ORIGIN, 'telephone' => PHONE_E164,
+        'logo' => ORIGIN . '/assets/logo.webp', 'image' => ORIGIN . $heroImage,
         'description' => 'حلول مالية وعقارية متكاملة تساعد العملاء على فهم الأهلية والالتزامات واختيار مسار التملك المناسب.',
         'areaServed' => ['@type' => 'Country', 'name' => 'Saudi Arabia'],
         'sameAs' => ['https://www.instagram.com/arkanexecut/', 'https://x.com/arkanexecut', 'https://www.tiktok.com/@arkan.execut'],
     ];
     return '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
         . '<title>' . e($title) . '</title><meta name="description" content="' . e($description) . '">'
-        . '<meta name="robots" content="' . e($robots) . '"><link rel="canonical" href="' . e($url) . '">'
-        . '<meta property="og:locale" content="ar_SA"><meta property="og:type" content="website">'
+        . '<meta name="robots" content="' . e($robots) . '"><meta name="googlebot" content="' . e($robots) . '">'
+        . '<link rel="canonical" href="' . e($url) . '"><link rel="alternate" hreflang="ar-SA" href="' . e($url) . '"><link rel="alternate" hreflang="x-default" href="' . e($url) . '">'
+        . '<meta property="og:locale" content="ar_SA"><meta property="og:type" content="website"><meta property="og:site_name" content="أركان التنفيذية">'
         . '<meta property="og:title" content="' . e($title) . '"><meta property="og:description" content="' . e($description) . '">'
         . '<meta property="og:url" content="' . e($url) . '"><meta property="og:image" content="' . ORIGIN . e($heroImage) . '">'
         . '<meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#071434">'
@@ -67,6 +73,6 @@ function floatingButtons(string $wa): string {
     return '<div class="floating-stack"><a class="float wa track-whatsapp" href="' . e($wa) . '" target="_blank" rel="noopener" aria-label="تواصل واتساب">' . icon('whatsapp') . '</a><a class="float call track-call" href="tel:' . PHONE_E164 . '" aria-label="اتصل بأركان">' . icon('phone') . '</a></div>';
 }
 function scriptsHtml(string $leadEndpoint): string {
-    $config = json_encode(['review' => REVIEW_MODE, 'endpoint' => $leadEndpoint, 'thankYou' => '/تم-استلام-الطلب/', 'whatsapp' => WHATSAPP_NUMBER, 'privacyVersion' => PRIVACY_VERSION], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=6" defer></script>';
+    $config = json_encode(['review' => false, 'endpoint' => $leadEndpoint, 'thankYou' => '/تم-استلام-الطلب/', 'whatsapp' => WHATSAPP_NUMBER, 'privacyVersion' => PRIVACY_VERSION], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=7" defer></script>';
 }
