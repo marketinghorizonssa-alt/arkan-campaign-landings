@@ -12,9 +12,13 @@ function phoneHtml(): string { return '<bdi class="phone-number" dir="ltr">' . e
 function heroWebpPath(string $path): string {
     return preg_replace('/\.jpe?g$/i', '.webp', $path) ?: $path;
 }
+function heroMobileWebpPath(string $path): string {
+    return preg_replace('/\.jpe?g$/i', '-768.webp', $path) ?: $path;
+}
 function heroPictureHtml(string $jpg): string {
-    $webp = heroWebpPath($jpg);
-    return '<picture class="hero-picture" aria-hidden="true"><source srcset="' . e($webp) . '" type="image/webp"><img class="hero-media" src="' . e($jpg) . '" alt="" width="1280" height="720" fetchpriority="high" decoding="async"></picture>';
+    $desktop = heroWebpPath($jpg);
+    $mobile = heroMobileWebpPath($jpg);
+    return '<picture class="hero-picture" aria-hidden="true"><source srcset="' . e($mobile) . ' 768w, ' . e($desktop) . ' 1280w" sizes="100vw" type="image/webp"><img class="hero-media" src="' . e($jpg) . '" alt="" width="1280" height="720" fetchpriority="high" decoding="async"></picture>';
 }
 function siteCss(): string {
     static $css = null;
@@ -54,6 +58,7 @@ function headHtml(string $title, string $description, string $path, string $hero
     $robots = 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1';
     $url = canonical($path);
     $heroWebp = heroWebpPath($heroImage);
+    $heroMobile = heroMobileWebpPath($heroImage);
     $schema = [
         '@context' => 'https://schema.org', '@type' => 'ProfessionalService', '@id' => ORIGIN . '/#business',
         'name' => 'أركان التنفيذية', 'url' => ORIGIN, 'telephone' => PHONE_E164,
@@ -70,7 +75,7 @@ function headHtml(string $title, string $description, string $path, string $hero
         . '<meta property="og:title" content="' . e($title) . '"><meta property="og:description" content="' . e($description) . '">'
         . '<meta property="og:url" content="' . e($url) . '"><meta property="og:image" content="' . ORIGIN . e($heroWebp) . '">'
         . '<meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#071434">'
-        . '<link rel="preload" href="' . e($heroWebp) . '" as="image" type="image/webp" fetchpriority="high">'
+        . '<link rel="preload" href="' . e($heroWebp) . '" imagesrcset="' . e($heroMobile) . ' 768w, ' . e($heroWebp) . ' 1280w" imagesizes="100vw" as="image" type="image/webp" fetchpriority="high">'
         . '<style>' . siteCss() . '</style>'
         . '<script type="application/ld+json">' . json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script></head>';
 }
