@@ -1,10 +1,13 @@
+User-agent: Google-InspectionTool
+Disallow:
+
 User-agent: Googlebot
-Allow: /
+Disallow:
 
 User-agent: Googlebot-Image
-Allow: /
+Disallow:
 
 User-agent: *
-Allow: /
+Disallow:
 
 Sitemap: https://arkan-realestate-solutions.hositee.com/sitemap.xml
