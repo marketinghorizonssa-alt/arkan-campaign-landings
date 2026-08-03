@@ -10,7 +10,6 @@ if ($assetDir === '' || !is_dir($assetDir) || !class_exists(Imagick::class)) {
 foreach (glob(rtrim($assetDir, '/') . '/hero-*.jpg') ?: [] as $source) {
     $image = new Imagick($source);
     $image->setIteratorIndex(0);
-    $image->autoOrient();
     $image->thumbnailImage(1280, 0, true);
     $image->setImageFormat('webp');
     $image->setImageCompressionQuality(68);
@@ -18,7 +17,6 @@ foreach (glob(rtrim($assetDir, '/') . '/hero-*.jpg') ?: [] as $source) {
     $target = preg_replace('/\.jpg$/i', '.webp', $source) ?: ($source . '.webp');
     $image->writeImage($target);
     $image->clear();
-    $image->destroy();
 }
 
 $logo = rtrim($assetDir, '/') . '/logo.webp';
@@ -31,7 +29,6 @@ if (is_file($logo)) {
     $image->stripImage();
     $image->writeImage(rtrim($assetDir, '/') . '/logo-360.webp');
     $image->clear();
-    $image->destroy();
 }
 
 echo "ARKAN_IMAGES_OPTIMIZED\n";
