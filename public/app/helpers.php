@@ -55,7 +55,7 @@ function navHtml(): string {
     return '<a href="/حلول-التمويل-العقاري/">الحلول</a><a href="/رفض-التمويل-العقاري/">رفض التمويل</a><a href="/تمويل-عقاري-مع-التزامات/">الالتزامات</a><a href="/شراء-مديونية-عقارية/">المديونية</a><a href="/شراء-عقار-بالتمويل/">شراء العقار</a>';
 }
 function headerHtml(): string {
-    return '<header class="header"><div class="container nav"><a class="brand" href="/" aria-label="أركان التنفيذية">' . logoHtml() . '</a><nav class="navlinks" aria-label="التنقل الرئيسي">' . navHtml() . '</nav><div class="nav-actions"><a class="btn btn-primary" href="#form">ابدأ التقييم</a></div></div></header>';
+    return '<header class="header"><div class="container nav"><a class="brand" href="/" aria-label="أركان التنفيذية">' . logoHtml() . '</a><nav class="navlinks" aria-label="التنقل الرئيسي">' . navHtml() . '</nav><div class="nav-actions"><a class="btn btn-ghost track-call" href="tel:' . PHONE_E164 . '">' . icon('phone') . '<span>' . phoneHtml() . '</span></a><a class="btn btn-primary" href="#form">ابدأ التقييم</a></div></div></header>';
 }
 function socialLink(string $name, string $iconName, string $url, string $label): string {
     return '<a class="social-link" href="' . e($url) . '" target="_blank" rel="noopener" aria-label="' . e($label) . '"><span class="social-icon">' . icon($iconName) . '</span><span>' . e($name) . '</span></a>';
@@ -64,7 +64,7 @@ function footerHtml(): string {
     return '<footer class="footer"><div class="container footergrid"><div class="footer-brand"><div class="footer-logo-wrap">' . logoHtml('footer-logo') . '</div><p>حلول مالية وعقارية متكاملة تربط قدرتك المالية بفرص التملك المناسبة.</p><small>أركان ليست جهة تمويل مباشر، وكل حالة تخضع لمتطلبات الجهات ذات العلاقة.</small></div><div><h3>روابط مهمة</h3><a href="/سياسة-الخصوصية/">سياسة الخصوصية</a></div><div><h3>تابع أركان</h3><div class="social-list">' . socialLink('Instagram', 'instagram', 'https://www.instagram.com/arkanexecut/', 'إنستجرام أركان التنفيذية') . socialLink('X', 'x', 'https://x.com/arkanexecut', 'حساب أركان على X') . socialLink('TikTok', 'tiktok', 'https://www.tiktok.com/@arkan.execut', 'تيك توك أركان التنفيذية') . '</div><small class="copyright">© 2026 أركان التنفيذية</small></div></div></footer>';
 }
 function floatingButtons(string $wa): string {
-    return '';
+    return '<div class="floating-stack"><a class="float wa track-whatsapp" href="' . e($wa) . '" target="_blank" rel="noopener" aria-label="تواصل واتساب">' . icon('whatsapp') . '</a><a class="float call track-call" href="tel:' . PHONE_E164 . '" aria-label="اتصل بأركان">' . icon('phone') . '</a></div>';
 }
 function scriptsHtml(string $leadEndpoint): string {
     $config = json_encode(['review' => REVIEW_MODE, 'endpoint' => $leadEndpoint, 'thankYou' => '/تم-استلام-الطلب/', 'whatsapp' => WHATSAPP_NUMBER, 'privacyVersion' => PRIVACY_VERSION], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
