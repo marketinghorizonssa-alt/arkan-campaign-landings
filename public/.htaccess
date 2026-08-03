@@ -3,6 +3,11 @@ DirectoryIndex index.php
 
 <IfModule mod_rewrite.c>
 RewriteEngine On
+
+# Always route crawl-control endpoints through the release-aware application.
+# This runs before physical-file pass-through so stale files cannot shadow it.
+RewriteRule ^(?:robots\.txt|sitemap\.xml)$ index.php [L,QSA]
+
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
