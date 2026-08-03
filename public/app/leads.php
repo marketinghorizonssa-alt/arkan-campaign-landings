@@ -20,13 +20,8 @@ function cleanText(mixed $value, int $max = 255): string {
     $text = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $text) ?? '';
     return function_exists('mb_substr') ? mb_substr($text, 0, $max, 'UTF-8') : substr($text, 0, $max);
 }
-function normalizeSaudiPhone(string $phone): string {
-    $digits = preg_replace('/\D+/', '', $phone) ?? '';
-    if (str_starts_with($digits, '00966')) $digits = substr($digits, 2);
-    if (str_starts_with($digits, '966') && strlen($digits) === 12) return $digits;
-    if (str_starts_with($digits, '05') && strlen($digits) === 10) return '966' . substr($digits, 1);
-    if (str_starts_with($digits, '5') && strlen($digits) === 9) return '966' . $digits;
-    return '';
+function normalizePhone(string $phone): string {
+    return preg_replace('/\D+/', '', $phone) ?? '';
 }
 function leadHeaders(): array {
     return ['Lead ID','تاريخ ووقت الإرسال','مصدر المنصة','اسم/ID النموذج','Landing Page ID','Landing URL','الاسم','رقم الجوال','رقم الجوال الموحّد','المدينة','نوع العقار','جهة العمل','حالة الأهلية','حالة الـLead','المسؤول','وقت أول تواصل','آخر تحديث','ملاحظات','موافقة الخصوصية','نسخة سياسة الخصوصية','وقت الموافقة','utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','gbraid','wbraid','ttclid','fbclid','Campaign ID','Campaign Name','Ad Group ID','Ad Group Name','Ad ID','Keyword','Match Type','Device','Network','Referrer URL','First Landing URL','Session ID','Source Lead ID','Duplicate Key','Processing Status'];
@@ -54,7 +49,7 @@ function handleLeadSubmit(): never {
     $allowedEmployers = array_values($employerAliases);
     $name = cleanText($data['full_name'] ?? '', 120);
     $phone = cleanText($data['phone'] ?? '', 32);
-    $normalizedPhone = normalizeSaudiPhone($phone);
+    $normalizedPhone = normalizePhone($phone);
     $city = cleanText($data['city'] ?? '', 80);
     $propertyInput = cleanText($data['property_type'] ?? '', 80);
     $employerInput = cleanText($data['employer_type'] ?? '', 80);
@@ -62,7 +57,11 @@ function handleLeadSubmit(): never {
     $employer = $employerAliases[$employerInput] ?? $employerInput;
     $consent = in_array($data['privacy_consent'] ?? null, [1, '1', true, 'true', 'on'], true);
     $nameLength = function_exists('mb_strlen') ? mb_strlen($name, 'UTF-8') : strlen($name);
-    if ($nameLength < 2 || $normalizedPhone === '' || $city === '' || !in_array($property, $allowedProperties, true) || !in_array($employer, $allowedEmployers, true) || !$consent) {
+    $phoneLength = strlen($normalizedPhone);
+    $validProperty = $property === '' || in_array($property, $allowedProperties, true);
+    $validEmployer = $employer === '' || in_array($employer, $allowedEmployers, true);
+    $hasClassification = $property !== '' || $employer !== '';
+    if ($nameLength < 2 || $phoneLength < 7 || $phoneLength > 15 || $city === '' || !$validProperty || !$validEmployer || !$hasClassification || !$consent) {
         jsonResponse(['ok' => false, 'error' => 'validation_failed'], 422);
     }
     $now = (new DateTimeImmutable('now', new DateTimeZone('Asia/Riyadh')))->format(DateTimeInterface::ATOM);
