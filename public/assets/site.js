@@ -24,6 +24,13 @@
     e.preventDefault();
     const status=document.getElementById('formStatus');
     if(!form.reportValidity()){status.textContent='راجع الحقول المطلوبة قبل المتابعة.';return;}
+    const property=(form.elements.property_type?.value||'').trim();
+    const employer=(form.elements.employer_type?.value||'').trim();
+    if(!property&&!employer){
+      status.textContent='اختر نوع العقار أو جهة العمل على الأقل.';
+      form.elements.property_type?.focus();
+      return;
+    }
     const data=Object.fromEntries(new FormData(form).entries());
     data.privacy_consent='1';
     data.privacy_version=cfg.privacyVersion||'';
@@ -56,7 +63,7 @@
       document.dispatchEvent(new CustomEvent('arkan:lead-success',{detail:{landing_page_id:data.landing_page_id||'',lead_token:result.lead_token||'',duplicate:!!result.duplicate}}));
       window.setTimeout(()=>{location.href=cfg.thankYou||'/تم-استلام-الطلب/';},600);
     }catch(err){
-      status.textContent='تعذر إرسال الطلب الآن. جرّب مرة أخرى أو تواصل معنا عبر واتساب.';
+      status.textContent='تعذر إرسال الطلب الآن. جرّب مرة أخرى بعد قليل.';
       button.disabled=false;button.textContent=original;
     }
   });
