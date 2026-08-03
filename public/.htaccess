@@ -3,6 +3,12 @@ DirectoryIndex index.php
 
 <IfModule mod_rewrite.c>
 RewriteEngine On
+
+# Always route crawl-control endpoints through the release-aware application.
+# This rule intentionally runs before the physical-file pass-through so an old
+# robots.txt or sitemap.xml can never shadow the production configuration.
+RewriteRule ^(?:robots\.txt|sitemap\.xml)$ index.php [L,QSA]
+
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
