@@ -19,7 +19,8 @@ function releaseHeadMarkup(): string {
     $brandIcons = '<link rel="icon" type="image/webp" href="/assets/logo.webp?v=1">'
         . '<link rel="shortcut icon" type="image/webp" href="/assets/logo.webp?v=1">'
         . '<link rel="apple-touch-icon" href="/assets/logo.webp?v=1">';
-    $gtm = '<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({\'gtm.start\':new Date().getTime(),event:\'gtm.js\'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!==\'dataLayer\'?\'&l=\'+l:\'\';j.async=true;j.src=\'https://www.googletagmanager.com/gtm.js?id=\'+i+dl;f.parentNode.insertBefore(j,f);})(window,document,\'script\',\'dataLayer\',\'' . e(GTM_PUBLIC_ID) . '\');</script>';
+    $gtmId = json_encode(GTM_PUBLIC_ID, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    $gtm = '<script>window.dataLayer=window.dataLayer||[];(function(w,d,i){var loaded=false;function loadGtm(){if(loaded)return;loaded=true;w.dataLayer.push({"gtm.start":Date.now(),event:"gtm.js"});var f=d.getElementsByTagName("script")[0],j=d.createElement("script");j.async=true;j.src="https://www.googletagmanager.com/gtm.js?id="+encodeURIComponent(i);f.parentNode.insertBefore(j,f)}["pointerdown","keydown","touchstart","scroll"].forEach(function(n){w.addEventListener(n,loadGtm,{once:true,passive:true})});w.setTimeout(loadGtm,12000)})(window,document,' . $gtmId . ');</script>';
     return $verification . $brandIcons . $gtm;
 }
 
@@ -28,9 +29,17 @@ function releaseBodyMarkup(): string {
 }
 
 function renderHtml(string $html): string {
-    $html = str_replace('/assets/site.js?v=4', '/assets/site.js?v=7', $html);
-    $html = str_replace('/assets/site.js?v=5', '/assets/site.js?v=7', $html);
-    $html = str_replace('/assets/site.js?v=6', '/assets/site.js?v=7', $html);
+    foreach (['4','5','6','7'] as $version) {
+        $html = str_replace('/assets/site.js?v=' . $version, '/assets/site.js?v=8', $html);
+    }
+    $html = preg_replace_callback(
+        '/<section class="hero" style="--hero-image:url\(([^)]+)\)">/',
+        static function (array $matches): string {
+            $hero = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            return '<section class="hero">' . heroPictureHtml($hero);
+        },
+        $html
+    ) ?: $html;
     $html = str_replace('</head>', releaseHeadMarkup() . '</head>', $html);
     return preg_replace('/<body([^>]*)>/', '<body$1>' . releaseBodyMarkup(), $html, 1) ?: $html;
 }
