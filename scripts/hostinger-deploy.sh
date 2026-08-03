@@ -11,7 +11,7 @@ BASE="https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-l
 mkdir -p "$ROOT" "$TMP/app" "$TMP/assets" "$PRIVATE"
 chmod 700 "$PRIVATE"
 
-for FILE in index.php .htaccess app/config.php app/helpers.php app/leads.php app/views.php assets/site.css assets/site.js assets/thank-you.js; do
+for FILE in index.php .htaccess googlebff965ed4f5bbb83.html app/config.php app/helpers.php app/leads.php app/views.php assets/site.css assets/site.js assets/thank-you.js; do
   curl -fsSL "$BASE/$FILE" -o "$TMP/$FILE"
 done
 
@@ -20,6 +20,8 @@ done
 /opt/alt/php85/usr/bin/php -l "$TMP/app/helpers.php"
 /opt/alt/php85/usr/bin/php -l "$TMP/app/leads.php"
 /opt/alt/php85/usr/bin/php -l "$TMP/app/views.php"
+
+grep -qx 'google-site-verification: googlebff965ed4f5bbb83.html' "$TMP/googlebff965ed4f5bbb83.html"
 
 copy_asset() {
   SOURCE="$1"
@@ -44,6 +46,7 @@ fi
 mkdir -p "$ROOT/app" "$ROOT/assets"
 install -m 0644 "$TMP/index.php" "$ROOT/index.php"
 install -m 0644 "$TMP/.htaccess" "$ROOT/.htaccess"
+install -m 0644 "$TMP/googlebff965ed4f5bbb83.html" "$ROOT/googlebff965ed4f5bbb83.html"
 install -m 0644 "$TMP/app/config.php" "$ROOT/app/config.php"
 install -m 0644 "$TMP/app/helpers.php" "$ROOT/app/helpers.php"
 install -m 0644 "$TMP/app/leads.php" "$ROOT/app/leads.php"
