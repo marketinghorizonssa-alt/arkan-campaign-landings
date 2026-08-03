@@ -16,9 +16,9 @@ function releaseHeadMarkup(): string {
     $verification = GOOGLE_SITE_VERIFICATION !== ''
         ? '<meta name="google-site-verification" content="' . e(GOOGLE_SITE_VERIFICATION) . '">'
         : '';
-    $brandIcons = '<link rel="icon" type="image/webp" href="/assets/logo.webp?v=1">'
-        . '<link rel="shortcut icon" type="image/webp" href="/assets/logo.webp?v=1">'
-        . '<link rel="apple-touch-icon" href="/assets/logo.webp?v=1">';
+    $brandIcons = '<link rel="icon" type="image/webp" href="/assets/logo-360.webp?v=1">'
+        . '<link rel="shortcut icon" type="image/webp" href="/assets/logo-360.webp?v=1">'
+        . '<link rel="apple-touch-icon" href="/assets/logo-360.webp?v=1">';
     $gtmId = json_encode(GTM_PUBLIC_ID, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     $gtm = '<script>window.dataLayer=window.dataLayer||[];(function(w,d,i){var loaded=false;function loadGtm(){if(loaded)return;loaded=true;w.dataLayer.push({"gtm.start":Date.now(),event:"gtm.js"});var f=d.getElementsByTagName("script")[0],j=d.createElement("script");j.async=true;j.src="https://www.googletagmanager.com/gtm.js?id="+encodeURIComponent(i);f.parentNode.insertBefore(j,f)}["pointerdown","keydown","touchstart","scroll"].forEach(function(n){w.addEventListener(n,loadGtm,{once:true,passive:true})});w.setTimeout(loadGtm,12000)})(window,document,' . $gtmId . ');</script>';
     return $verification . $brandIcons . $gtm;
@@ -32,6 +32,7 @@ function renderHtml(string $html): string {
     foreach (['4','5','6','7'] as $version) {
         $html = str_replace('/assets/site.js?v=' . $version, '/assets/site.js?v=8', $html);
     }
+    $html = str_replace('/assets/logo.webp', '/assets/logo-360.webp', $html);
     $html = preg_replace_callback(
         '/<section class="hero" style="--hero-image:url\(([^)]+)\)">/',
         static function (array $matches): string {
