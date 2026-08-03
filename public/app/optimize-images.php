@@ -8,15 +8,24 @@ if ($assetDir === '' || !is_dir($assetDir) || !class_exists(Imagick::class)) {
 }
 
 foreach (glob(rtrim($assetDir, '/') . '/hero-*.jpg') ?: [] as $source) {
-    $image = new Imagick($source);
-    $image->setIteratorIndex(0);
-    $image->thumbnailImage(1280, 0, true);
-    $image->setImageFormat('webp');
-    $image->setImageCompressionQuality(68);
-    $image->stripImage();
-    $target = preg_replace('/\.jpg$/i', '.webp', $source) ?: ($source . '.webp');
-    $image->writeImage($target);
-    $image->clear();
+    $base = preg_replace('/\.jpg$/i', '', $source) ?: $source;
+    $original = new Imagick($source);
+    $original->setIteratorIndex(0);
+
+    $mobile = clone $original;
+    $mobile->thumbnailImage(768, 0, true);
+    $mobile->setImageFormat('webp');
+    $mobile->setImageCompressionQuality(64);
+    $mobile->stripImage();
+    $mobile->writeImage($base . '-768.webp');
+    $mobile->clear();
+
+    $original->thumbnailImage(1280, 0, true);
+    $original->setImageFormat('webp');
+    $original->setImageCompressionQuality(68);
+    $original->stripImage();
+    $original->writeImage($base . '.webp');
+    $original->clear();
 }
 
 $logo = rtrim($assetDir, '/') . '/logo.webp';
