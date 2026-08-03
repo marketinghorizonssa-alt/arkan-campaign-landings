@@ -9,6 +9,22 @@ function canonical(string $path): string {
     return ORIGIN . '/' . implode('/', array_map('rawurlencode', $segments)) . '/';
 }
 function phoneHtml(): string { return '<bdi class="phone-number" dir="ltr">' . e(PHONE_DISPLAY) . '</bdi>'; }
+function heroWebpPath(string $path): string {
+    return preg_replace('/\.jpe?g$/i', '.webp', $path) ?: $path;
+}
+function heroPictureHtml(string $jpg): string {
+    $webp = heroWebpPath($jpg);
+    return '<picture class="hero-picture" aria-hidden="true"><source srcset="' . e($webp) . '" type="image/webp"><img class="hero-media" src="' . e($jpg) . '" alt="" width="1280" height="720" fetchpriority="high" decoding="async"></picture>';
+}
+function siteCss(): string {
+    static $css = null;
+    if ($css === null) {
+        $path = __DIR__ . '/../assets/site.css';
+        $css = is_file($path) ? (string)file_get_contents($path) : '';
+        $css .= '.hero{background:#071434!important}.hero-picture{position:absolute;inset:0;z-index:-2;display:block;width:100%;height:100%}.hero-media{display:block;width:100%;height:100%;object-fit:cover}.hero-overlay{background:linear-gradient(90deg,rgba(7,20,52,.98) 0%,rgba(7,20,52,.92) 42%,rgba(7,20,52,.69) 72%,rgba(7,20,52,.48) 100%),radial-gradient(circle at 15% 20%,rgba(19,191,232,.14),transparent 38%)}.theme-home .hero-media{object-position:center 44%}.theme-finance .hero-media{object-position:center 55%}.theme-rejection .hero-media{object-position:center 42%}.theme-obligations .hero-media{object-position:center 52%}.theme-debt .hero-media{object-position:center 45%}.theme-property .hero-media{object-position:center 50%}.section,.contact-band,.footer{content-visibility:auto;contain-intrinsic-size:1px 800px}@media(max-width:780px){.hero-overlay{background:linear-gradient(180deg,rgba(7,20,52,.72),rgba(7,20,52,.96) 58%,#071434 100%)}.hero-media{object-position:center top}}';
+    }
+    return $css;
+}
 function sendRedirect(string $target, int $status = 301): never {
     $query = $_SERVER['QUERY_STRING'] ?? '';
     header('Location: ' . $target . ($query !== '' ? '?' . $query : ''), true, $status);
@@ -31,15 +47,17 @@ function icon(string $name): string {
 }
 function logoHtml(string $class = ''): string {
     $classAttr = $class !== '' ? ' class="' . e($class) . '"' : '';
-    return '<picture><source srcset="/assets/logo.webp" type="image/webp"><img' . $classAttr . ' src="/assets/logo.jpg" alt="شعار أركان التنفيذية" width="720" height="280"></picture>';
+    $loading = $class === 'footer-logo' ? ' loading="lazy" decoding="async"' : ' decoding="async"';
+    return '<picture><source srcset="/assets/logo.webp" type="image/webp"><img' . $classAttr . $loading . ' src="/assets/logo.jpg" alt="شعار أركان التنفيذية" width="720" height="280"></picture>';
 }
 function headHtml(string $title, string $description, string $path, string $heroImage = '/assets/hero-home.jpg'): string {
     $robots = 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1';
     $url = canonical($path);
+    $heroWebp = heroWebpPath($heroImage);
     $schema = [
         '@context' => 'https://schema.org', '@type' => 'ProfessionalService', '@id' => ORIGIN . '/#business',
         'name' => 'أركان التنفيذية', 'url' => ORIGIN, 'telephone' => PHONE_E164,
-        'logo' => ORIGIN . '/assets/logo.webp', 'image' => ORIGIN . $heroImage,
+        'logo' => ORIGIN . '/assets/logo.webp', 'image' => ORIGIN . $heroWebp,
         'description' => 'حلول مالية وعقارية متكاملة تساعد العملاء على فهم الأهلية والالتزامات واختيار مسار التملك المناسب.',
         'areaServed' => ['@type' => 'Country', 'name' => 'Saudi Arabia'],
         'sameAs' => ['https://www.instagram.com/arkanexecut/', 'https://x.com/arkanexecut', 'https://www.tiktok.com/@arkan.execut'],
@@ -50,11 +68,10 @@ function headHtml(string $title, string $description, string $path, string $hero
         . '<link rel="canonical" href="' . e($url) . '"><link rel="alternate" hreflang="ar-SA" href="' . e($url) . '"><link rel="alternate" hreflang="x-default" href="' . e($url) . '">'
         . '<meta property="og:locale" content="ar_SA"><meta property="og:type" content="website"><meta property="og:site_name" content="أركان التنفيذية">'
         . '<meta property="og:title" content="' . e($title) . '"><meta property="og:description" content="' . e($description) . '">'
-        . '<meta property="og:url" content="' . e($url) . '"><meta property="og:image" content="' . ORIGIN . e($heroImage) . '">'
+        . '<meta property="og:url" content="' . e($url) . '"><meta property="og:image" content="' . ORIGIN . e($heroWebp) . '">'
         . '<meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#071434">'
-        . '<link rel="preload" href="' . e($heroImage) . '" as="image">'
-        . '<link rel="preload" href="/assets/logo.webp" as="image" type="image/webp">'
-        . '<link rel="stylesheet" href="/assets/site.css?v=5">'
+        . '<link rel="preload" href="' . e($heroWebp) . '" as="image" type="image/webp" fetchpriority="high">'
+        . '<style>' . siteCss() . '</style>'
         . '<script type="application/ld+json">' . json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script></head>';
 }
 function navHtml(): string {
@@ -74,5 +91,5 @@ function floatingButtons(string $wa): string {
 }
 function scriptsHtml(string $leadEndpoint): string {
     $config = json_encode(['review' => false, 'endpoint' => $leadEndpoint, 'thankYou' => '/تم-استلام-الطلب/', 'whatsapp' => WHATSAPP_NUMBER, 'privacyVersion' => PRIVACY_VERSION], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=7" defer></script>';
+    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=8" defer></script>';
 }
