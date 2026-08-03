@@ -7,12 +7,13 @@ PRIVATE="/home/u878466595/private"
 REFERENCE="/home/u878466595/domains/hositee.com/public_html/arkan-executive/images"
 TMP="$ROOT/.deploy-$COMMIT"
 BASE="https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/$COMMIT/public"
+ORIGIN="https://arkan-realestate-solutions.hositee.com"
 PHP="/opt/alt/php85/usr/bin/php"
 
 mkdir -p "$ROOT" "$TMP/app" "$TMP/assets" "$PRIVATE"
 chmod 700 "$PRIVATE"
 
-for FILE in index.php .htaccess googlebff965ed4f5bbb83.html app/config.php app/helpers.php app/leads.php app/views.php assets/site.css assets/site.js assets/thank-you.js; do
+for FILE in index.php .htaccess robots.txt sitemap.xml googlebff965ed4f5bbb83.html app/config.php app/helpers.php app/leads.php app/views.php assets/site.css assets/site.js assets/thank-you.js; do
   curl -fsSL "$BASE/$FILE" -o "$TMP/$FILE"
 done
 
@@ -23,21 +24,21 @@ done
 "$PHP" -l "$TMP/app/views.php"
 
 grep -qx 'google-site-verification: googlebff965ed4f5bbb83.html' "$TMP/googlebff965ed4f5bbb83.html"
-grep -q 'robots\\.txt|sitemap\\.xml' "$TMP/.htaccess"
-
-# Validate production crawl-control output before replacing live files.
-env REQUEST_URI=/robots.txt REQUEST_METHOD=GET "$PHP" "$TMP/index.php" > "$TMP/robots.generated"
-grep -qx 'User-agent: \*' "$TMP/robots.generated"
-grep -qx 'Allow: /' "$TMP/robots.generated"
-grep -qx 'Sitemap: https://arkan-realestate-solutions.hositee.com/sitemap.xml' "$TMP/robots.generated"
-if grep -qx 'Disallow: /' "$TMP/robots.generated"; then
-  echo 'Deployment blocked: production robots output still disallows the site.' >&2
+grep -qx 'User-agent: Googlebot' "$TMP/robots.txt"
+grep -qx 'User-agent: \*' "$TMP/robots.txt"
+grep -qx "Sitemap: $ORIGIN/sitemap.xml" "$TMP/robots.txt"
+if grep -Eq '^Disallow:[[:space:]]*/' "$TMP/robots.txt"; then
+  echo 'Deployment blocked: static robots.txt disallows production.' >&2
   exit 1
 fi
 
-env REQUEST_URI=/sitemap.xml REQUEST_METHOD=GET "$PHP" "$TMP/index.php" > "$TMP/sitemap.generated"
-"$PHP" -r '$xml = simplexml_load_file($argv[1]); if ($xml === false || count($xml->url) !== 6) { fwrite(STDERR, "Invalid sitemap or unexpected URL count\n"); exit(1); }' "$TMP/sitemap.generated"
-grep -q 'https://arkan-realestate-solutions.hositee.com/' "$TMP/sitemap.generated"
+"$PHP" -r '$xml = simplexml_load_file($argv[1]); if ($xml === false || count($xml->url) !== 6) { fwrite(STDERR, "Invalid sitemap or unexpected URL count\n"); exit(1); }' "$TMP/sitemap.xml"
+grep -q "$ORIGIN/" "$TMP/sitemap.xml"
+grep -q "X-Robots-Tag: index, follow" "$TMP/index.php"
+if grep -q "path === '/robots.txt'" "$TMP/index.php" || grep -q "path === '/sitemap.xml'" "$TMP/index.php"; then
+  echo 'Deployment blocked: crawl-control endpoints must be static.' >&2
+  exit 1
+fi
 
 copy_asset() {
   SOURCE="$1"
@@ -60,13 +61,10 @@ else
 fi
 
 mkdir -p "$ROOT/app" "$ROOT/assets"
-
-# Delete stale physical crawl-control files from older builds. Apache must
-# reach index.php so REVIEW_MODE remains the single source of truth.
-rm -f "$ROOT/robots.txt" "$ROOT/sitemap.xml"
-
 install -m 0644 "$TMP/index.php" "$ROOT/index.php"
 install -m 0644 "$TMP/.htaccess" "$ROOT/.htaccess"
+install -m 0644 "$TMP/robots.txt" "$ROOT/robots.txt"
+install -m 0644 "$TMP/sitemap.xml" "$ROOT/sitemap.xml"
 install -m 0644 "$TMP/googlebff965ed4f5bbb83.html" "$ROOT/googlebff965ed4f5bbb83.html"
 install -m 0644 "$TMP/app/config.php" "$ROOT/app/config.php"
 install -m 0644 "$TMP/app/helpers.php" "$ROOT/app/helpers.php"
@@ -74,6 +72,18 @@ install -m 0644 "$TMP/app/leads.php" "$ROOT/app/leads.php"
 install -m 0644 "$TMP/app/views.php" "$ROOT/app/views.php"
 for FILE in "$TMP"/assets/*; do [ -f "$FILE" ] && install -m 0644 "$FILE" "$ROOT/assets/$(basename "$FILE")"; done
 
-printf 'commit=%s\ndeployed_at=%s\n' "$COMMIT" "$(date -Iseconds)" > "$ROOT/.deployment"
+# Validate the public Googlebot-facing responses after installation and bypass caches.
+curl -fsS -A Googlebot -H 'Cache-Control: no-cache' "$ORIGIN/robots.txt?deploy=$COMMIT" -o "$TMP/robots.live"
+grep -qx 'User-agent: Googlebot' "$TMP/robots.live"
+grep -qx 'User-agent: \*' "$TMP/robots.live"
+grep -qx "Sitemap: $ORIGIN/sitemap.xml" "$TMP/robots.live"
+if grep -Eq '^Disallow:[[:space:]]*/' "$TMP/robots.live"; then
+  echo 'Deployment blocked: live Googlebot robots response disallows production.' >&2
+  exit 1
+fi
+curl -fsS -A Googlebot -H 'Cache-Control: no-cache' "$ORIGIN/sitemap.xml?deploy=$COMMIT" -o "$TMP/sitemap.live"
+"$PHP" -r '$xml = simplexml_load_file($argv[1]); if ($xml === false || count($xml->url) !== 6) { fwrite(STDERR, "Live sitemap invalid\n"); exit(1); }' "$TMP/sitemap.live"
+
+printf 'commit=%s\ndeployed_at=%s\nseo_mode=static-production\n' "$COMMIT" "$(date -Iseconds)" > "$ROOT/.deployment"
 rm -rf "$TMP"
-echo "ARKAN_DEPLOY_OK $COMMIT"
+echo "ARKAN_DEPLOY_OK $COMMIT STATIC_SEO_OK"
