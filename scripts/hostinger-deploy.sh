@@ -14,7 +14,7 @@ INSPECTION_UA="Mozilla/5.0 (compatible; Google-InspectionTool/1.0)"
 mkdir -p "$ROOT" "$TMP/app" "$TMP/assets" "$PRIVATE"
 chmod 700 "$PRIVATE"
 
-for FILE in index.php .htaccess robots.txt sitemap.xml googlebff965ed4f5bbb83.html app/config.php app/helpers.php app/leads.php app/views.php assets/site.css assets/site.js assets/thank-you.js; do
+for FILE in index.php .htaccess robots.txt sitemap.xml app/config.php app/helpers.php app/leads.php app/views.php assets/site.css assets/site.js assets/thank-you.js; do
   curl -fsSL "$BASE/$FILE" -o "$TMP/$FILE"
 done
 
@@ -24,7 +24,6 @@ done
 "$PHP" -l "$TMP/app/leads.php"
 "$PHP" -l "$TMP/app/views.php"
 
-grep -qx 'google-site-verification: googlebff965ed4f5bbb83.html' "$TMP/googlebff965ed4f5bbb83.html"
 grep -qx 'User-agent: Google-InspectionTool' "$TMP/robots.txt"
 grep -qx 'User-agent: Googlebot' "$TMP/robots.txt"
 grep -qx 'User-agent: \*' "$TMP/robots.txt"
@@ -68,7 +67,7 @@ install -m 0644 "$TMP/index.php" "$ROOT/index.php"
 install -m 0644 "$TMP/.htaccess" "$ROOT/.htaccess"
 install -m 0644 "$TMP/robots.txt" "$ROOT/robots.txt"
 install -m 0644 "$TMP/sitemap.xml" "$ROOT/sitemap.xml"
-install -m 0644 "$TMP/googlebff965ed4f5bbb83.html" "$ROOT/googlebff965ed4f5bbb83.html"
+rm -f "$ROOT/googlebff965ed4f5bbb83.html"
 install -m 0644 "$TMP/app/config.php" "$ROOT/app/config.php"
 install -m 0644 "$TMP/app/helpers.php" "$ROOT/app/helpers.php"
 install -m 0644 "$TMP/app/leads.php" "$ROOT/app/leads.php"
