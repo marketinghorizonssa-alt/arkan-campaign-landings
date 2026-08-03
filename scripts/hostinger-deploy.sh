@@ -14,7 +14,7 @@ INSPECTION_UA="Mozilla/5.0 (compatible; Google-InspectionTool/1.0)"
 mkdir -p "$ROOT" "$TMP/app" "$TMP/assets" "$PRIVATE"
 chmod 700 "$PRIVATE"
 
-for FILE in index.php .htaccess robots.txt sitemap.xml app/config.php app/helpers.php app/leads.php app/views.php assets/site.css assets/site.js assets/thank-you.js; do
+for FILE in index.php .htaccess robots.txt sitemap.xml app/config.php app/helpers.php app/leads.php app/views.php app/optimize-images.php assets/site.css assets/site.js assets/thank-you.js; do
   curl -fsSL "$BASE/$FILE" -o "$TMP/$FILE"
 done
 
@@ -23,6 +23,7 @@ done
 "$PHP" -l "$TMP/app/helpers.php"
 "$PHP" -l "$TMP/app/leads.php"
 "$PHP" -l "$TMP/app/views.php"
+"$PHP" -l "$TMP/app/optimize-images.php"
 
 grep -qx 'User-agent: Google-InspectionTool' "$TMP/robots.txt"
 grep -qx 'User-agent: Googlebot' "$TMP/robots.txt"
@@ -61,6 +62,8 @@ if [ ! -f "$TMP/assets/logo.webp" ]; then
 else
   cp "$TMP/assets/logo.webp" "$TMP/assets/logo.jpg"
 fi
+
+"$PHP" "$TMP/app/optimize-images.php" "$TMP/assets"
 
 mkdir -p "$ROOT/app" "$ROOT/assets"
 install -m 0644 "$TMP/index.php" "$ROOT/index.php"
