@@ -16,8 +16,11 @@ function releaseHeadMarkup(): string {
     $verification = GOOGLE_SITE_VERIFICATION !== ''
         ? '<meta name="google-site-verification" content="' . e(GOOGLE_SITE_VERIFICATION) . '">'
         : '';
+    $brandIcons = '<link rel="icon" type="image/webp" href="/assets/logo.webp?v=1">'
+        . '<link rel="shortcut icon" type="image/webp" href="/assets/logo.webp?v=1">'
+        . '<link rel="apple-touch-icon" href="/assets/logo.webp?v=1">';
     $gtm = '<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({\'gtm.start\':new Date().getTime(),event:\'gtm.js\'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!==\'dataLayer\'?\'&l=\'+l:\'\';j.async=true;j.src=\'https://www.googletagmanager.com/gtm.js?id=\'+i+dl;f.parentNode.insertBefore(j,f);})(window,document,\'script\',\'dataLayer\',\'' . e(GTM_PUBLIC_ID) . '\');</script>';
-    return $verification . $gtm;
+    return $verification . $brandIcons . $gtm;
 }
 
 function releaseBodyMarkup(): string {
