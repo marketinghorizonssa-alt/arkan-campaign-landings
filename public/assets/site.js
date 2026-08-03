@@ -6,10 +6,21 @@
   const visible=['full_name','phone','city','property_type','employer_type'];
   const params=new URLSearchParams(location.search);
   const attribution=['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','gbraid','wbraid','ttclid','fbclid'];
+  const pushEvent=(event,detail={})=>{
+    window.dataLayer=window.dataLayer||[];
+    window.dataLayer.push({event,...detail});
+  };
   attribution.forEach(k=>{const el=form.elements[k];if(el)el.value=params.get(k)||'';});
   form.elements.landing_path.value=location.pathname;
   form.elements.referrer.value=document.referrer||'';
   if(form.elements.privacy_consent)form.elements.privacy_consent.checked=true;
+
+  document.addEventListener('click',e=>{
+    const link=e.target.closest?.('a');
+    if(!link)return;
+    if(link.classList.contains('track-call'))pushEvent('arkan_call_click',{page_path:location.pathname});
+    if(link.classList.contains('track-whatsapp'))pushEvent('arkan_whatsapp_click',{page_path:location.pathname});
+  },{passive:true});
 
   const fieldLabels={
     full_name:'الاسم',
@@ -99,6 +110,7 @@
     e.preventDefault();
     clearErrors();
     if(!validate())return;
+    if(typeof window.__loadArkanGtm==='function')window.__loadArkanGtm();
     const data=Object.fromEntries(new FormData(form).entries());
     data.privacy_consent='1';
     data.privacy_version=cfg.privacyVersion||'';
@@ -133,9 +145,11 @@
         throw new Error(result.error||'submit_failed');
       }
       localStorage.removeItem('arkan_lead_draft_v2');
+      const eventDetail={landing_page_id:data.landing_page_id||'',lead_token:result.lead_token||'',duplicate:!!result.duplicate};
       sessionStorage.setItem('arkan_lead_preview',JSON.stringify({...data,lead_id:result.lead_token||''}));
       sessionStorage.setItem('arkan_lead_token',result.lead_token||'');
-      document.dispatchEvent(new CustomEvent('arkan:lead-success',{detail:{landing_page_id:data.landing_page_id||'',lead_token:result.lead_token||'',duplicate:!!result.duplicate}}));
+      pushEvent('arkan:lead-success',eventDetail);
+      document.dispatchEvent(new CustomEvent('arkan:lead-success',{detail:eventDetail}));
       window.setTimeout(()=>{location.href=cfg.thankYou||'/تم-استلام-الطلب/';},600);
     }catch(err){
       if(status)status.textContent='تعذر إرسال الطلب الآن. جرّب مرة أخرى بعد قليل.';
