@@ -1,0 +1,251 @@
+{
+  "exportFormatVersion": 2,
+  "exportTime": "2026-08-04 13:20:00",
+  "containerVersion": {
+    "path": "accounts/6368656257/containers/259730553/versions/0",
+    "accountId": "6368656257",
+    "containerId": "259730553",
+    "containerVersionId": "0",
+    "name": "ARKAN - Google Ads Form WhatsApp Call - 2026-08-04",
+    "description": "Exact ARKAN GTM package: one listener, three custom-event triggers, one Google Tag, one Conversion Linker, and three Google Ads conversion tags. Conversion IDs and labels are stored directly in tags; no user-defined variables.",
+    "container": {
+      "path": "accounts/6368656257/containers/259730553",
+      "accountId": "6368656257",
+      "containerId": "259730553",
+      "name": "arkan-realestate-solutions.hositee.com",
+      "publicId": "GTM-P5J6D6ND",
+      "usageContext": [
+        "WEB"
+      ]
+    },
+    "tag": [
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "tagId": "1",
+        "name": "Listener - ARKAN Form Call WhatsApp",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script>\n(function(w,d){\n  if(w.__arkanGtmListenerInstalled)return;\n  w.__arkanGtmListenerInstalled=true;\n  var last={};\n  function emit(name,data,key){\n    var now=Date.now(),k=key||name;\n    if(last[k]&&now-last[k]<1000)return;\n    last[k]=now;\n    w.dataLayer=w.dataLayer||[];\n    var payload={event:name,page_path:w.location.pathname};\n    data=data||{};\n    for(var p in data){if(Object.prototype.hasOwnProperty.call(data,p))payload[p]=data[p];}\n    w.dataLayer.push(payload);\n  }\n  d.addEventListener('click',function(e){\n    var node=e.target;\n    var a=node&&node.closest?node.closest('a'):null;\n    if(!a)return;\n    var href=(a.getAttribute('href')||'').trim();\n    var text=(a.textContent||'').replace(/\\s+/g,' ').trim();\n    if(/^tel:/i.test(href)){\n      emit('click_call',{click_url:href,click_text:text},'call:'+href);\n      return;\n    }\n    if(/(?:wa\\.me|api\\.whatsapp\\.com|whatsapp\\.com)/i.test(href)){\n      emit('click_whatsapp',{click_url:href,click_text:text},'wa:'+href);\n    }\n  },true);\n  d.addEventListener('arkan:lead-success',function(e){\n    var x=e&&e.detail?e.detail:{};\n    emit('lead_form_success',{\n      landing_page_id:x.landing_page_id||'',\n      lead_token:x.lead_token||'',\n      duplicate:!!x.duplicate\n    },'form:'+(x.lead_token||'success'));\n  });\n})(window,document);\n</script>"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "supportDocumentWrite",
+            "value": "false"
+          }
+        ],
+        "firingTriggerId": [
+          "2147479553"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": {
+          "type": "MAP"
+        },
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      },
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "tagId": "5",
+        "name": "Google Tag - AW-18351042794",
+        "type": "googtag",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "tagId",
+            "value": "AW-18351042794"
+          }
+        ],
+        "firingTriggerId": [
+          "2147479553"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      },
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "tagId": "6",
+        "name": "Conversion Linker - ARKAN",
+        "type": "gclidw",
+        "parameter": [
+          {
+            "type": "BOOLEAN",
+            "key": "enableUrlPassthrough",
+            "value": "true"
+          }
+        ],
+        "firingTriggerId": [
+          "2147479553"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      },
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "tagId": "7",
+        "name": "Google Ads - ARKAN Form Success",
+        "type": "awct",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "conversionId",
+            "value": "18351042794"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "conversionLabel",
+            "value": "F7HpCLHk49scEOrhuq5E"
+          }
+        ],
+        "firingTriggerId": [
+          "2"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      },
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "tagId": "8",
+        "name": "Google Ads - ARKAN WhatsApp Click",
+        "type": "awct",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "conversionId",
+            "value": "18351042794"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "conversionLabel",
+            "value": "XQr5CLTk49scEOrhuq5E"
+          }
+        ],
+        "firingTriggerId": [
+          "4"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      },
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "tagId": "9",
+        "name": "Google Ads - ARKAN Call Click",
+        "type": "awct",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "conversionId",
+            "value": "18351042794"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "conversionLabel",
+            "value": "x8TACLfk49scEOrhuq5E"
+          }
+        ],
+        "firingTriggerId": [
+          "3"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      }
+    ],
+    "trigger": [
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "triggerId": "2",
+        "name": "CE - ARKAN Form Success",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "lead_form_success"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "triggerId": "3",
+        "name": "CE - ARKAN Call Click",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "click_call"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6368656257",
+        "containerId": "259730553",
+        "triggerId": "4",
+        "name": "CE - ARKAN WhatsApp Click",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "click_whatsapp"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "builtInVariable": [],
+    "variable": [],
+    "fingerprint": "1785859200000",
+    "tagManagerUrl": "https://tagmanager.google.com/#/versions/accounts/6368656257/containers/259730553/versions/0"
+  }
+}
