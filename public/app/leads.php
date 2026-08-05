@@ -15,6 +15,46 @@ function readJsonBody(): array {
     if (!is_array($data)) jsonResponse(['ok' => false, 'error' => 'invalid_json'], 400);
     return $data;
 }
+function relayLeadSubmit(array $data, string $endpoint): never {
+    $payload = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($payload === false) jsonResponse(['ok' => false, 'error' => 'relay_encoding_failed'], 502);
+    $status = 502;
+    $body = false;
+    if (function_exists('curl_init')) {
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json', 'X-Arkan-Relay: official-domain'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 18,
+            CURLOPT_FOLLOWLOCATION => false,
+        ]);
+        $body = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+    } else {
+        $context = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/json\r\nAccept: application/json\r\nX-Arkan-Relay: official-domain\r\n",
+            'content' => $payload,
+            'timeout' => 18,
+            'ignore_errors' => true,
+        ]]);
+        $body = @file_get_contents($endpoint, false, $context);
+        foreach ($http_response_header ?? [] as $header) {
+            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)) {
+                $status = (int)$matches[1];
+                break;
+            }
+        }
+    }
+    if (!is_string($body) || $body === '') jsonResponse(['ok' => false, 'error' => 'relay_unavailable'], 502);
+    $response = json_decode($body, true);
+    if (!is_array($response)) jsonResponse(['ok' => false, 'error' => 'relay_invalid_response'], 502);
+    jsonResponse($response, $status >= 100 && $status <= 599 ? $status : 502);
+}
 function cleanText(mixed $value, int $max = 255): string {
     $text = trim((string)$value);
     $text = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $text) ?? '';
@@ -43,6 +83,7 @@ function leadDb(): PDO {
 function handleLeadSubmit(): never {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') jsonResponse(['ok' => false, 'error' => 'method_not_allowed'], 405);
     $data = readJsonBody();
+    if (defined('LEAD_RELAY_ENDPOINT') && LEAD_RELAY_ENDPOINT !== '') relayLeadSubmit($data, LEAD_RELAY_ENDPOINT);
     $propertyAliases = ['ready_unit'=>'وحدة جاهزة','self_build'=>'بناء ذاتي','mortgage'=>'رهن عقاري'];
     $employerAliases = ['civil_gov'=>'حكومي مدني','military_gov'=>'حكومي عسكري','semi_gov'=>'شبه حكومي','private'=>'قطاع خاص','retired'=>'متقاعد'];
     $allowedProperties = array_values($propertyAliases);
