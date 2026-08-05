@@ -8,6 +8,10 @@ SetEnvIf Origin "^https://(www\.)?arkan2030\.com$" ARKAN_CORS_ORIGIN=$0
 <IfModule mod_rewrite.c>
 RewriteEngine On
 
+# Keep one canonical hostname for the official website.
+RewriteCond %{HTTP_HOST} ^www\.arkan2030\.com$ [NC]
+RewriteRule ^ https://arkan2030.com%{REQUEST_URI} [R=301,L,NE]
+
 # Complete the official-domain form preflight without invoking PHP.
 RewriteCond %{REQUEST_URI} ^/api/lead$
 RewriteCond %{REQUEST_METHOD} =OPTIONS
