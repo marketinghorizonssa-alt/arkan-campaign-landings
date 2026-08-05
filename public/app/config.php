@@ -1,15 +1,23 @@
 <?php
 declare(strict_types=1);
 
-const ORIGIN = 'https://arkan-realestate-solutions.hositee.com';
-const GTM_PUBLIC_ID = 'GTM-P5J6D6ND';
-const GOOGLE_SITE_VERIFICATION = 'f49aNRTgFNFyL5258XYNLMKaAyHrTEKEhfitFmFsqwo';
-const PHONE_DISPLAY = '0500 989 103';
-const PHONE_E164 = '+966500989103';
-const WHATSAPP_NUMBER = '966500989103';
-const PRIVACY_VERSION = '2026-08-02-v1';
-const LEAD_DB_PATH = '/home/u878466595/private/arkan-leads.sqlite';
-const LEAD_FEED_TOKEN_PATH = '/home/u878466595/private/arkan-feed-token';
+$runtimeHost = strtolower((string)($_SERVER['HTTP_HOST'] ?? 'arkan-realestate-solutions.hositee.com'));
+$runtimeHost = preg_replace('/:\d+$/', '', $runtimeHost) ?: 'arkan-realestate-solutions.hositee.com';
+$canonicalHost = str_starts_with($runtimeHost, 'www.') ? substr($runtimeHost, 4) : $runtimeHost;
+$publicRoot = dirname(__DIR__);
+$homeDir = (string)(getenv('HOME') ?: preg_replace('#/domains/.*$#', '', $publicRoot));
+$homeDir = rtrim($homeDir, '/');
+
+define('ORIGIN', 'https://' . $canonicalHost);
+define('GTM_PUBLIC_ID', 'GTM-P5J6D6ND');
+define('GOOGLE_SITE_VERIFICATION', $canonicalHost === 'arkan-realestate-solutions.hositee.com' ? 'f49aNRTgFNFyL5258XYNLMKaAyHrTEKEhfitFmFsqwo' : '');
+define('PHONE_DISPLAY', '0500 989 103');
+define('PHONE_E164', '+966500989103');
+define('WHATSAPP_NUMBER', '966500989103');
+define('PRIVACY_VERSION', '2026-08-02-v1');
+define('LEAD_DB_PATH', $homeDir . '/private/arkan-leads.sqlite');
+define('LEAD_FEED_TOKEN_PATH', $homeDir . '/private/arkan-feed-token');
+define('LEAD_RELAY_ENDPOINT', $canonicalHost === 'arkan2030.com' ? 'https://arkan-realestate-solutions.hositee.com/api/lead' : '');
 
 $leadEndpoint = '/api/lead';
 
