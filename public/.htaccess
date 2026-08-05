@@ -1,8 +1,17 @@
 Options -Indexes
 DirectoryIndex index.php
 
+<IfModule mod_setenvif.c>
+SetEnvIf Origin "^https://(www\.)?arkan2030\.com$" ARKAN_CORS_ORIGIN=$0
+</IfModule>
+
 <IfModule mod_rewrite.c>
 RewriteEngine On
+
+# Complete the official-domain form preflight without invoking PHP.
+RewriteCond %{REQUEST_URI} ^/api/lead$
+RewriteCond %{REQUEST_METHOD} =OPTIONS
+RewriteRule ^ - [R=204,L]
 
 # Serve physical SEO control files directly. All application pages fall through to PHP.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -15,6 +24,12 @@ RewriteRule ^ index.php [L,QSA]
 Header always set X-Content-Type-Options "nosniff"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"
 Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+# Allow only the official ARKAN domain to submit to the existing lead backend.
+Header always set Access-Control-Allow-Origin "%{ARKAN_CORS_ORIGIN}e" env=ARKAN_CORS_ORIGIN
+Header always set Access-Control-Allow-Methods "POST, OPTIONS" env=ARKAN_CORS_ORIGIN
+Header always set Access-Control-Allow-Headers "Content-Type, Accept" env=ARKAN_CORS_ORIGIN
+Header always merge Vary "Origin" env=ARKAN_CORS_ORIGIN
 
 <Files "robots.txt">
 Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
