@@ -1,0 +1,71 @@
+name: Build ARKAN official-domain deploy package
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@v4
+
+      - name: Assemble exact deployment package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/package"
+          SOURCE_ORIGIN="https://arkan-realestate-solutions.hositee.com"
+          mkdir -p "$ROOT/app" "$ROOT/assets"
+
+          cp public/index.php "$ROOT/index.php"
+          cp public/.htaccess "$ROOT/.htaccess"
+          cp public/robots.txt "$ROOT/robots.txt"
+          cp public/sitemap.xml "$ROOT/sitemap.xml"
+          cp public/google-ads-lead-v2.php "$ROOT/google-ads-lead-v2.php"
+          cp public/app/config.php "$ROOT/app/config.php"
+          cp public/app/helpers.php "$ROOT/app/helpers.php"
+          cp public/app/leads.php "$ROOT/app/leads.php"
+          cp public/app/views.php "$ROOT/app/views.php"
+          cp public/assets/site.css "$ROOT/assets/site.css"
+          cp public/assets/site.js "$ROOT/assets/site.js"
+          cp public/assets/thank-you.js "$ROOT/assets/thank-you.js"
+
+          sed -i 's|https://arkan-realestate-solutions.hositee.com|https://arkan2030.com|g' "$ROOT/robots.txt" "$ROOT/sitemap.xml"
+
+          for asset in \
+            logo.jpg logo.webp logo-360.webp white-logo.png \
+            hero-home.jpg hero-home.webp hero-home-768.webp \
+            hero-finance.jpg hero-finance.webp hero-finance-768.webp \
+            hero-rejection.jpg hero-rejection.webp hero-rejection-768.webp \
+            hero-obligations.jpg hero-obligations.webp hero-obligations-768.webp \
+            hero-debt.jpg hero-debt.webp hero-debt-768.webp \
+            hero-property.jpg hero-property.webp hero-property-768.webp; do
+            curl -fsSL "$SOURCE_ORIGIN/assets/$asset" -o "$ROOT/assets/$asset"
+          done
+
+          php -l "$ROOT/index.php"
+          php -l "$ROOT/google-ads-lead-v2.php"
+          php -l "$ROOT/app/config.php"
+          php -l "$ROOT/app/helpers.php"
+          php -l "$ROOT/app/leads.php"
+          php -l "$ROOT/app/views.php"
+          php -r '$xml = simplexml_load_file($argv[1]); if ($xml === false || count($xml->url) !== 6) { fwrite(STDERR, "Invalid sitemap\n"); exit(1); }' "$ROOT/sitemap.xml"
+          grep -q 'https://arkan2030.com/' "$ROOT/sitemap.xml"
+          grep -q 'Sitemap: https://arkan2030.com/sitemap.xml' "$ROOT/robots.txt"
+          printf 'commit=%s\ndomain=arkan2030.com\nbuilt_at=%s\nlead_mode=relay-to-existing-crm\n' "$GITHUB_SHA" "$(date -Iseconds)" > "$ROOT/.deployment"
+
+      - name: Upload deployable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: arkan2030-deploy-package
+          path: package/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
