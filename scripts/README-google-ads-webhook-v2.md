@@ -1,0 +1,1 @@
+Deploy the Google Ads webhook v2 from a reviewed commit with scripts/deploy-google-ads-webhook-v2.sh. The endpoint validates the configured Google key by comparing its SHA-256 hash and writes Google-hosted lead-form submissions into the existing unified SQLite lead store used by the Website and Google Sheet feed.
