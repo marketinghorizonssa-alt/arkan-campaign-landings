@@ -1,3 +1,4 @@
 target=arkan2030.com
 source_commit=7fca13a062d2598299528577f8d68da82b82833c
 purpose=production deployment package for final Google Ads QA
+requested_at=2026-08-06T13:27:00+03:00
