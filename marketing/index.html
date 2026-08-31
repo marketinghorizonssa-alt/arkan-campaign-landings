@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Marketing</title>
+  <style>
+    :root{--bg:#0b1020;--panel:#131a2b;--soft:#1b2440;--text:#f7f9fc;--muted:#98a2b3;--ok:#27c281;--warn:#ffb020;--line:#25304f;--accent:#7c8cff}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135deg,#09101d,#0d1425 60%,#11172b);color:var(--text)}
+    .shell{display:grid;grid-template-columns:260px 1fr;min-height:100vh}.side{border-left:1px solid var(--line);background:#0d1322;padding:28px 18px;position:sticky;top:0;height:100vh}.brand{font-size:26px;font-weight:800;margin-bottom:30px}.brand span{color:var(--accent)}
+    .nav a{display:block;color:#c9d1e3;text-decoration:none;padding:12px 14px;border-radius:12px;margin:7px 0}.nav a.active,.nav a:hover{background:var(--soft);color:#fff}
+    main{padding:30px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}.top h1{margin:0;font-size:28px}.pill{padding:8px 12px;border-radius:999px;background:#111a30;border:1px solid var(--line);color:#cbd5e1;font-size:13px}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{background:rgba(19,26,43,.9);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 30px rgba(0,0,0,.18)}.metric{font-size:30px;font-weight:800;margin-top:8px}.muted{color:var(--muted);font-size:13px}
+    .section{margin-top:18px}.section h2{font-size:18px;margin:0 0 12px}.clients{display:grid;grid-template-columns:1.3fr .9fr;gap:16px}.client-list .row{display:grid;grid-template-columns:1.2fr .8fr 1fr .8fr;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.status{display:inline-flex;align-items:center;gap:7px}.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}.dot.off{background:#667085}
+    .platforms{display:flex;gap:8px;flex-wrap:wrap}.tag{padding:6px 9px;border-radius:10px;background:#0f1730;border:1px solid #2a3761;font-size:12px}.event{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.event:last-child{border-bottom:0}.badge{padding:5px 8px;border-radius:9px;font-size:11px;background:#15392c;color:#81e6b6}.badge.pending{background:#3a2c12;color:#ffd27a}
+    .btn{background:var(--accent);border:0;color:white;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}.btn.secondary{background:#19223b;border:1px solid var(--line)}
+    .footer-note{margin-top:18px;color:#7f8aa7;font-size:12px}
+    @media(max-width:980px){.shell{grid-template-columns:1fr}.side{display:none}.grid{grid-template-columns:repeat(2,1fr)}.clients{grid-template-columns:1fr}}@media(max-width:620px){main{padding:18px}.grid{grid-template-columns:1fr}.client-list .row{grid-template-columns:1fr;gap:8px}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">Marketing<span>.</span></div>
+    <nav class="nav">
+      <a class="active" href="#">Dashboard</a>
+      <a href="#clients">Clients</a>
+      <a href="#events">Event Mapping</a>
+      <a href="#platforms">Platforms</a>
+      <a href="#settings">Settings</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="top">
+      <div><h1>Marketing Conversion Hub</h1><div class="muted">WhatsApp → Tags → Native / Realtime Ad Events</div></div>
+      <div class="pill">Horizons Workspace</div>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="muted">Clients</div><div class="metric">25</div></div>
+      <div class="card"><div class="muted">WhatsApp Numbers</div><div class="metric">25</div></div>
+      <div class="card"><div class="muted">Connected Platforms</div><div class="metric">6</div></div>
+      <div class="card"><div class="muted">Events Today</div><div class="metric">0</div></div>
+    </div>
+    <div class="section clients" id="clients">
+      <div class="card client-list">
+        <h2>Clients</h2>
+        <div class="row"><strong>Namat Alzan</strong><div class="status"><span class="dot"></span> WhatsApp</div><div class="platforms"><span class="tag">Meta</span><span class="tag">TikTok</span><span class="tag">Google</span></div><button class="btn secondary">Open</button></div>
+        <div class="row"><strong>Mujaddid</strong><div class="status"><span class="dot"></span> WhatsApp</div><div class="platforms"><span class="tag">TikTok</span><span class="tag">Meta</span></div><button class="btn secondary">Open</button></div>
+        <div class="row"><strong>PCARE</strong><div class="status"><span class="dot off"></span> Not connected</div><div class="platforms"><span class="tag">Google</span><span class="tag">Snap</span></div><button class="btn secondary">Open</button></div>
+      </div>
+      <div class="card" id="events">
+        <h2>Core Events</h2>
+        <div class="event"><span>Conversation Started</span><span class="badge">Realtime</span></div>
+        <div class="event"><span>Interested</span><span class="badge">Realtime</span></div>
+        <div class="event"><span>Qualified</span><span class="badge">Realtime</span></div>
+        <div class="event"><span>Purchased</span><span class="badge">Realtime</span></div>
+      </div>
+    </div>
+    <div class="section" id="platforms">
+      <div class="card">
+        <h2>Platform Connections</h2>
+        <div class="row" style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)"><span>Meta / WhatsApp</span><span class="badge pending">OAuth pending</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)"><span>TikTok Messaging Events</span><span class="badge pending">Partner access required</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)"><span>Google Ads</span><span class="badge pending">OAuth pending</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)"><span>Snapchat</span><span class="badge pending">OAuth pending</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)"><span>X Ads</span><span class="badge pending">API access pending</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;padding:12px 0"><span>LinkedIn Ads</span><span class="badge pending">OAuth pending</span></div>
+      </div>
+    </div>
+    <div class="footer-note">Marketing v0.1 • First operational shell for client + event + platform routing.</div>
+  </main>
+</div>
+</body>
+</html>
