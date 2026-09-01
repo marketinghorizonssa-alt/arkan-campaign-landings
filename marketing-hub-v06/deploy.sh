@@ -10,4 +10,4 @@ for F in api.php webhook.php connect.php init_setup.php flush_outbox.php; do
   php -l "$D/$F" >/dev/null
 done
 chmod 600 "$D/init_setup.php" "$D/flush_outbox.php" || true
-printf 'marketing-v07-deployed\n'
+printf 'marketing-v09-deployed\n'
