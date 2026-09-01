@@ -6,166 +6,41 @@ header('Access-Control-Allow-Headers: Content-Type, YCloud-Signature, X-Webhook-
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
-$base = __DIR__ . '/data';
-if (!is_dir($base)) { @mkdir($base, 0775, true); }
+$base=__DIR__.'/data';if(!is_dir($base))@mkdir($base,0775,true);
+$secureDir=dirname(__DIR__,4).'/.marketing';$ycloudSecureDir=$secureDir.'/ycloud';
+$connectionsFile=$base.'/ycloud_connections.json';$numbersFile=$base.'/whatsapp_numbers.json';
+function load_json(string $file,array $default=[]):array{if(!is_file($file))return$default;$raw=@file_get_contents($file);if($raw===false||trim($raw)==='')return$default;$v=json_decode($raw,true);return is_array($v)?$v:$default;}
+function save_json(string $file,array $data):bool{$tmp=$file.'.tmp';$ok=@file_put_contents($tmp,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT),LOCK_EX);if($ok===false)return false;return @rename($tmp,$file);}
+function append_jsonl(string $file,array $data):bool{$fh=@fopen($file,'ab');if(!$fh)return false;@flock($fh,LOCK_EX);$ok=fwrite($fh,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n")!==false;@flock($fh,LOCK_UN);fclose($fh);return$ok;}
+function normalize_phone(string $phone):string{$phone=trim($phone);$plus=str_starts_with($phone,'+')?'+':'';$digits=preg_replace('/\D+/','',$phone)??'';return$digits===''?'':$plus.$digits;}
+function safe_id(string $id):bool{return(bool)preg_match('/^yc_[a-z0-9_]{4,80}$/',$id);}
+function msg_text(array $m):string{$type=(string)($m['type']??'unknown');if($type==='text')return(string)($m['text']['body']??'');foreach(['image','video','document','audio','sticker']as$k){if($type===$k&&isset($m[$k])){$caption=trim((string)($m[$k]['caption']??''));if($caption!=='')return$caption;$filename=trim((string)($m[$k]['filename']??''));return$filename!==''?'['.$k.'] '.$filename:'['.$k.']';}}if($type==='location'){$loc=$m['location']??[];return'[location] '.trim((string)($loc['name']??$loc['address']??''));}if($type==='contacts')return'[contacts]';if($type==='reaction')return'[reaction] '.(string)($m['reaction']['emoji']??'');if($type==='interactive')return'[interactive]';return'['.$type.']';}
+function event_seen(string $file,string $id):bool{if($id===''||!is_file($file))return false;$fh=fopen($file,'rb');if(!$fh)return false;while(($line=fgets($fh))!==false){$row=json_decode($line,true);if(is_array($row)&&($row['id']??'')===$id){fclose($fh);return true;}}fclose($fh);return false;}
+function add_conversion_event(string $file,array $conv,string $eventName,string $sourceEventId,array $extra=[]):void{append_jsonl($file,array_merge(['id'=>'mev_'.bin2hex(random_bytes(8)),'event'=>$eventName,'conversation_id'=>$conv['id'],'client_id'=>$conv['client_id']??'','ycloud_connection_id'=>$conv['ycloud_connection_id']??'','waba_id'=>$conv['waba_id']??'','business_number'=>$conv['business_number']??'','customer_number'=>$conv['customer_number']??'','contact_name'=>$conv['contact_name']??'','ctwa_clid'=>$conv['ctwa_clid']??null,'source_event_id'=>$sourceEventId,'created_at'=>gmdate('c')],$extra));}
+function verify_signature(string $raw,string $header,string $secret):bool{if($secret===''||$header==='')return false;$t='';$s='';foreach(explode(',',$header)as$part){$part=trim($part);if(str_starts_with($part,'t='))$t=substr($part,2);elseif(str_starts_with($part,'s='))$s=substr($part,2);}if($t===''||$s===''||!ctype_digit($t))return false;$expected=hash_hmac('sha256',$t.'.'.$raw,$secret);return hash_equals($expected,$s);}
+function upsert_number(string $numbersFile,string $business,string $waba,string $connectionId,string $clientId):string{$numbers=load_json($numbersFile,[]);$phone=normalize_phone($business);$id='';foreach($numbers as$nid=>$n){if(normalize_phone((string)($n['phone_number']??''))===$phone&&(string)($n['waba_id']??'')===$waba){$id=(string)$nid;break;}}if($id==='')$id='num_'.substr(sha1($phone.'|'.$waba),0,12);$now=gmdate('c');$prev=$numbers[$id]??[];$numbers[$id]=['id'=>$id,'client_id'=>$clientId!==''?$clientId:(string)($prev['client_id']??''),'ycloud_connection_id'=>$connectionId!==''?$connectionId:(string)($prev['ycloud_connection_id']??''),'label'=>(string)($prev['label']??'Detected WhatsApp'),'phone_number'=>$phone,'waba_id'=>$waba,'provider'=>'ycloud','status'=>($clientId!==''||(string)($prev['client_id']??'')!=='')?'assigned':'detected','detected'=>true,'created_at'=>(string)($prev['created_at']??$now),'updated_at'=>$now];save_json($numbersFile,$numbers);return$id;}
 
-function load_json(string $file, array $default = []): array {
-    if (!is_file($file)) return $default;
-    $raw = @file_get_contents($file);
-    if ($raw === false || trim($raw) === '') return $default;
-    $v = json_decode($raw, true);
-    return is_array($v) ? $v : $default;
-}
-function save_json(string $file, array $data): bool {
-    $tmp = $file . '.tmp';
-    $ok = @file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT), LOCK_EX);
-    if ($ok === false) return false;
-    return @rename($tmp, $file);
-}
-function append_jsonl(string $file, array $data): bool {
-    $fh = @fopen($file, 'ab'); if (!$fh) return false;
-    @flock($fh, LOCK_EX);
-    $ok = fwrite($fh, json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) . "\n") !== false;
-    @flock($fh, LOCK_UN); fclose($fh); return $ok;
-}
-function msg_text(array $m): string {
-    $type = (string)($m['type'] ?? 'unknown');
-    if ($type === 'text') return (string)($m['text']['body'] ?? '');
-    foreach (['image','video','document','audio','sticker'] as $k) {
-        if ($type === $k && isset($m[$k])) {
-            $caption = trim((string)($m[$k]['caption'] ?? ''));
-            if ($caption !== '') return $caption;
-            $filename = trim((string)($m[$k]['filename'] ?? ''));
-            return $filename !== '' ? '['.$k.'] '.$filename : '['.$k.']';
-        }
-    }
-    if ($type === 'location') {
-        $loc = $m['location'] ?? [];
-        return '[location] ' . trim((string)($loc['name'] ?? $loc['address'] ?? ''));
-    }
-    if ($type === 'contacts') return '[contacts]';
-    if ($type === 'reaction') return '[reaction] ' . (string)($m['reaction']['emoji'] ?? '');
-    if ($type === 'interactive') return '[interactive]';
-    return '['.$type.']';
-}
-function event_seen(string $file, string $id): bool {
-    if ($id === '' || !is_file($file)) return false;
-    $fh = fopen($file, 'rb'); if (!$fh) return false;
-    while (($line = fgets($fh)) !== false) {
-        $row = json_decode($line, true);
-        if (is_array($row) && ($row['id'] ?? '') === $id) { fclose($fh); return true; }
-    }
-    fclose($fh); return false;
-}
-function add_conversion_event(string $file, array $conv, string $eventName, string $sourceEventId, array $extra = []): void {
-    append_jsonl($file, array_merge([
-        'id' => 'mev_' . bin2hex(random_bytes(8)),
-        'event' => $eventName,
-        'conversation_id' => $conv['id'],
-        'waba_id' => $conv['waba_id'] ?? '',
-        'business_number' => $conv['business_number'] ?? '',
-        'customer_number' => $conv['customer_number'] ?? '',
-        'contact_name' => $conv['contact_name'] ?? '',
-        'ctwa_clid' => $conv['ctwa_clid'] ?? null,
-        'source_event_id' => $sourceEventId,
-        'created_at' => gmdate('c')
-    ], $extra));
-}
+$raw=file_get_contents('php://input');if($raw===false||trim($raw)===''){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'empty_body']);exit;}
+$connections=load_json($connectionsFile,[]);$connectionId=trim((string)($_GET['connection']??''));
+if($connectionId===''){if(isset($connections['yc_legacy']))$connectionId='yc_legacy';}
+if($connectionId!==''&&(!safe_id($connectionId)||!isset($connections[$connectionId]))){http_response_code(404);echo json_encode(['ok'=>false,'error'=>'ycloud_connection_not_found']);exit;}
+if($connectionId!==''&&$connectionId!=='yc_legacy'){$secretFile=$ycloudSecureDir.'/'.$connectionId.'/webhook_secret';$secret=is_file($secretFile)?trim((string)@file_get_contents($secretFile)):'';$sig=(string)($_SERVER['HTTP_YCLOUD_SIGNATURE']??'');if($secret!==''&&!verify_signature($raw,$sig,$secret)){http_response_code(401);echo json_encode(['ok'=>false,'error'=>'invalid_signature']);exit;}}
+$event=json_decode($raw,true);if(!is_array($event)){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'invalid_json']);exit;}
+$type=(string)($event['type']??'unknown');$eventId=(string)($event['id']??'');$rawFile=$base.'/raw_events.jsonl';$convFile=$base.'/conversations.json';$conversionFile=$base.'/conversion_events.jsonl';$systemFile=$base.'/system_events.jsonl';
+if($eventId!==''&&event_seen($rawFile,$eventId)){echo json_encode(['ok'=>true,'duplicate'=>true,'event_type'=>$type],JSON_UNESCAPED_SLASHES);exit;}
+$endpointId=(string)($_SERVER['HTTP_X_WEBHOOK_ENDPOINT_ID']??'');append_jsonl($rawFile,['id'=>$eventId,'type'=>$type,'ycloud_connection_id'=>$connectionId,'endpoint_id'=>$endpointId,'createTime'=>$event['createTime']??gmdate('c'),'payload'=>$event]);
+if($connectionId!==''&&isset($connections[$connectionId])){$connections[$connectionId]['last_webhook_at']=gmdate('c');$connections[$connectionId]['last_event_type']=$type;if($endpointId!=='')$connections[$connectionId]['last_endpoint_id']=$endpointId;$connections[$connectionId]['updated_at']=gmdate('c');save_json($connectionsFile,$connections);}
+$clientId=$connectionId!==''?(string)($connections[$connectionId]['client_id']??''):'';$conversations=load_json($convFile,[]);$conversationUpdated=false;$conversionCreated=0;
 
-$raw = file_get_contents('php://input');
-if ($raw === false || trim($raw) === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'empty_body']); exit; }
-$event = json_decode($raw, true);
-if (!is_array($event)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_json']); exit; }
+$handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conversationUpdated,&$conversionCreated,$convFile,$conversionFile,$event,$eventId,$connectionId,$clientId,$numbersFile){$waba=(string)($m['wabaId']??'');$customer=(string)($m['from']??'');$business=(string)($m['to']??'');$id=substr(hash('sha256',$waba.'|'.$customer),0,24);$isNew=!isset($conversations[$id]);$profile=is_array($m['customerProfile']??null)?$m['customerProfile']:[];$referral=is_array($m['referral']??null)?$m['referral']:[];$prev=$conversations[$id]??[];$numberId=upsert_number($numbersFile,$business,$waba,$connectionId,$clientId);$conv=array_merge($prev,['id'=>$id,'client_id'=>$clientId!==''?$clientId:(string)($prev['client_id']??''),'number_id'=>$numberId,'ycloud_connection_id'=>$connectionId!==''?$connectionId:(string)($prev['ycloud_connection_id']??''),'waba_id'=>$waba,'business_number'=>$business,'customer_number'=>$customer,'contact_name'=>(string)($profile['name']??($prev['contact_name']??$customer)),'contact_username'=>(string)($profile['username']??($prev['contact_username']??'')),'first_seen_at'=>$prev['first_seen_at']??(string)($m['sendTime']??$event['createTime']??gmdate('c')),'last_message_at'=>(string)($m['sendTime']??$event['createTime']??gmdate('c')),'last_message_text'=>msg_text($m),'last_message_type'=>(string)($m['type']??'unknown'),'last_direction'=>$history?'history_inbound':'inbound','last_source_event_id'=>$eventId,'current_tag'=>$prev['current_tag']??null,'ctwa_clid'=>(string)($referral['ctwa_clid']??($prev['ctwa_clid']??'')),'ad_source_id'=>(string)($referral['source_id']??($prev['ad_source_id']??'')),'ad_source_type'=>(string)($referral['source_type']??($prev['ad_source_type']??'')),'ad_headline'=>(string)($referral['headline']??($prev['ad_headline']??'')),'updated_at'=>gmdate('c')]);$conversations[$id]=$conv;save_json($convFile,$conversations);$conversationUpdated=true;if($isNew&&!$history){add_conversion_event($conversionFile,$conv,'conversation_started',$eventId,['origin'=>'whatsapp_inbound']);$conversionCreated++;}};
+$handleOutbound=function(array $m,bool $history=false)use(&$conversations,&$conversationUpdated,$convFile,$event,$eventId,$connectionId,$clientId,$numbersFile){$waba=(string)($m['wabaId']??'');$business=(string)($m['from']??'');$customer=(string)($m['to']??'');$id=substr(hash('sha256',$waba.'|'.$customer),0,24);$prev=$conversations[$id]??[];$profile=is_array($m['customerProfile']??null)?$m['customerProfile']:[];$numberId=upsert_number($numbersFile,$business,$waba,$connectionId,$clientId);$conv=array_merge($prev,['id'=>$id,'client_id'=>$clientId!==''?$clientId:(string)($prev['client_id']??''),'number_id'=>$numberId,'ycloud_connection_id'=>$connectionId!==''?$connectionId:(string)($prev['ycloud_connection_id']??''),'waba_id'=>$waba,'business_number'=>$business,'customer_number'=>$customer,'contact_name'=>$prev['contact_name']??$customer,'contact_username'=>(string)($profile['username']??($prev['contact_username']??'')),'first_seen_at'=>$prev['first_seen_at']??(string)($m['sendTime']??$event['createTime']??gmdate('c')),'last_message_at'=>(string)($m['sendTime']??$event['createTime']??gmdate('c')),'last_message_text'=>msg_text($m),'last_message_type'=>(string)($m['type']??'unknown'),'last_direction'=>$history?'history_outbound':'outbound_app','last_source_event_id'=>$eventId,'current_tag'=>$prev['current_tag']??null,'ctwa_clid'=>$prev['ctwa_clid']??'','updated_at'=>gmdate('c')]);$conversations[$id]=$conv;save_json($convFile,$conversations);$conversationUpdated=true;};
 
-$type = (string)($event['type'] ?? 'unknown');
-$eventId = (string)($event['id'] ?? '');
-$rawFile = $base . '/raw_events.jsonl';
-$convFile = $base . '/conversations.json';
-$conversionFile = $base . '/conversion_events.jsonl';
-$systemFile = $base . '/system_events.jsonl';
+if($type==='whatsapp.inbound_message.received'&&isset($event['whatsappInboundMessage'])&&is_array($event['whatsappInboundMessage']))$handleInbound($event['whatsappInboundMessage'],false);
+elseif($type==='whatsapp.smb.message.echoes'&&isset($event['whatsappMessage'])&&is_array($event['whatsappMessage']))$handleOutbound($event['whatsappMessage'],false);
+elseif($type==='whatsapp.smb.history'){
+    if(isset($event['whatsappInboundMessage'])&&is_array($event['whatsappInboundMessage']))$handleInbound($event['whatsappInboundMessage'],true);
+    elseif(isset($event['whatsappMessage'])&&is_array($event['whatsappMessage']))$handleOutbound($event['whatsappMessage'],true);
+    else append_jsonl($systemFile,['id'=>$eventId,'type'=>$type,'ycloud_connection_id'=>$connectionId,'createTime'=>$event['createTime']??gmdate('c'),'data'=>$event]);
+}else append_jsonl($systemFile,['id'=>$eventId,'type'=>$type,'ycloud_connection_id'=>$connectionId,'createTime'=>$event['createTime']??gmdate('c'),'data'=>$event]);
 
-if ($eventId !== '' && event_seen($rawFile, $eventId)) {
-    echo json_encode(['ok'=>true,'duplicate'=>true,'event_type'=>$type], JSON_UNESCAPED_SLASHES); exit;
-}
-append_jsonl($rawFile, ['id'=>$eventId,'type'=>$type,'createTime'=>$event['createTime'] ?? gmdate('c'),'payload'=>$event]);
-
-$conversations = load_json($convFile, []);
-$conversationUpdated = false;
-$conversionCreated = 0;
-
-if ($type === 'whatsapp.inbound_message.received' && isset($event['whatsappInboundMessage']) && is_array($event['whatsappInboundMessage'])) {
-    $m = $event['whatsappInboundMessage'];
-    $waba = (string)($m['wabaId'] ?? '');
-    $customer = (string)($m['from'] ?? '');
-    $business = (string)($m['to'] ?? '');
-    $id = substr(hash('sha256', $waba.'|'.$customer), 0, 24);
-    $isNew = !isset($conversations[$id]);
-    $profile = is_array($m['customerProfile'] ?? null) ? $m['customerProfile'] : [];
-    $referral = is_array($m['referral'] ?? null) ? $m['referral'] : [];
-    $prev = $conversations[$id] ?? [];
-    $conv = array_merge($prev, [
-        'id'=>$id,
-        'waba_id'=>$waba,
-        'business_number'=>$business,
-        'customer_number'=>$customer,
-        'contact_name'=>(string)($profile['name'] ?? ($prev['contact_name'] ?? $customer)),
-        'contact_username'=>(string)($profile['username'] ?? ($prev['contact_username'] ?? '')),
-        'first_seen_at'=>$prev['first_seen_at'] ?? (string)($m['sendTime'] ?? $event['createTime'] ?? gmdate('c')),
-        'last_message_at'=>(string)($m['sendTime'] ?? $event['createTime'] ?? gmdate('c')),
-        'last_message_text'=>msg_text($m),
-        'last_message_type'=>(string)($m['type'] ?? 'unknown'),
-        'last_direction'=>'inbound',
-        'last_source_event_id'=>$eventId,
-        'current_tag'=>$prev['current_tag'] ?? null,
-        'ctwa_clid'=>(string)($referral['ctwa_clid'] ?? ($prev['ctwa_clid'] ?? '')),
-        'ad_source_id'=>(string)($referral['source_id'] ?? ($prev['ad_source_id'] ?? '')),
-        'ad_source_type'=>(string)($referral['source_type'] ?? ($prev['ad_source_type'] ?? '')),
-        'ad_headline'=>(string)($referral['headline'] ?? ($prev['ad_headline'] ?? '')),
-        'updated_at'=>gmdate('c')
-    ]);
-    $conversations[$id] = $conv;
-    save_json($convFile, $conversations);
-    $conversationUpdated = true;
-    if ($isNew) { add_conversion_event($conversionFile, $conv, 'conversation_started', $eventId, ['origin'=>'whatsapp_inbound']); $conversionCreated++; }
-}
-elseif ($type === 'whatsapp.smb.message.echoes' && isset($event['whatsappMessage']) && is_array($event['whatsappMessage'])) {
-    $m = $event['whatsappMessage'];
-    $waba = (string)($m['wabaId'] ?? '');
-    $business = (string)($m['from'] ?? '');
-    $customer = (string)($m['to'] ?? '');
-    $id = substr(hash('sha256', $waba.'|'.$customer), 0, 24);
-    $prev = $conversations[$id] ?? [];
-    $profile = is_array($m['customerProfile'] ?? null) ? $m['customerProfile'] : [];
-    $conv = array_merge($prev, [
-        'id'=>$id,
-        'waba_id'=>$waba,
-        'business_number'=>$business,
-        'customer_number'=>$customer,
-        'contact_name'=>$prev['contact_name'] ?? $customer,
-        'contact_username'=>(string)($profile['username'] ?? ($prev['contact_username'] ?? '')),
-        'first_seen_at'=>$prev['first_seen_at'] ?? (string)($m['sendTime'] ?? $event['createTime'] ?? gmdate('c')),
-        'last_message_at'=>(string)($m['sendTime'] ?? $event['createTime'] ?? gmdate('c')),
-        'last_message_text'=>msg_text($m),
-        'last_message_type'=>(string)($m['type'] ?? 'unknown'),
-        'last_direction'=>'outbound_app',
-        'last_source_event_id'=>$eventId,
-        'current_tag'=>$prev['current_tag'] ?? null,
-        'ctwa_clid'=>$prev['ctwa_clid'] ?? '',
-        'updated_at'=>gmdate('c')
-    ]);
-    $conversations[$id] = $conv;
-    save_json($convFile, $conversations);
-    $conversationUpdated = true;
-}
-else {
-    append_jsonl($systemFile, ['id'=>$eventId,'type'=>$type,'createTime'=>$event['createTime'] ?? gmdate('c'),'data'=>$event]);
-}
-
-echo json_encode([
-    'ok'=>true,
-    'event_type'=>$type,
-    'event_id'=>$eventId,
-    'stored'=>true,
-    'conversation_updated'=>$conversationUpdated,
-    'events_created'=>$conversionCreated
-], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+echo json_encode(['ok'=>true,'event_type'=>$type,'event_id'=>$eventId,'ycloud_connection_id'=>$connectionId,'stored'=>true,'conversation_updated'=>$conversationUpdated,'events_created'=>$conversionCreated],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
