@@ -1,0 +1,28 @@
+name: QA live ARKAN
+
+on:
+  push:
+    branches:
+      - qa/live-verify-20260910
+
+jobs:
+  verify-live:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch live page and verify GTM + CTAs
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://arkan2030.com/?qa=$(date +%s)"
+          curl -fsSL --retry 3 --retry-delay 2 -H 'Cache-Control: no-cache' "$URL" -o live.html
+          grep -Fq 'GTM-P5J6D6ND' live.html
+          grep -Fq 'w.__loadArkanGtm=loadGtm;loadGtm()' live.html
+          if grep -Fq 'setTimeout(loadGtm,12000)' live.html; then
+            echo 'OLD_GTM_DELAY_PRESENT'
+            exit 1
+          fi
+          grep -Fq 'https://wa.me/966500989103' live.html
+          grep -Fq 'tel:+966500989103' live.html
+          echo 'ARKAN_LIVE_GTM_IMMEDIATE_OK'
+          echo 'ARKAN_LIVE_WHATSAPP_LINK_OK'
+          echo 'ARKAN_LIVE_CALL_LINK_OK'
