@@ -63,6 +63,71 @@ function cleanText(mixed $value, int $max = 255): string {
 function normalizePhone(string $phone): string {
     return preg_replace('/\D+/', '', $phone) ?? '';
 }
+function attributionSecretPath(): string {
+    return dirname(dirname(LEAD_DB_PATH)) . '/.marketing/arkan_attribution_secret';
+}
+function relayAttribution(array $data): bool {
+    $secretFile = attributionSecretPath();
+    $secret = is_file($secretFile) ? trim((string)@file_get_contents($secretFile)) : '';
+    if ($secret === '') return false;
+    $ref = strtoupper(cleanText($data['ref_token'] ?? ($data['tracking_token'] ?? ''), 80));
+    $leadId = strtoupper(cleanText($data['lead_id'] ?? '', 100));
+    if ($ref !== '' && !preg_match('/^ARK-AT-[A-Z0-9]{12,40}$/', $ref)) return false;
+    if ($leadId !== '' && !preg_match('/^ARK-WEB-[0-9]{8}-[0-9]{6}-[A-F0-9]{6}$/', $leadId)) return false;
+    if ($ref === '' && $leadId === '') return false;
+    $fields = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','gbraid','wbraid','ttclid','fbclid','campaign_id','campaign_name','ad_group_id','ad_group_name','ad_id','keyword','match_type','device','network','landing_page_id','landing_path','first_landing_url'];
+    $out = [
+        'event_type' => cleanText($data['event_type'] ?? 'capture', 60),
+        'ref_token' => $ref,
+        'lead_id' => $leadId,
+        'captured_at' => cleanText($data['captured_at'] ?? ($data['submitted_at_client'] ?? ''), 80),
+    ];
+    foreach ($fields as $field) $out[$field] = cleanText($data[$field] ?? '', $field === 'first_landing_url' ? 800 : 255);
+    $payload = json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($payload === false) return false;
+    $signature = 'sha256=' . hash_hmac('sha256', $payload, $secret);
+    $endpoint = 'https://marketing.hositee.com/attribution.php';
+    $status = 0;
+    $body = false;
+    if (function_exists('curl_init')) {
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json', 'X-Arkan-Signature: ' . $signature],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_FOLLOWLOCATION => false,
+        ]);
+        $body = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+    } else {
+        $context = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/json\r\nAccept: application/json\r\nX-Arkan-Signature: {$signature}\r\n",
+            'content' => $payload,
+            'timeout' => 8,
+            'ignore_errors' => true,
+        ]]);
+        $body = @file_get_contents($endpoint, false, $context);
+        foreach ($http_response_header ?? [] as $header) {
+            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)) { $status = (int)$matches[1]; break; }
+        }
+    }
+    if ($status < 200 || $status >= 300 || !is_string($body) || $body === '') return false;
+    $decoded = json_decode($body, true);
+    return is_array($decoded) && ($decoded['ok'] ?? false) === true;
+}
+function handleAttributionCapture(array $data): never {
+    $ref = strtoupper(cleanText($data['ref_token'] ?? ($data['tracking_token'] ?? ''), 80));
+    if (!preg_match('/^ARK-AT-[A-Z0-9]{12,40}$/', $ref)) jsonResponse(['ok'=>false,'error'=>'invalid_tracking_token'], 422);
+    $data['event_type'] = 'session_capture';
+    $data['ref_token'] = $ref;
+    $registered = relayAttribution($data);
+    jsonResponse(['ok'=>true,'ref_token'=>$ref,'attribution_registered'=>$registered]);
+}
 function leadHeaders(): array {
     return ['Lead ID','تاريخ ووقت الإرسال','مصدر المنصة','اسم/ID النموذج','Landing Page ID','Landing URL','الاسم','رقم الجوال','رقم الجوال الموحّد','المدينة','نوع العقار','جهة العمل','حالة الأهلية','حالة الـLead','المسؤول','وقت أول تواصل','آخر تحديث','ملاحظات','موافقة الخصوصية','نسخة سياسة الخصوصية','وقت الموافقة','utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','gbraid','wbraid','ttclid','fbclid','Campaign ID','Campaign Name','Ad Group ID','Ad Group Name','Ad ID','Keyword','Match Type','Device','Network','Referrer URL','First Landing URL','Session ID','Source Lead ID','Duplicate Key','Processing Status'];
 }
@@ -83,6 +148,7 @@ function leadDb(): PDO {
 function handleLeadSubmit(): never {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') jsonResponse(['ok' => false, 'error' => 'method_not_allowed'], 405);
     $data = readJsonBody();
+    if (($_GET['mode'] ?? '') === 'attribution' || ($data['event_type'] ?? '') === 'attribution_capture') handleAttributionCapture($data);
     if (defined('LEAD_RELAY_ENDPOINT') && LEAD_RELAY_ENDPOINT !== '') relayLeadSubmit($data, LEAD_RELAY_ENDPOINT);
     $propertyAliases = ['ready_unit'=>'وحدة جاهزة','self_build'=>'بناء ذاتي','mortgage'=>'رهن عقاري'];
     $employerAliases = ['civil_gov'=>'حكومي مدني','military_gov'=>'حكومي عسكري','semi_gov'=>'شبه حكومي','private'=>'قطاع خاص','retired'=>'متقاعد'];
@@ -166,7 +232,12 @@ function handleLeadSubmit(): never {
     $stmt = $pdo->prepare('INSERT INTO leads (' . implode(',', $quoted) . ') VALUES (' . implode(',', $params) . ')');
     $bound = []; foreach ($fields as $field) $bound[':' . $field] = $row[$field];
     $stmt->execute($bound);
-    jsonResponse(['ok' => true, 'lead_token' => $leadId, 'duplicate' => $isDuplicate]);
+    $attr = $data;
+    $attr['event_type'] = 'lead_saved';
+    $attr['lead_id'] = $leadId;
+    $attr['ref_token'] = cleanText($data['tracking_token'] ?? '', 80);
+    $attributionRegistered = relayAttribution($attr);
+    jsonResponse(['ok' => true, 'lead_token' => $leadId, 'duplicate' => $isDuplicate, 'attribution_registered' => $attributionRegistered]);
 }
 function handleLeadFeed(): never {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') { http_response_code(405); exit; }
