@@ -5,6 +5,8 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 
 $requestedLimit = max(1, min(500, (int)($_GET['limit'] ?? 200)));
+$requestedSource = strtolower(trim((string)($_GET['source'] ?? '')));
+unset($_GET['source']);
 $_GET['limit'] = '500';
 ob_start();
 include __DIR__ . '/lead_quality.php';
@@ -46,6 +48,39 @@ function lqe_reference(string $message): array {
     if (preg_match('/ARK-WEB-[0-9]{8}-[0-9]{6}-[A-F0-9]{6}/i',$message,$m)) $lead=strtoupper($m[0]);
     return [$ref,$lead];
 }
+function lqe_raw_message_text(array $m): string {
+    $type=lqe_clean($m['type']??'',40);
+    if($type==='text') return (string)($m['text']['body']??'');
+    foreach(['image','video','document','audio'] as $k){
+        if($type===$k && isset($m[$k]) && is_array($m[$k])){
+            $caption=(string)($m[$k]['caption']??''); if($caption!=='')return $caption;
+        }
+    }
+    return '';
+}
+function lqe_raw_refs(string $file): array {
+    $out=[];
+    if(!is_file($file))return $out;
+    $fh=@fopen($file,'rb'); if(!$fh)return $out;
+    while(($line=fgets($fh))!==false){
+        $row=json_decode($line,true); if(!is_array($row))continue;
+        $payload=is_array($row['payload']??null)?$row['payload']:[];
+        $type=(string)($row['type']??$payload['type']??'');
+        $m=null;
+        if($type==='whatsapp.inbound_message.received' && isset($payload['whatsappInboundMessage']) && is_array($payload['whatsappInboundMessage']))$m=$payload['whatsappInboundMessage'];
+        elseif($type==='whatsapp.smb.history' && isset($payload['whatsappInboundMessage']) && is_array($payload['whatsappInboundMessage']))$m=$payload['whatsappInboundMessage'];
+        if(!is_array($m))continue;
+        $waba=(string)($m['wabaId']??'');$customer=(string)($m['from']??'');
+        if($waba===''||$customer==='')continue;
+        [$ref,$lead]=lqe_reference(lqe_raw_message_text($m));
+        if($ref===''&&$lead==='')continue;
+        $cid=substr(hash('sha256',$waba.'|'.$customer),0,24);
+        if(!isset($out[$cid]))$out[$cid]=['ref'=>'','lead_id'=>''];
+        if($ref!==''&&$out[$cid]['ref']==='')$out[$cid]['ref']=$ref;
+        if($lead!==''&&$out[$cid]['lead_id']==='')$out[$cid]['lead_id']=$lead;
+    }
+    fclose($fh);return $out;
+}
 function lqe_summary(array $leads): array {
     $s=['total_leads'=>count($leads),'attributed_leads'=>0,'unknown_leads'=>0,'attribution_rate'=>0.0,'sources'=>[],'crm_status'=>[],'engagement'=>[]];
     foreach($leads as $lead){
@@ -72,10 +107,16 @@ function lqe_summary(array $leads): array {
 }
 
 [$byRef,$byLead]=lqe_read_map(__DIR__.'/data/attribution_events.jsonl');
-$all=[]; $joined=0;
+$rawRefs=lqe_raw_refs(__DIR__.'/data/raw_events.jsonl');
+$all=[]; $joined=0; $rawRefMatches=0;
 foreach (($base['leads']??[]) as $lead) {
     if(!is_array($lead))continue;
-    [$ref,$leadId]=lqe_reference((string)($lead['first_message']??''));
+    $conversationId=(string)($lead['lead_id']??'');
+    $rawRef=is_array($rawRefs[$conversationId]??null)?$rawRefs[$conversationId]:[];
+    $ref=(string)($rawRef['ref']??'');
+    $leadId=(string)($rawRef['lead_id']??'');
+    if($ref!==''||$leadId!=='')$rawRefMatches++;
+    if($ref===''&&$leadId==='')[$ref,$leadId]=lqe_reference((string)($lead['first_message']??''));
     $map=null; $via='';
     if($ref!==''&&isset($byRef[$ref])){$map=$byRef[$ref];$via='visit_ref';}
     elseif($leadId!==''&&isset($byLead[$leadId])){$map=$byLead[$leadId];$via='lead_id';}
@@ -121,7 +162,7 @@ foreach (($base['leads']??[]) as $lead) {
     $all[]=$lead;
 }
 
-$sourceFilter=strtolower(lqe_clean($_GET['source']??''));
+$sourceFilter=$requestedSource;
 if($sourceFilter!=='')$all=array_values(array_filter($all,fn(array $l):bool=>strtolower((string)($l['source']??''))===$sourceFilter));
 $summary=lqe_summary($all);
 $base['summary']=$summary;
@@ -130,6 +171,8 @@ $base['filters']['limit']=$requestedLimit;
 $base['filters']['source']=$sourceFilter?:null;
 $base['diagnostics']['attribution_records_by_ref']=count($byRef);
 $base['diagnostics']['attribution_records_by_lead']=count($byLead);
+$base['diagnostics']['raw_conversations_with_reference']=count($rawRefs);
+$base['diagnostics']['raw_reference_matches']=$rawRefMatches;
 $base['diagnostics']['attribution_joins']=$joined;
 $base['diagnostics']['returned_leads']=count($base['leads']);
 $base['diagnostics']['matching_leads_before_limit']=count($all);
