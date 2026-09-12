@@ -96,5 +96,5 @@ function floatingButtons(string $wa): string {
 }
 function scriptsHtml(string $leadEndpoint): string {
     $config = json_encode(['review' => false, 'endpoint' => $leadEndpoint, 'thankYou' => '/تم-استلام-الطلب/', 'whatsapp' => WHATSAPP_NUMBER, 'privacyVersion' => PRIVACY_VERSION], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=8" defer></script>';
+    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=10" defer></script>';
 }
