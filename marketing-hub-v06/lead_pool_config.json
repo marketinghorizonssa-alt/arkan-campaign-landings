@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "storage": {
+    "scope": "per_client",
+    "secure_only": true,
+    "store_raw_phone_in_secure_identity_map": true,
+    "export_raw_phone": false,
+    "hash": "sha256",
+    "contact_id": "client_scoped_hmac_sha256",
+    "lead_id": "client_scoped_hmac_sha256",
+    "event_id": "client_scoped_hmac_sha256"
+  },
+  "stages": ["new", "interested", "qualified", "unqualified", "converted", "lost"],
+  "sources": ["google", "tiktok", "meta", "snapchat", "organic", "unknown"],
+  "platforms": ["google", "tiktok", "meta", "snapchat"],
+  "quality_exports": ["interested", "qualified", "unqualified", "converted"],
+  "routing": {
+    "source_native": {
+      "enabled": true,
+      "route_type": "online_conversion",
+      "requires_source_match": true,
+      "preserve_campaign_and_click_ids": true,
+      "never_claim_other_platform_attribution": true
+    },
+    "cross_platform": {
+      "enabled": true,
+      "route_type": "first_party_offline",
+      "exclude_origin_platform": true,
+      "identifiers": ["phone_sha256", "email_sha256", "contact_id"],
+      "requires_consent_verified": true,
+      "default_delivery": "queue_only"
+    }
+  },
+  "stage_polarity": {
+    "interested": "positive",
+    "qualified": "positive",
+    "converted": "positive",
+    "unqualified": "negative"
+  },
+  "client_defaults": {
+    "enabled": true,
+    "consent_verified": false,
+    "cross_platform_delivery": "queue_only",
+    "uncalibrated_quality_delivery": "queue_only"
+  },
+  "clients": {
+    "cl_76c4e019afc588": {
+      "name": "Arkan",
+      "quality_profile": "arkan_v2_calibrated",
+      "quality_calibrated": true,
+      "consent_verified": false,
+      "source_native_delivery": true,
+      "cross_platform_delivery": "queue_only_until_consent_verified"
+    }
+  }
+}
