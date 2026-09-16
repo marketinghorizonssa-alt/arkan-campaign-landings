@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "clients": {
     "cl_76c4e019afc588": {
       "name": "Arkan",
@@ -17,7 +17,7 @@
         "id": "7686238143054970888",
         "name": "Arkan Web WhatsApp Quality CRM",
         "purpose": "website_to_whatsapp_quality_signal_optimization",
-        "status": "created",
+        "status": "connected",
         "event_source": "crm",
         "direct_events_api": true,
         "zero_backfill": true,
@@ -25,14 +25,15 @@
         "send_once_per_stage_transition": true,
         "require_tiktok_click_id": true,
         "token_file": ".marketing/tiktok/crm/7686238143054970888/access_token",
+        "taxonomy": "tiktok_crm_deep_funnel_standard",
         "event_names": {
-          "interested": "Interested",
-          "qualified": "Qualified",
-          "converted": "Converted",
-          "unqualified": "Unqualified"
+          "interested": "PREFERRED_LEAD",
+          "qualified": "CLUE_HIGH_INTENTION",
+          "converted": "CUSTOMER_EFFECTIVE",
+          "unqualified": "INVALID_CLUE"
         },
-        "campaign_binding": "pending",
-        "website_binding": "postback_ready_pending_token"
+        "campaign_binding": "testing",
+        "website_binding": "postback_ready"
       }
     }
   }
