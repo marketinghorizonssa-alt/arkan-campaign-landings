@@ -33,9 +33,11 @@ function attr_source(array $d): string {
     if (attr_clean($d['gclid'] ?? '') !== '' || attr_clean($d['wbraid'] ?? '') !== '' || attr_clean($d['gbraid'] ?? '') !== '') return 'google';
     if (attr_clean($d['ttclid'] ?? '') !== '') return 'tiktok';
     if (attr_clean($d['fbclid'] ?? '') !== '') return 'meta';
+    if (attr_clean($d['sccid'] ?? '') !== '' || attr_clean($d['ScCid'] ?? '') !== '' || attr_clean($d['sc_click_id'] ?? '') !== '') return 'snapchat';
     if (str_contains($utm, 'google') || str_contains($utm, 'adwords')) return 'google';
     if (str_contains($utm, 'tiktok')) return 'tiktok';
     if (str_contains($utm, 'facebook') || str_contains($utm, 'instagram') || str_contains($utm, 'meta')) return 'meta';
+    if (str_contains($utm, 'snapchat') || $utm === 'snap') return 'snapchat';
     return $utm !== '' ? $utm : 'website';
 }
 
@@ -56,9 +58,10 @@ if ($ref !== '' && !preg_match('/^ARK-AT-[A-Z0-9]{12,40}$/', $ref)) attr_out(['o
 if ($leadId !== '' && !preg_match('/^ARK-WEB-[0-9]{8}-[0-9]{6}-[A-F0-9]{6}$/', $leadId)) attr_out(['ok'=>false,'error'=>'invalid_lead_id'], 422);
 if ($ref === '' && $leadId === '') attr_out(['ok'=>false,'error'=>'missing_reference'], 422);
 
-$fields = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','gbraid','wbraid','ttclid','fbclid','campaign_id','campaign_name','ad_group_id','ad_group_name','ad_id','keyword','match_type','device','network','landing_page_id','landing_path','first_landing_url'];
+$fields = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','gbraid','wbraid','ttclid','fbclid','ScCid','sccid','sc_click_id','campaign_id','campaign_name','ad_group_id','ad_group_name','ad_id','keyword','match_type','device','network','landing_page_id','landing_path','first_landing_url'];
 $tracking = [];
 foreach ($fields as $field) $tracking[$field] = attr_clean($data[$field] ?? '', $field === 'first_landing_url' ? 800 : 255);
+if (($tracking['sccid'] ?? '') === '') $tracking['sccid'] = $tracking['ScCid'] ?: $tracking['sc_click_id'];
 $source = attr_source($tracking);
 $row = [
     'id' => 'atr_' . bin2hex(random_bytes(8)),
