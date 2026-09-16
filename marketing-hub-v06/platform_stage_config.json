@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "stage_order": ["new", "interested", "qualified", "converted"],
   "terminal_or_side_states": ["unqualified", "lost"],
   "transition_only": true,
@@ -26,11 +26,29 @@
     "enabled": true,
     "conversation_started": {"purpose": "measurement_only", "optimization_priority": "low"},
     "stage_events": {"interested": "Interested", "qualified": "Qualified", "converted": "Converted", "unqualified": "Unqualified"},
+    "client_stage_events": {
+      "cl_76c4e019afc588": {
+        "interested": "PREFERRED_LEAD",
+        "qualified": "CLUE_HIGH_INTENTION",
+        "converted": "CUSTOMER_EFFECTIVE",
+        "unqualified": "INVALID_CLUE"
+      }
+    },
+    "client_event_semantics": {
+      "cl_76c4e019afc588": {
+        "name": "Arkan",
+        "taxonomy": "tiktok_official_deep_funnel",
+        "interested": "preferred_lead",
+        "qualified": "high_intent_lead",
+        "converted": "effective_customer",
+        "unqualified": "invalid_lead"
+      }
+    },
     "event_policy": {
       "unqualified": {"postback": true, "quality_feedback": "negative", "map_to_positive_deep_funnel_stage": false, "count_as_success_conversion": false}
     },
     "advertisers": {
-      "7670899565643317265": {"name": "Arkan", "whatsapp_account": "966500989103", "message_event_set_id": "7680982574045577224", "crm_event_set_id": "7680906463333580808", "crm_event_set_name": "Marketing WhatsApp CRM"},
+      "7670899565643317265": {"name": "Arkan", "client_id": "cl_76c4e019afc588", "whatsapp_account": "966500989103", "message_event_set_id": "7680982574045577224", "crm_event_set_id": "7680906463333580808", "crm_event_set_name": "Marketing WhatsApp CRM"},
       "7674345202548031505": {"name": "Viora", "whatsapp_account": "966510648675", "message_event_set_id": "7679376464941400072", "crm_event_set_id": "7679906629338300423", "crm_event_set_name": "Interested"},
       "7683806548702871573": {"name": "Benon", "crm_event_set_id": "7685653655239868423", "crm_event_set_name": "Benon CRM Leads"}
     }
