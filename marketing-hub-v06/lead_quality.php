@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 $bootDir = __DIR__;
 $secureDir = dirname(__DIR__, 4) . '/.marketing';
-$marker = $secureDir . '/lead_pool_bootstrap_v1';
+$marker = $secureDir . '/lead_pool_bootstrap_v2';
 if (!is_dir($secureDir)) @mkdir($secureDir, 0700, true);
 
 function lq_boot_fetch(string $url, string $dest, string $kind): bool {
@@ -21,7 +21,9 @@ function lq_boot_fetch(string $url, string $dest, string $kind): bool {
 }
 
 $core = $bootDir . '/lead_quality_core.php';
-$needsBootstrap = !is_file($marker) || !is_file($core) || !is_file($bootDir.'/lead_pool_worker.php') || !is_file($bootDir.'/lead_pool_config.json');
+$required = ['lead_pool_worker.php','lead_pool_dispatcher.php','lead_pool_patch_v2.php','lead_pool_cutover.php','lead_pool_config.json','platform_stage_config.json','quality_rules_v2.json'];
+$missing = false; foreach ($required as $f) if (!is_file($bootDir.'/'.$f)) $missing = true;
+$needsBootstrap = !is_file($marker) || !is_file($core) || $missing;
 if ($needsBootstrap) {
     $rawBase = 'https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/marketing-deploy/marketing-hub-v06';
     $coreUrl = 'https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/6b4f07bb1765128aac513d130624201f4cae9cef/marketing-hub-v06/lead_quality.php';
@@ -29,6 +31,9 @@ if ($needsBootstrap) {
         [$coreUrl, $core, 'php'],
         [$rawBase.'/local_quality_v2.php', $bootDir.'/local_quality_v2.php', 'php'],
         [$rawBase.'/lead_pool_worker.php', $bootDir.'/lead_pool_worker.php', 'php'],
+        [$rawBase.'/lead_pool_dispatcher.php', $bootDir.'/lead_pool_dispatcher.php', 'php'],
+        [$rawBase.'/lead_pool_patch_v2.php', $bootDir.'/lead_pool_patch_v2.php', 'php'],
+        [$rawBase.'/lead_pool_cutover.php', $bootDir.'/lead_pool_cutover.php', 'php'],
         [$rawBase.'/flush_outbox.php', $bootDir.'/flush_outbox.php', 'php'],
         [$rawBase.'/lead_pool_config.json', $bootDir.'/lead_pool_config.json', 'json'],
         [$rawBase.'/platform_stage_config.json', $bootDir.'/platform_stage_config.json', 'json'],
@@ -36,6 +41,17 @@ if ($needsBootstrap) {
     ];
     $ok = true;
     foreach ($files as [$url,$dest,$kind]) if (!lq_boot_fetch($url,$dest,$kind)) $ok = false;
+    if ($ok && PHP_SAPI === 'cli') {
+        try {
+            ob_start(); include $bootDir.'/lead_pool_patch_v2.php'; ob_end_clean();
+            ob_start(); include $bootDir.'/lead_pool_cutover.php'; ob_end_clean();
+        } catch (Throwable $e) {
+            if (ob_get_level() > 0) ob_end_clean();
+            $ok = false;
+        }
+    } elseif ($ok) {
+        $ok = false;
+    }
     if ($ok) { @file_put_contents($marker, gmdate('c')."\n", LOCK_EX); @chmod($marker,0600); }
 }
 
