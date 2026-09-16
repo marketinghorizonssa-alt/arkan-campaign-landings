@@ -1,11 +1,13 @@
 {
-  "version": 2,
+  "version": 3,
   "stage_order": ["new", "interested", "qualified", "converted"],
   "terminal_or_side_states": ["unqualified", "lost"],
   "transition_only": true,
   "send_once_per_stage": true,
-  "positive_postback_stages": ["interested", "qualified", "converted"],
-  "internal_only_stages": ["unqualified", "lost", "new"],
+  "external_postback_stages": ["interested", "qualified", "converted", "unqualified"],
+  "positive_optimization_stages": ["interested", "qualified", "converted"],
+  "negative_quality_feedback_stages": ["unqualified"],
+  "internal_only_stages": ["new", "lost"],
   "sources": ["tiktok", "meta", "google", "snapchat", "organic", "unknown"],
   "tiktok": {
     "enabled": true,
@@ -16,7 +18,16 @@
     "stage_events": {
       "interested": "Interested",
       "qualified": "Qualified",
-      "converted": "Converted"
+      "converted": "Converted",
+      "unqualified": "Unqualified"
+    },
+    "event_policy": {
+      "unqualified": {
+        "postback": true,
+        "quality_feedback": "negative",
+        "map_to_positive_deep_funnel_stage": false,
+        "count_as_success_conversion": false
+      }
     },
     "advertisers": {
       "7670899565643317265": {
@@ -39,5 +50,43 @@
         "crm_event_set_name": "Benon CRM Leads"
       }
     }
+  },
+  "google_ads": {
+    "enabled": true,
+    "conversion_policy": {
+      "message_received": {
+        "name": "WhatsApp Message Received",
+        "action_optimization": "secondary",
+        "purpose": "measurement_and_attribution",
+        "use_for_bidding": false
+      },
+      "interested": {
+        "name": "WhatsApp Interested Lead",
+        "action_optimization": "primary_candidate",
+        "purpose": "early_quality_optimization",
+        "use_for_bidding": true,
+        "promotion_rule": "use_as_primary_while_qualified_volume_is_not_stable"
+      },
+      "qualified": {
+        "name": "WhatsApp Qualified Lead",
+        "action_optimization": "primary_target",
+        "purpose": "deep_quality_optimization",
+        "use_for_bidding": true,
+        "promotion_rule": "promote_to_primary_when_volume_is_stable_then_demote_interested_to_secondary"
+      },
+      "converted": {
+        "name": "WhatsApp Converted Lead",
+        "action_optimization": "primary_target",
+        "purpose": "business_outcome",
+        "use_for_bidding": true
+      },
+      "unqualified": {
+        "name": "WhatsApp Unqualified Lead",
+        "action_optimization": "secondary",
+        "purpose": "quality_reporting_only",
+        "use_for_bidding": false
+      }
+    },
+    "funnel_rule": "do_not_keep_interested_and_qualified_as_parallel_account_default_primary_goals_for_the_same_journey_unless_explicitly_intended"
   }
 }
