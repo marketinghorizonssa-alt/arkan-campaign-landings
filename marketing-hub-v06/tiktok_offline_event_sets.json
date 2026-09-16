@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "clients": {
+    "cl_76c4e019afc588": {
+      "name": "Arkan",
+      "advertiser_id": "7670899565643317265",
+      "offline_quality_event_set": {
+        "id": "7686264082239897620",
+        "name": "Arkan WhatsApp Quality Offline",
+        "auto_tracking": false,
+        "purpose": "website_to_whatsapp_qualified_lead_optimization",
+        "deep_funnel_source": "OFFLINE",
+        "deep_funnel_optimization_event": "FORM",
+        "stage_events": {
+          "qualified": "Lead"
+        },
+        "transition_only": true,
+        "zero_backfill": true,
+        "not_before_utc": "2026-09-16T22:34:00Z",
+        "token_file": ".marketing/tiktok/offline/7686264082239897620/access_token"
+      }
+    }
+  }
+}
