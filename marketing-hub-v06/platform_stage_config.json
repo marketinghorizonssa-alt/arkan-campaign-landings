@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "stage_order": ["new", "interested", "qualified", "converted"],
   "terminal_or_side_states": ["unqualified", "lost"],
   "transition_only": true,
@@ -25,8 +25,8 @@
   "tiktok": {
     "enabled": true,
     "conversation_started": {"purpose": "measurement_only", "optimization_priority": "low"},
-    "stage_events": {"interested": "Interested", "qualified": "Qualified", "converted": "Converted", "unqualified": "Unqualified"},
-    "client_stage_events": {
+    "ycloud_trigger_events": {"interested": "interested", "qualified": "qualified", "converted": "converted", "unqualified": "unqualified"},
+    "client_reported_events": {
       "cl_76c4e019afc588": {
         "interested": "PREFERRED_LEAD",
         "qualified": "CLUE_HIGH_INTENTION",
