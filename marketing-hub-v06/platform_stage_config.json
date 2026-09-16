@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "stage_order": ["new", "interested", "qualified", "converted"],
+  "terminal_or_side_states": ["unqualified", "lost"],
+  "transition_only": true,
+  "send_once_per_stage": true,
+  "sources": ["tiktok", "meta", "google", "snapchat", "organic", "unknown"],
+  "tiktok": {
+    "enabled": true,
+    "conversation_started": {
+      "purpose": "measurement_only",
+      "optimization_priority": "low"
+    },
+    "stage_events": {
+      "interested": "Interested",
+      "qualified": "Qualified",
+      "converted": "Converted",
+      "unqualified": "Unqualified"
+    },
+    "advertisers": {
+      "7670899565643317265": {
+        "name": "Arkan",
+        "whatsapp_account": "966500989103",
+        "message_event_set_id": "7680982574045577224",
+        "crm_event_set_id": "7680906463333580808",
+        "crm_event_set_name": "Marketing WhatsApp CRM"
+      },
+      "7674345202548031505": {
+        "name": "Viora",
+        "whatsapp_account": "966510648675",
+        "message_event_set_id": "7679376464941400072",
+        "crm_event_set_id": "7679906629338300423",
+        "crm_event_set_name": "Interested"
+      },
+      "7683806548702871573": {
+        "name": "Benon",
+        "crm_event_set_id": "7685653655239868423",
+        "crm_event_set_name": "Benon CRM Leads"
+      }
+    }
+  }
+}
