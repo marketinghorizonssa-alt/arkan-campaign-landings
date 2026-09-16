@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store, max-age=0');
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+parse_str((string)(getenv('Q2_QUERY') ?: ''), $_GET);
 
 $base=__DIR__.'/data';
 $rawFile=$base.'/raw_events.jsonl';
@@ -19,12 +19,13 @@ function q2_clean(string $s):string{
 }
 function q2_text(array $m):string{
     $type=q2_s($m['type']??'');
+    if(in_array($type,['revoke','reaction','unknown','unsupported'],true))return '';
     if($type==='text')return q2_clean(q2_s($m['text']['body']??''));
     foreach(['image','video','document','audio'] as $k){if($type===$k&&isset($m[$k])&&is_array($m[$k])){$c=q2_clean(q2_s($m[$k]['caption']??''));return $c!==''?$c:'['.$k.']';}}
     if($type==='location')return '[location]';
     if($type==='contacts')return '[contacts]';
     if($type==='interactive')return '[interactive]';
-    return $type!==''?'['.$type.']':'';
+    return '';
 }
 function q2_contains(string $text,array $needles):bool{$t=q2_lower(q2_clean($text));foreach($needles as $n){$n=q2_lower(q2_clean((string)$n));if($n!==''&&str_contains($t,$n))return true;}return false;}
 function q2_exactish(string $text,array $vals):bool{
@@ -33,12 +34,12 @@ function q2_exactish(string $text,array $vals):bool{
 }
 function q2_tiktok_template(string $text):bool{
     $t=q2_lower(q2_clean($text));
-    return (str_contains($t,'tiktok')&&(str_contains($t,'صادفت')||str_contains($t,'came across your ad')||str_contains($t,'أود معرفة المزيد')||str_contains($t,'would like to find out more')));
+    return str_contains($t,'tiktok')&&(str_contains($t,'صادفت')||str_contains($t,'came across your ad')||str_contains($t,'أود معرفة المزيد')||str_contains($t,'would like to find out more'));
 }
 function q2_generic_template(string $text):bool{
     $t=q2_lower(q2_clean($text));
     if(q2_tiktok_template($t))return true;
-    return str_contains($t,'مرحبا أركان التنفيذية، أرغب في استشارة بخصوص اختيار العقار والمسار')&& !str_contains($t,'المدينة:') && !str_contains($t,'جهة العمل:');
+    return str_contains($t,'مرحبا أركان التنفيذية، أرغب في استشارة بخصوص اختيار العقار والمسار')&&!str_contains($t,'المدينة:')&&!str_contains($t,'جهة العمل:');
 }
 function q2_is_attachment(string $type):bool{return in_array($type,['image','document','video','audio','location','contacts'],true);}
 function q2_is_ack(string $text):bool{return q2_exactish($text,['تمام','اوكي','أوكي','ok','okay','شكرا','شكراً','شكرًا','ماشي','نعم','اي','إي','ايوه','أيوه','thanks','thank you','👍','👌','🙏']);}
@@ -56,7 +57,7 @@ function q2_source(array $firstInbound):array{
     return['source'=>'unknown','confidence'=>'low','reason'=>'no_platform_evidence'];
 }
 function q2_eval(array $msgs):array{
-    $in=[];$out=[];$staffRequestedDocs=false;$attachmentAfterRequest=false;$meaningful=[];$confusions=0;$acks=0;$structured=0;$serviceIntent=false;$nextStep=false;$explicitNegative=false;$explicitConverted=false;$unrelated=false;$firstRealInboundIndex=null;$requestIndex=null;
+    $in=[];$out=[];$staffRequestedDocs=false;$attachmentAfterRequest=false;$meaningful=[];$confusions=0;$acks=0;$structured=0;$serviceIntent=false;$nextStep=false;$explicitNegative=false;$explicitConverted=false;$unrelated=false;$requestIndex=null;
     $serviceWords=['عقار','العقار','تمويل','التمويل','رهن','مديونية','قرض','وحدة','شقة','فيلا','تملك','التملك','استشارة','استشاره','شراء','بيت','راتب','سمة','دفعة','ميزانية','بنك'];
     $nextWords=['اتصل','اتصال','كلمني','كلّمني','موعد','احجز','حجز','نبدأ','ابدأ','ابدأوا','الخطوة التالية','وش المطلوب','ايش المطلوب','كيف ارسل','كيف أرسل','ارسلك','أرسلك','ارسل لكم','أرسل لكم','متى','موقعكم'];
     $negativeWords=['غير مهتم','مش مهتم','ما ابغى','ما أبغى','لا اريد','لا أريد','وقف التواصل','لا تتواصل','الغاء','إلغاء','not interested','do not contact','unsubscribe','cancel'];
@@ -71,14 +72,13 @@ function q2_eval(array $msgs):array{
             continue;
         }
         $in[]=$m;
-        if(q2_generic_template($text))continue;
+        if($text===''||q2_generic_template($text))continue;
         if(q2_is_ack($text)){$acks++;continue;}
         if(q2_is_confusion($text)){$confusions++;continue;}
         if(q2_is_attachment($type)){
             $meaningful[]=$m;if($requestIndex!==null&&$i>$requestIndex)$attachmentAfterRequest=true;continue;
         }
-        $clean=q2_clean($text);if($clean===''||mb_strlen($clean,'UTF-8')<2)continue;
-        if($firstRealInboundIndex===null)$firstRealInboundIndex=$i;
+        $clean=q2_clean($text);$len=function_exists('mb_strlen')?mb_strlen($clean,'UTF-8'):strlen($clean);if($clean===''||$len<2)continue;
         $meaningful[]=$m;
         $structured=max($structured,q2_field_count($clean));
         if(q2_contains($clean,$serviceWords))$serviceIntent=true;
@@ -88,7 +88,7 @@ function q2_eval(array $msgs):array{
         if(q2_contains($clean,$unrelatedWords))$unrelated=true;
     }
     $meaningfulCount=count($meaningful);$inCount=count($in);$outCount=count($out);
-    $hasCustomerAfterStaff=false;$seenStaff=false;foreach($msgs as $m){if($m['direction']==='outbound')$seenStaff=true;elseif($seenStaff&&!q2_generic_template((string)$m['text'])&&!q2_is_ack((string)$m['text'])){$hasCustomerAfterStaff=true;break;}}
+    $hasCustomerAfterStaff=false;$seenStaff=false;foreach($msgs as $m){if($m['direction']==='outbound')$seenStaff=true;elseif($seenStaff&&(string)$m['text']!==''&&!q2_generic_template((string)$m['text'])&&!q2_is_ack((string)$m['text'])){$hasCustomerAfterStaff=true;break;}}
     $confusionOnly=$confusions>=2&&$meaningfulCount===0&&$outCount>0;
     $templateOnly=$inCount>0&&$meaningfulCount===0&&$confusions===0&&$acks===0;
     $score=0;$reasons=[];
@@ -128,17 +128,17 @@ function q2_eval(array $msgs):array{
 $clients=q2_json($clientsFile,[]);$connections=q2_json($connectionsFile,[]);$clientNames=[];$connClient=[];
 foreach($clients as $k=>$c)if(is_array($c)){$id=q2_s($c['id']??(is_string($k)?$k:''));if($id!=='')$clientNames[$id]=q2_s($c['name']??$id);}
 foreach($connections as $k=>$c)if(is_array($c)){$id=q2_s($c['id']??(is_string($k)?$k:''));if($id!=='')$connClient[$id]=q2_s($c['client_id']??'');}
-$clientFilter=q2_s($_GET['client_id']??'');$sourceFilter=q2_lower(q2_s($_GET['source']??''));$stageFilter=q2_lower(q2_s($_GET['stage']??''));$limit=max(1,min(300,(int)($_GET['limit']??100)));
+$clientFilter=q2_s($_GET['client_id']??'');$sourceFilter=q2_lower(q2_s($_GET['source']??''));$stageFilter=q2_lower(q2_s($_GET['stage']??''));$limit=max(1,min(300,(int)($_GET['limit']??100)));$includeMessages=q2_s($_GET['include_messages']??'0')==='1';
 $convs=[];$rawScanned=0;
 if(is_file($rawFile)&&($fh=@fopen($rawFile,'rb'))){while(($line=fgets($fh))!==false){$rawScanned++;$row=json_decode($line,true);if(!is_array($row))continue;$payload=is_array($row['payload']??null)?$row['payload']:[];$type=q2_s($row['type']??$payload['type']??'');$conn=q2_s($row['ycloud_connection_id']??'');$cid=$connClient[$conn]??'';if($clientFilter!==''&&$cid!==$clientFilter)continue;$m=null;$dir='';
     if($type==='whatsapp.inbound_message.received'&&isset($payload['whatsappInboundMessage'])){$m=$payload['whatsappInboundMessage'];$dir='inbound';}
     elseif($type==='whatsapp.smb.message.echoes'&&isset($payload['whatsappMessage'])){$m=$payload['whatsappMessage'];$dir='outbound';}
     elseif($type==='whatsapp.smb.history'&&isset($payload['whatsappInboundMessage'])){$m=$payload['whatsappInboundMessage'];$dir='inbound';}
     elseif($type==='whatsapp.smb.history'&&isset($payload['whatsappMessage'])){$m=$payload['whatsappMessage'];$dir='outbound';}
-    if(!is_array($m))continue;$waba=q2_s($m['wabaId']??'');$customer=q2_s($dir==='inbound'?($m['from']??''):($m['to']??''));if($waba===''||$customer==='')continue;$id=substr(hash('sha256',$waba.'|'.$customer),0,24);$ts=q2_s($m['sendTime']??$row['createTime']??'');$msg=['direction'=>$dir,'type'=>q2_s($m['type']??'unknown'),'text'=>q2_text($m),'at'=>$ts,'raw'=>$m];if(!isset($convs[$id]))$convs[$id]=['id'=>$id,'client_id'=>$cid,'client_name'=>$clientNames[$cid]??$cid,'messages'=>[],'first_at'=>$ts,'last_at'=>$ts,'first_inbound'=>null];$convs[$id]['messages'][]=$msg;if($ts!==''&&($convs[$id]['first_at']===''||strcmp($ts,$convs[$id]['first_at'])<0))$convs[$id]['first_at']=$ts;if($ts!==''&&strcmp($ts,$convs[$id]['last_at'])>0)$convs[$id]['last_at']=$ts;if($dir==='inbound'&&$convs[$id]['first_inbound']===null)$convs[$id]['first_inbound']=$msg;
+    if(!is_array($m))continue;$waba=q2_s($m['wabaId']??'');$customer=q2_s($dir==='inbound'?($m['from']??''):($m['to']??''));if($waba===''||$customer==='')continue;$id=substr(hash('sha256',$waba.'|'.$customer),0,24);$ts=q2_s($m['sendTime']??$row['createTime']??'');$msg=['direction'=>$dir,'type'=>q2_s($m['type']??'unknown'),'text'=>q2_text($m),'at'=>$ts,'raw'=>$m];if(!isset($convs[$id]))$convs[$id]=['id'=>$id,'client_id'=>$cid,'client_name'=>$clientNames[$cid]??$cid,'messages'=>[],'first_at'=>$ts,'last_at'=>$ts];$convs[$id]['messages'][]=$msg;if($ts!==''&&($convs[$id]['first_at']===''||strcmp($ts,$convs[$id]['first_at'])<0))$convs[$id]['first_at']=$ts;if($ts!==''&&strcmp($ts,$convs[$id]['last_at'])>0)$convs[$id]['last_at']=$ts;
 }fclose($fh);}
 
 $rows=[];$counts=[];$sourceCounts=[];
-foreach($convs as $c){usort($c['messages'],fn($a,$b)=>strcmp((string)$a['at'],(string)$b['at']));$firstIn=null;foreach($c['messages'] as $m)if($m['direction']==='inbound'){$firstIn=$m;break;}$src=$firstIn?q2_source($firstIn):['source'=>'unknown','confidence'=>'low','reason'=>'no_inbound'];$ev=q2_eval($c['messages']);if($sourceFilter!==''&&$src['source']!==$sourceFilter)continue;if($stageFilter!==''&&$ev['stage']!==$stageFilter)continue;$counts[$ev['stage']]=($counts[$ev['stage']]??0)+1;$sourceCounts[$src['source']]=($sourceCounts[$src['source']]??0)+1;$preview=[];foreach($c['messages'] as $m){$t=(string)$m['text'];if(q2_generic_template($t))$t='[platform_template]';$preview[]=['d'=>$m['direction'],'type'=>$m['type'],'text'=>$t,'at'=>$m['at']];if(count($preview)>=12)break;}$rows[]=['lead_id'=>$c['id'],'client_id'=>$c['client_id'],'client_name'=>$c['client_name'],'source'=>$src,'stage'=>$ev['stage'],'quality_score'=>$ev['quality_score'],'confidence'=>$ev['confidence'],'attributes'=>$ev['attributes'],'reasons'=>$ev['reasons'],'first_seen_at'=>$c['first_at'],'last_seen_at'=>$c['last_at'],'messages'=>$preview];}
+foreach($convs as $c){usort($c['messages'],fn($a,$b)=>strcmp((string)$a['at'],(string)$b['at']));$firstIn=null;foreach($c['messages'] as $m)if($m['direction']==='inbound'){$firstIn=$m;break;}$src=$firstIn?q2_source($firstIn):['source'=>'unknown','confidence'=>'low','reason'=>'no_inbound'];$ev=q2_eval($c['messages']);if($sourceFilter!==''&&$src['source']!==$sourceFilter)continue;if($stageFilter!==''&&$ev['stage']!==$stageFilter)continue;$counts[$ev['stage']]=($counts[$ev['stage']]??0)+1;$sourceCounts[$src['source']]=($sourceCounts[$src['source']]??0)+1;$row=['lead_id'=>$c['id'],'client_id'=>$c['client_id'],'client_name'=>$c['client_name'],'source'=>$src,'stage'=>$ev['stage'],'quality_score'=>$ev['quality_score'],'confidence'=>$ev['confidence'],'attributes'=>$ev['attributes'],'reasons'=>$ev['reasons'],'first_seen_at'=>$c['first_at'],'last_seen_at'=>$c['last_at']];if($includeMessages){$preview=[];foreach($c['messages'] as $m){$t=(string)$m['text'];if(q2_generic_template($t))$t='[platform_template]';$preview[]=['d'=>$m['direction'],'type'=>$m['type'],'text'=>$t,'at'=>$m['at']];if(count($preview)>=12)break;}$row['messages']=$preview;}$rows[]=$row;}
 usort($rows,fn($a,$b)=>strcmp((string)$b['last_seen_at'],(string)$a['last_seen_at']));$total=count($rows);$rows=array_slice($rows,0,$limit);
-echo json_encode(['ok'=>true,'version'=>'local-quality-v2-calibration','read_only'=>true,'generated_at'=>gmdate('c'),'filters'=>['client_id'=>$clientFilter?:null,'source'=>$sourceFilter?:null,'stage'=>$stageFilter?:null,'limit'=>$limit],'summary'=>['matching_leads'=>$total,'stages'=>$counts,'sources'=>$sourceCounts],'leads'=>$rows,'diagnostics'=>['raw_events_scanned'=>$rawScanned]],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT);
+echo json_encode(['ok'=>true,'version'=>'local-quality-v2-calibration','read_only'=>true,'generated_at'=>gmdate('c'),'filters'=>['client_id'=>$clientFilter?:null,'source'=>$sourceFilter?:null,'stage'=>$stageFilter?:null,'limit'=>$limit],'summary'=>['matching_leads'=>$total,'stages'=>$counts,'sources'=>$sourceCounts],'leads'=>$rows,'diagnostics'=>['raw_events_scanned'=>$rawScanned]],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)."\n";
