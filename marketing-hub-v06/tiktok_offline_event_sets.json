@@ -17,7 +17,7 @@
         "transition_only": true,
         "zero_backfill": true,
         "not_before_utc": "2026-09-16T22:34:00Z",
-        "token_file": ".marketing/tiktok/offline/7686264082239897620/access_token"
+        "access_token_file": "tiktok/crm/7686238143054970888/access_token"
       }
     }
   }
