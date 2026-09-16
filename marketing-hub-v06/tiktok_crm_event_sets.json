@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "clients": {
+    "cl_76c4e019afc588": {
+      "name": "Arkan",
+      "advertiser_id": "7670899565643317265",
+      "message_event_set": {
+        "id": "7680982574045577224",
+        "purpose": "whatsapp_conversation_events"
+      },
+      "existing_crm_event_set": {
+        "id": "7680906463333580808",
+        "name": "Marketing WhatsApp CRM",
+        "purpose": "existing_whatsapp_crm"
+      },
+      "website_quality_crm_event_set": {
+        "id": "7686238143054970888",
+        "name": "Arkan Web WhatsApp Quality CRM",
+        "purpose": "website_to_whatsapp_quality_signal_optimization",
+        "status": "created",
+        "campaign_binding": "pending",
+        "website_binding": "pending"
+      }
+    }
+  }
+}
