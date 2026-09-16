@@ -106,12 +106,12 @@ foreach($config['clients'] as $clientId=>$client){
             ]]
         ];
         $resp=tcd_send($endpoint,$token,$payload);
-        tcd_append($poolDir.'/tiktok_crm_delivery.jsonl',[
-            'event_id'=>$eventId,'client_id'=>$clientId,'lead_id'=>$leadId,'event_set_id'=>$setId,'event_name'=>$eventName,'stage'=>$stage,
-            'success'=>(bool)$resp['ok'],'http_status'=>(int)$resp['http_status'],'api_code'=>(int)$resp['api_code'],'error'=>$resp['error'],'created_at'=>gmdate('c')
-        ]);
-        if($resp['ok']){$done[$eventId]=true;$clientResult['sent']++;$result['sent']++;}
-        else{$clientResult['failed']++;$result['failed']++;}
+        $delivery=['event_id'=>$eventId,'client_id'=>$clientId,'lead_id'=>$leadId,'event_set_id'=>$setId,'event_name'=>$eventName,'stage'=>$stage,'success'=>(bool)$resp['ok'],'http_status'=>(int)$resp['http_status'],'api_code'=>(int)$resp['api_code'],'error'=>$resp['error'],'created_at'=>gmdate('c')];
+        tcd_append($poolDir.'/tiktok_crm_delivery.jsonl',$delivery);
+        if($resp['ok']){
+            tcd_append($poolDir.'/routing_delivery.jsonl',['event_id'=>$eventId,'client_id'=>$clientId,'lead_id'=>$leadId,'target_platform'=>'tiktok','route_type'=>'online_conversion','provider'=>'tiktok_crm_events_api','event_set_id'=>$setId,'event_name'=>$eventName,'stage'=>$stage,'success'=>true,'http_status'=>(int)$resp['http_status'],'created_at'=>gmdate('c')]);
+            $done[$eventId]=true;$clientResult['sent']++;$result['sent']++;
+        } else {$clientResult['failed']++;$result['failed']++;}
     }
     $clientResult['status']=$clientResult['failed']>0?'partial_failure':'ready';
     $result['clients'][$clientId]=$clientResult;
