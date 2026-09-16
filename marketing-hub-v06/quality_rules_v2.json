@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "mode": "local_contextual_rules",
   "principles": {
     "source_attribution_separate_from_quality": true,
@@ -54,7 +54,14 @@
         "result": {"new": 39, "interested": 3, "qualified": 5, "unqualified": 1, "converted": 0}
       },
       "high_value_context": ["salary_or_income_details", "employment_details", "property_or_financing_need", "budget_or_obligations", "requested_documents", "appointment_or_call_commitment"],
-      "strongest_observed_qualification_signal": "customer_attachment_after_staff_requested_salary_or_credit_documents"
+      "strongest_observed_qualification_signal": "customer_attachment_after_staff_requested_salary_or_credit_documents",
+      "tiktok_event_mapping": {
+        "interested": "PREFERRED_LEAD",
+        "qualified": "CLUE_HIGH_INTENTION",
+        "converted": "CUSTOMER_EFFECTIVE",
+        "unqualified": "INVALID_CLUE"
+      },
+      "tiktok_mapping_scope": "delivery_only_internal_stage_names_remain_unchanged"
     }
   }
 }
