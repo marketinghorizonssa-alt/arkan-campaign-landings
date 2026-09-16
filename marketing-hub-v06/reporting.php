@@ -73,12 +73,20 @@ function r_empty_day(): array {
         'sources'=>[],
         'source_labels'=>[],
         'attribution_methods'=>[],
+        'new_conversation_sources'=>[],
+        'new_conversation_source_labels'=>[],
+        'new_conversation_attribution_methods'=>[],
     ];
 }
 function r_add_source(array &$bucket, string $source, string $method): void {
     $bucket['sources'][$source] = ($bucket['sources'][$source] ?? 0) + 1;
     $bucket['source_labels'][r_source_label($source)] = ($bucket['source_labels'][r_source_label($source)] ?? 0) + 1;
     $bucket['attribution_methods'][$method] = ($bucket['attribution_methods'][$method] ?? 0) + 1;
+}
+function r_add_new_conversation_source(array &$bucket, string $source, string $method): void {
+    $bucket['new_conversation_sources'][$source] = ($bucket['new_conversation_sources'][$source] ?? 0) + 1;
+    $bucket['new_conversation_source_labels'][r_source_label($source)] = ($bucket['new_conversation_source_labels'][r_source_label($source)] ?? 0) + 1;
+    $bucket['new_conversation_attribution_methods'][$method] = ($bucket['new_conversation_attribution_methods'][$method] ?? 0) + 1;
 }
 
 $tzName = trim((string)($_GET['tz'] ?? 'Asia/Riyadh'));
@@ -182,6 +190,9 @@ if (is_file($rawFile)) {
                     $days[$day]['new_conversations']++;
                     $clients[$clientId]['days'][$day]['new_conversations']++;
                     $clients[$clientId]['totals']['new_conversations']++;
+                    r_add_new_conversation_source($days[$day], $sourceInfo['source'], $sourceInfo['method']);
+                    r_add_new_conversation_source($clients[$clientId]['days'][$day], $sourceInfo['source'], $sourceInfo['method']);
+                    r_add_new_conversation_source($clients[$clientId]['totals'], $sourceInfo['source'], $sourceInfo['method']);
                 }
             } else {
                 $days[$day]['outbound_messages']++;
@@ -199,6 +210,9 @@ foreach ($days as $bucket) {
     foreach ($bucket['sources'] as $k=>$v) $totals['sources'][$k] = ($totals['sources'][$k] ?? 0) + $v;
     foreach ($bucket['source_labels'] as $k=>$v) $totals['source_labels'][$k] = ($totals['source_labels'][$k] ?? 0) + $v;
     foreach ($bucket['attribution_methods'] as $k=>$v) $totals['attribution_methods'][$k] = ($totals['attribution_methods'][$k] ?? 0) + $v;
+    foreach ($bucket['new_conversation_sources'] as $k=>$v) $totals['new_conversation_sources'][$k] = ($totals['new_conversation_sources'][$k] ?? 0) + $v;
+    foreach ($bucket['new_conversation_source_labels'] as $k=>$v) $totals['new_conversation_source_labels'][$k] = ($totals['new_conversation_source_labels'][$k] ?? 0) + $v;
+    foreach ($bucket['new_conversation_attribution_methods'] as $k=>$v) $totals['new_conversation_attribution_methods'][$k] = ($totals['new_conversation_attribution_methods'][$k] ?? 0) + $v;
 }
 
 ksort($days);
@@ -206,7 +220,7 @@ usort($clients, fn($a,$b) => strcmp((string)$a['client_name'], (string)$b['clien
 
 echo json_encode([
     'ok'=>true,
-    'version'=>'1.0',
+    'version'=>'1.1',
     'timezone'=>$tzName,
     'from'=>$fromStr,
     'to'=>$toStr,
