@@ -42,7 +42,8 @@ function q2_generic_template(string $text):bool{
     return str_contains($t,'مرحبا أركان التنفيذية، أرغب في استشارة بخصوص اختيار العقار والمسار')&&!str_contains($t,'المدينة:')&&!str_contains($t,'جهة العمل:');
 }
 function q2_is_attachment(string $type):bool{return in_array($type,['image','document','video','audio','location','contacts'],true);}
-function q2_is_ack(string $text):bool{return q2_exactish($text,['تمام','اوكي','أوكي','ok','okay','شكرا','شكراً','شكرًا','ماشي','نعم','اي','إي','ايوه','أيوه','thanks','thank you','👍','👌','🙏']);}
+function q2_is_ack(string $text):bool{return q2_exactish($text,['تمام','طيب','اوكي','أوكي','ok','okay','شكرا','شكراً','شكرًا','ماشي','نعم','اي','إي','ايوه','أيوه','thanks','thank you','👍','👌','🙏']);}
+function q2_is_low_signal(string $text):bool{return q2_exactish($text,['هلا','هلا والله','مرحبا','مرحباً','اهلا','أهلا','السلام عليكم','وعليكم السلام','هاي','hi','hello']);}
 function q2_is_confusion(string $text):bool{return q2_exactish($text,['مين','مين انت','مين أنت','انت مين','أنت مين','الو','ألو','هلو','انت','أنت','مين حضرتك','انت الي ارسلت','أنت اللي ارسلت','من معي','مين معي']);}
 function q2_field_count(string $text):int{
     $patterns=['المدينة:','نوع العقار:','جهة العمل:','الراتب','الدخل','الالتزامات','البنك','القسط','الدفعة','الميزانية','مبلغ التمويل','العمر:','الحالة الوظيفية'];
@@ -57,7 +58,7 @@ function q2_source(array $firstInbound):array{
     return['source'=>'unknown','confidence'=>'low','reason'=>'no_platform_evidence'];
 }
 function q2_eval(array $msgs):array{
-    $in=[];$out=[];$staffRequestedDocs=false;$attachmentAfterRequest=false;$meaningful=[];$confusions=0;$acks=0;$structured=0;$serviceIntent=false;$nextStep=false;$explicitNegative=false;$explicitConverted=false;$unrelated=false;$requestIndex=null;
+    $in=[];$out=[];$staffRequestedDocs=false;$attachmentAfterRequest=false;$meaningful=[];$confusions=0;$acks=0;$lowSignals=0;$structured=0;$serviceIntent=false;$nextStep=false;$explicitNegative=false;$explicitConverted=false;$unrelated=false;$requestIndex=null;
     $serviceWords=['عقار','العقار','تمويل','التمويل','رهن','مديونية','قرض','وحدة','شقة','فيلا','تملك','التملك','استشارة','استشاره','شراء','بيت','راتب','سمة','دفعة','ميزانية','بنك'];
     $nextWords=['اتصل','اتصال','كلمني','كلّمني','موعد','احجز','حجز','نبدأ','ابدأ','ابدأوا','الخطوة التالية','وش المطلوب','ايش المطلوب','كيف ارسل','كيف أرسل','ارسلك','أرسلك','ارسل لكم','أرسل لكم','متى','موقعكم'];
     $negativeWords=['غير مهتم','مش مهتم','ما ابغى','ما أبغى','لا اريد','لا أريد','وقف التواصل','لا تتواصل','الغاء','إلغاء','not interested','do not contact','unsubscribe','cancel'];
@@ -74,11 +75,12 @@ function q2_eval(array $msgs):array{
         $in[]=$m;
         if($text===''||q2_generic_template($text))continue;
         if(q2_is_ack($text)){$acks++;continue;}
+        if(q2_is_low_signal($text)){$lowSignals++;continue;}
         if(q2_is_confusion($text)){$confusions++;continue;}
         if(q2_is_attachment($type)){
             $meaningful[]=$m;if($requestIndex!==null&&$i>$requestIndex)$attachmentAfterRequest=true;continue;
         }
-        $clean=q2_clean($text);$len=function_exists('mb_strlen')?mb_strlen($clean,'UTF-8'):strlen($clean);if($clean===''||$len<2)continue;
+        $clean=q2_clean($text);$len=function_exists('mb_strlen')?mb_strlen($clean,'UTF-8'):strlen($clean);if($clean===''||$len<2||!preg_match('/[\p{L}\p{N}]/u',$clean))continue;
         $meaningful[]=$m;
         $structured=max($structured,q2_field_count($clean));
         if(q2_contains($clean,$serviceWords))$serviceIntent=true;
@@ -88,9 +90,9 @@ function q2_eval(array $msgs):array{
         if(q2_contains($clean,$unrelatedWords))$unrelated=true;
     }
     $meaningfulCount=count($meaningful);$inCount=count($in);$outCount=count($out);
-    $hasCustomerAfterStaff=false;$seenStaff=false;foreach($msgs as $m){if($m['direction']==='outbound')$seenStaff=true;elseif($seenStaff&&(string)$m['text']!==''&&!q2_generic_template((string)$m['text'])&&!q2_is_ack((string)$m['text'])){$hasCustomerAfterStaff=true;break;}}
+    $hasCustomerAfterStaff=false;$seenStaff=false;foreach($msgs as $m){if($m['direction']==='outbound')$seenStaff=true;elseif($seenStaff&&(string)$m['text']!==''&&!q2_generic_template((string)$m['text'])&&!q2_is_ack((string)$m['text'])&&!q2_is_low_signal((string)$m['text'])){$hasCustomerAfterStaff=true;break;}}
     $confusionOnly=$confusions>=2&&$meaningfulCount===0&&$outCount>0;
-    $templateOnly=$inCount>0&&$meaningfulCount===0&&$confusions===0&&$acks===0;
+    $templateOnly=$inCount>0&&$meaningfulCount===0&&$confusions===0&&$acks===0&&$lowSignals===0;
     $score=0;$reasons=[];
     if($serviceIntent){$score+=22;$reasons[]='service_specific_intent';}
     if($structured>=2){$score+=18;$reasons[]='structured_fit_data';}
@@ -110,7 +112,7 @@ function q2_eval(array $msgs):array{
     elseif($explicitNegative||$unrelated||$confusionOnly){$stage='unqualified';$confidence=$explicitNegative?0.98:($unrelated?0.95:0.93);}
     elseif($attachmentAfterRequest){$stage='qualified';$score=max($score,88);$confidence=0.94;}
     elseif(($structured>=3&&$serviceIntent)||($serviceIntent&&$nextStep&&$meaningfulCount>=1)||($score>=68&&$meaningfulCount>=2)){$stage='qualified';$confidence=0.88;}
-    elseif(($serviceIntent&&$meaningfulCount>=1)||$nextStep||($hasCustomerAfterStaff&&$meaningfulCount>=1&&$score>=28)){$stage='interested';$confidence=0.84;}
+    elseif(($serviceIntent&&$meaningfulCount>=1)||$nextStep||$structured>=1||($hasCustomerAfterStaff&&$meaningfulCount>=2&&$score>=20)){$stage='interested';$confidence=0.84;}
     elseif($templateOnly){$stage='new';$score=0;$confidence=0.98;}
     return[
         'stage'=>$stage,'quality_score'=>$score,'confidence'=>$confidence,
@@ -118,7 +120,7 @@ function q2_eval(array $msgs):array{
             'template_only'=>$templateOnly,'meaningful_customer_messages'=>$meaningfulCount,'customer_replied_after_staff'=>$hasCustomerAfterStaff,
             'service_intent'=>$serviceIntent,'structured_fit_fields'=>$structured,'next_step_intent'=>$nextStep,
             'staff_requested_docs'=>$staffRequestedDocs,'attachment_after_requested_docs'=>$attachmentAfterRequest,
-            'confusion_messages'=>$confusions,'confusion_only'=>$confusionOnly,'explicit_negative'=>$explicitNegative,
+            'confusion_messages'=>$confusions,'low_signal_messages'=>$lowSignals,'confusion_only'=>$confusionOnly,'explicit_negative'=>$explicitNegative,
             'unrelated_intent'=>$unrelated,'explicit_conversion'=>$explicitConverted,'inbound_messages'=>$inCount,'outbound_messages'=>$outCount
         ],
         'reasons'=>array_values(array_unique($reasons))
