@@ -7,12 +7,14 @@ $secure = dirname(__DIR__, 4) . '/.marketing';
 $connectionsFile = $base . '/ycloud_connections.json';
 $connections = is_file($connectionsFile) ? json_decode((string)file_get_contents($connectionsFile), true) : [];
 if (!is_array($connections)) $connections = [];
+$filterClient = trim((string)getenv('YCLOUD_STAGE_CLIENT_ID'));
+$filterConnection = trim((string)getenv('YCLOUD_STAGE_CONNECTION_ID'));
 
 $definitions = [
-    'interested' => ['label'=>'Interested Lead','description'=>'Marketing AI classified the WhatsApp contact as interested.'],
-    'qualified' => ['label'=>'Qualified Lead','description'=>'Marketing AI classified the WhatsApp contact as qualified.'],
-    'converted' => ['label'=>'Converted Lead','description'=>'Marketing AI classified the WhatsApp contact as converted.'],
-    'unqualified' => ['label'=>'Unqualified Lead','description'=>'Marketing AI classified the WhatsApp contact as unqualified.'],
+    'interested' => ['label'=>'Interested Lead','description'=>'Marketing quality engine classified the WhatsApp contact as interested.'],
+    'qualified' => ['label'=>'Qualified Lead','description'=>'Marketing quality engine classified the WhatsApp contact as qualified.'],
+    'converted' => ['label'=>'Converted Lead','description'=>'Marketing quality engine classified the WhatsApp contact as converted.'],
+    'unqualified' => ['label'=>'Unqualified Lead','description'=>'Marketing quality engine classified the WhatsApp contact as unqualified.'],
 ];
 
 function yc_key_file(string $secure, string $id): string {
@@ -44,9 +46,12 @@ foreach ($connections as $k => $c) {
     if (!is_array($c)) continue;
     $id = (string)($c['id'] ?? (is_string($k) ? $k : ''));
     if ($id === '') continue;
+    $clientId = (string)($c['client_id'] ?? '');
+    if ($filterClient !== '' && $clientId !== $filterClient) continue;
+    if ($filterConnection !== '' && $id !== $filterConnection) continue;
     $kf = yc_key_file($secure, $id);
     $key = is_file($kf) ? trim((string)file_get_contents($kf)) : '';
-    $row = ['connection_id'=>$id,'client_id'=>(string)($c['client_id'] ?? ''),'connected'=>$key !== '','events'=>[]];
+    $row = ['connection_id'=>$id,'client_id'=>$clientId,'connected'=>$key !== '','events'=>[]];
     if ($key === '') { $out[]=$row; continue; }
     foreach ($definitions as $name=>$meta) {
         $get = yc_request($key, 'GET', '/v2/event/definitions/' . rawurlencode($name));
@@ -70,4 +75,4 @@ foreach ($connections as $k => $c) {
     $out[] = $row;
 }
 
-echo json_encode(['ok'=>true,'connections'=>$out], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT) . "\n";
+echo json_encode(['ok'=>true,'filters'=>['client_id'=>$filterClient?:null,'connection_id'=>$filterConnection?:null],'connections'=>$out], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT) . "\n";
