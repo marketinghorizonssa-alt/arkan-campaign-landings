@@ -1,15 +1,14 @@
 <?php
 declare(strict_types=1);
 
-$keyFile = '/home/u878466595/.horizons-google-mcp/setup.key';
 $configFile = '/home/u878466595/.horizons-google-mcp/config.json';
-$expected = is_file($keyFile) ? trim((string)file_get_contents($keyFile)) : '';
+$expected = 'HORIZONS-GMCP-SETUP-816087848450';
 $given = (string)($_GET['key'] ?? $_POST['key'] ?? '');
 
 header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex, nofollow');
 
-if ($expected === '' || !hash_equals($expected, $given)) {
+if (!hash_equals($expected, $given)) {
     http_response_code(404);
     exit('Not found');
 }
@@ -45,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_dir(dirname($configFile))) mkdir(dirname($configFile), 0700, true);
     file_put_contents($configFile, json_encode($config, JSON_UNESCAPED_SLASHES), LOCK_EX);
     chmod($configFile, 0600);
-    @unlink($keyFile);
     echo 'CONFIG_OK';
     @unlink(__FILE__);
     exit;
