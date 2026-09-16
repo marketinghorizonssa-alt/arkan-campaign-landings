@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "stage_order": ["new", "interested", "qualified", "converted"],
   "terminal_or_side_states": ["unqualified", "lost"],
   "transition_only": true,
@@ -9,84 +9,50 @@
   "negative_quality_feedback_stages": ["unqualified"],
   "internal_only_stages": ["new", "lost"],
   "sources": ["tiktok", "meta", "google", "snapchat", "organic", "unknown"],
+  "identity_and_pooling": {
+    "client_isolation": "hard",
+    "contact_id_scope": "client_only",
+    "lead_id_scope": "client_only",
+    "event_id_scope": "client_lead_transition",
+    "pool_dimensions": ["client", "stage", "source"],
+    "stages": ["interested", "qualified", "unqualified", "converted"],
+    "source_native_route": "online_conversion",
+    "other_platform_route": "first_party_offline",
+    "never_cross_credit_attribution": true,
+    "first_party_identifiers": ["phone_sha256", "email_sha256", "contact_id"],
+    "cross_platform_delivery_requires_consent": true
+  },
   "tiktok": {
     "enabled": true,
-    "conversation_started": {
-      "purpose": "measurement_only",
-      "optimization_priority": "low"
-    },
-    "stage_events": {
-      "interested": "Interested",
-      "qualified": "Qualified",
-      "converted": "Converted",
-      "unqualified": "Unqualified"
-    },
+    "conversation_started": {"purpose": "measurement_only", "optimization_priority": "low"},
+    "stage_events": {"interested": "Interested", "qualified": "Qualified", "converted": "Converted", "unqualified": "Unqualified"},
     "event_policy": {
-      "unqualified": {
-        "postback": true,
-        "quality_feedback": "negative",
-        "map_to_positive_deep_funnel_stage": false,
-        "count_as_success_conversion": false
-      }
+      "unqualified": {"postback": true, "quality_feedback": "negative", "map_to_positive_deep_funnel_stage": false, "count_as_success_conversion": false}
     },
     "advertisers": {
-      "7670899565643317265": {
-        "name": "Arkan",
-        "whatsapp_account": "966500989103",
-        "message_event_set_id": "7680982574045577224",
-        "crm_event_set_id": "7680906463333580808",
-        "crm_event_set_name": "Marketing WhatsApp CRM"
-      },
-      "7674345202548031505": {
-        "name": "Viora",
-        "whatsapp_account": "966510648675",
-        "message_event_set_id": "7679376464941400072",
-        "crm_event_set_id": "7679906629338300423",
-        "crm_event_set_name": "Interested"
-      },
-      "7683806548702871573": {
-        "name": "Benon",
-        "crm_event_set_id": "7685653655239868423",
-        "crm_event_set_name": "Benon CRM Leads"
-      }
+      "7670899565643317265": {"name": "Arkan", "whatsapp_account": "966500989103", "message_event_set_id": "7680982574045577224", "crm_event_set_id": "7680906463333580808", "crm_event_set_name": "Marketing WhatsApp CRM"},
+      "7674345202548031505": {"name": "Viora", "whatsapp_account": "966510648675", "message_event_set_id": "7679376464941400072", "crm_event_set_id": "7679906629338300423", "crm_event_set_name": "Interested"},
+      "7683806548702871573": {"name": "Benon", "crm_event_set_id": "7685653655239868423", "crm_event_set_name": "Benon CRM Leads"}
     }
   },
   "google_ads": {
     "enabled": true,
     "conversion_policy": {
-      "message_received": {
-        "name": "WhatsApp Message Received",
-        "action_optimization": "secondary",
-        "purpose": "measurement_and_attribution",
-        "use_for_bidding": false
-      },
-      "interested": {
-        "name": "WhatsApp Interested Lead",
-        "action_optimization": "primary_candidate",
-        "purpose": "early_quality_optimization",
-        "use_for_bidding": true,
-        "promotion_rule": "use_as_primary_while_qualified_volume_is_not_stable"
-      },
-      "qualified": {
-        "name": "WhatsApp Qualified Lead",
-        "action_optimization": "primary_target",
-        "purpose": "deep_quality_optimization",
-        "use_for_bidding": true,
-        "promotion_rule": "promote_to_primary_when_volume_is_stable_then_demote_interested_to_secondary"
-      },
-      "converted": {
-        "name": "WhatsApp Converted Lead",
-        "action_optimization": "primary_target",
-        "purpose": "business_outcome",
-        "use_for_bidding": true
-      },
-      "unqualified": {
-        "name": "WhatsApp Unqualified Lead",
-        "action_optimization": "secondary",
-        "purpose": "quality_reporting_only",
-        "use_for_bidding": false
-      }
+      "message_received": {"name": "WhatsApp Message Received", "action_optimization": "secondary", "purpose": "measurement_and_attribution", "use_for_bidding": false},
+      "interested": {"name": "WhatsApp Interested Lead", "action_optimization": "primary_candidate", "purpose": "early_quality_optimization", "use_for_bidding": true, "promotion_rule": "use_as_primary_while_qualified_volume_is_not_stable"},
+      "qualified": {"name": "WhatsApp Qualified Lead", "action_optimization": "primary_target", "purpose": "deep_quality_optimization", "use_for_bidding": true, "promotion_rule": "promote_to_primary_when_volume_is_stable_then_demote_interested_to_secondary"},
+      "converted": {"name": "WhatsApp Converted Lead", "action_optimization": "primary_target", "purpose": "business_outcome", "use_for_bidding": true},
+      "unqualified": {"name": "WhatsApp Unqualified Lead", "action_optimization": "secondary", "purpose": "quality_reporting_only", "use_for_bidding": false}
     },
+    "cross_platform_first_party": {"mode": "customer_match_or_first_party_signal", "never_import_as_google_attributed_conversion_without_google_match": true},
     "funnel_rule": "do_not_keep_interested_and_qualified_as_parallel_account_default_primary_goals_for_the_same_journey_unless_explicitly_intended"
+  },
+  "meta": {
+    "enabled": true,
+    "cross_platform_first_party": {"mode": "customer_list_or_crm_quality_signal", "separate_positive_and_negative_pools": true}
+  },
+  "snapchat": {
+    "enabled": true,
+    "cross_platform_first_party": {"mode": "first_party_audience_or_offline_quality_signal", "separate_positive_and_negative_pools": true}
   }
 }
