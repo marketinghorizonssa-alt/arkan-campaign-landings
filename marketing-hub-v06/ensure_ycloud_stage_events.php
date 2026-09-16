@@ -5,8 +5,11 @@ if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 $base = __DIR__ . '/data';
 $secure = dirname(__DIR__, 4) . '/.marketing';
 $connectionsFile = $base . '/ycloud_connections.json';
+$platformConfigFile = __DIR__ . '/platform_stage_config.json';
 $connections = is_file($connectionsFile) ? json_decode((string)file_get_contents($connectionsFile), true) : [];
 if (!is_array($connections)) $connections = [];
+$platformConfig = is_file($platformConfigFile) ? json_decode((string)file_get_contents($platformConfigFile), true) : [];
+if (!is_array($platformConfig)) $platformConfig = [];
 $filterClient = trim((string)getenv('YCLOUD_STAGE_CLIENT_ID'));
 $filterConnection = trim((string)getenv('YCLOUD_STAGE_CONNECTION_ID'));
 
@@ -15,6 +18,12 @@ $definitions = [
     'qualified' => ['label'=>'Qualified Lead','description'=>'Marketing quality engine classified the WhatsApp contact as qualified.'],
     'converted' => ['label'=>'Converted Lead','description'=>'Marketing quality engine classified the WhatsApp contact as converted.'],
     'unqualified' => ['label'=>'Unqualified Lead','description'=>'Marketing quality engine classified the WhatsApp contact as unqualified.'],
+];
+$stageLabels = [
+    'interested' => 'Preferred / Interested Lead',
+    'qualified' => 'High Intent / Qualified Lead',
+    'converted' => 'Effective / Converted Customer',
+    'unqualified' => 'Invalid / Unqualified Lead',
 ];
 
 function yc_key_file(string $secure, string $id): string {
@@ -53,7 +62,22 @@ foreach ($connections as $k => $c) {
     $key = is_file($kf) ? trim((string)file_get_contents($kf)) : '';
     $row = ['connection_id'=>$id,'client_id'=>$clientId,'connected'=>$key !== '','events'=>[]];
     if ($key === '') { $out[]=$row; continue; }
-    foreach ($definitions as $name=>$meta) {
+
+    $defs = $definitions;
+    $clientMap = $platformConfig['tiktok']['client_stage_events'][$clientId] ?? null;
+    if (is_array($clientMap)) {
+        foreach ($clientMap as $stage => $eventName) {
+            $stage = strtolower(trim((string)$stage));
+            $eventName = trim((string)$eventName);
+            if ($eventName === '') continue;
+            $defs[$eventName] = [
+                'label' => ($stageLabels[$stage] ?? ucfirst($stage)) . ' (TikTok)',
+                'description' => 'Client-specific TikTok quality signal mapped from internal stage ' . $stage . '.',
+            ];
+        }
+    }
+
+    foreach ($defs as $name=>$meta) {
         $get = yc_request($key, 'GET', '/v2/event/definitions/' . rawurlencode($name));
         if ($get['status'] === 200) {
             $row['events'][$name] = ['status'=>'exists','http_status'=>200];
