@@ -1,9 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
   "stage_order": ["new", "interested", "qualified", "converted"],
   "terminal_or_side_states": ["unqualified", "lost"],
   "transition_only": true,
   "send_once_per_stage": true,
+  "positive_postback_stages": ["interested", "qualified", "converted"],
+  "internal_only_stages": ["unqualified", "lost", "new"],
   "sources": ["tiktok", "meta", "google", "snapchat", "organic", "unknown"],
   "tiktok": {
     "enabled": true,
@@ -14,8 +16,7 @@
     "stage_events": {
       "interested": "Interested",
       "qualified": "Qualified",
-      "converted": "Converted",
-      "unqualified": "Unqualified"
+      "converted": "Converted"
     },
     "advertisers": {
       "7670899565643317265": {
