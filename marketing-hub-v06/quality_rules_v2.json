@@ -1,0 +1,110 @@
+{
+  "version": 2,
+  "mode": "local_contextual_rules",
+  "principles": {
+    "source_attribution_separate_from_quality": true,
+    "platform_prefill_is_zero_intent": true,
+    "message_count_alone_never_qualifies": true,
+    "silence_is_not_unqualified": true,
+    "manual_override_wins": true,
+    "positive_platform_postbacks_only": ["interested", "qualified", "converted"],
+    "internal_only": ["new", "unqualified", "lost"]
+  },
+  "signals": {
+    "neutral_or_ignored": [
+      "platform_template",
+      "greeting_only",
+      "acknowledgement_only",
+      "emoji_only",
+      "reaction",
+      "revoked_message"
+    ],
+    "negative": [
+      "explicit_not_interested",
+      "do_not_contact",
+      "unrelated_intent",
+      "confusion_only"
+    ],
+    "positive": [
+      "service_specific_intent",
+      "structured_fit_data",
+      "next_step_intent",
+      "meaningful_reply_after_staff",
+      "multiple_meaningful_replies",
+      "requested_docs_then_attachment",
+      "explicit_conversion"
+    ]
+  },
+  "stages": {
+    "new": {
+      "postback": false,
+      "rule": "No reliable customer quality signal yet. Platform prefill, greeting, acknowledgement, or silence stays New."
+    },
+    "interested": {
+      "postback": true,
+      "confidence_floor": 0.84,
+      "any_of": [
+        "service_specific_intent + meaningful_customer_message",
+        "next_step_intent",
+        "structured_fit_fields >= 1",
+        "customer_replied_after_staff + meaningful_customer_messages >= 2 + score >= 20"
+      ]
+    },
+    "qualified": {
+      "postback": true,
+      "confidence_floor": 0.88,
+      "any_of": [
+        "attachment_after_requested_docs",
+        "structured_fit_fields >= 3 + service_specific_intent",
+        "service_specific_intent + next_step_intent + meaningful_customer_message",
+        "quality_score >= 68 + meaningful_customer_messages >= 2"
+      ]
+    },
+    "converted": {
+      "postback": true,
+      "confidence_floor": 0.98,
+      "any_of": [
+        "explicit_payment",
+        "explicit_booking_completed",
+        "explicit_contract_signed",
+        "explicit_purchase",
+        "manual_conversion_override"
+      ]
+    },
+    "unqualified": {
+      "postback": false,
+      "confidence_floor": 0.93,
+      "any_of": [
+        "explicit_not_interested",
+        "do_not_contact",
+        "unrelated_intent",
+        "confusion_messages >= 2 + no_meaningful_customer_message"
+      ]
+    }
+  },
+  "clients": {
+    "cl_76c4e019afc588": {
+      "name": "Arkan",
+      "calibration": {
+        "source": "tiktok",
+        "raw_conversations": 48,
+        "result": {
+          "new": 39,
+          "interested": 3,
+          "qualified": 5,
+          "unqualified": 1,
+          "converted": 0
+        }
+      },
+      "high_value_context": [
+        "salary_or_income_details",
+        "employment_details",
+        "property_or_financing_need",
+        "budget_or_obligations",
+        "requested_documents",
+        "appointment_or_call_commitment"
+      ],
+      "strongest_observed_qualification_signal": "customer_attachment_after_staff_requested_salary_or_credit_documents"
+    }
+  }
+}
