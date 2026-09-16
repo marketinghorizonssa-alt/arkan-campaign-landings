@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "clients": {
     "cl_76c4e019afc588": {
       "name": "Arkan",
@@ -32,7 +32,14 @@
           "converted": "CUSTOMER_EFFECTIVE",
           "unqualified": "INVALID_CLUE"
         },
-        "campaign_binding": "testing",
+        "ingestion_probe": {
+          "accepted": true,
+          "sample_events_accepted": 3,
+          "http_status": 200,
+          "api_code": 0
+        },
+        "campaign_binding": "blocked_crm_lead_quality_allowlist",
+        "campaign_binding_error": "You are not in the CRM allowlist for lead quality optimization.",
         "website_binding": "postback_ready"
       }
     }
