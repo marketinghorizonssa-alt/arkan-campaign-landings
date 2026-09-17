@@ -2,13 +2,22 @@
 declare(strict_types=1);
 
 function formHtml(string $pageId): string {
-    return '<aside class="form-card" id="form"><h2>ابدأ تقييم حالتك مجانًا</h2><form id="leadForm" novalidate>'
+    $buyerIntent = $pageId === 'P5';
+    $heading = $buyerIntent ? 'ما العقار الذي تريد شراءه؟' : 'ابدأ تقييم حالتك مجانًا';
+    $propertyLabel = $buyerIntent ? 'العقار الذي تبحث عنه' : 'نوع العقار';
+    $employerLabel = $buyerIntent ? 'جهة العمل (اختياري)' : 'جهة العمل';
+    $propertyOptions = $buyerIntent
+        ? '<option value="">اختر</option><option value="وحدة جاهزة">شقة أو فيلا / وحدة جاهزة</option><option value="بناء ذاتي">أرض / بناء ذاتي</option><option value="رهن عقاري">عقار قائم يحتاج مسار تمويلي</option>'
+        : '<option value="">اختر</option><option>وحدة جاهزة</option><option>بناء ذاتي</option><option>رهن عقاري</option>';
+    $propertyRequired = $buyerIntent ? ' required' : '';
+    $submitLabel = $buyerIntent ? 'أرسل طلب شراء العقار' : 'إرسال طلب التقييم';
+    return '<aside class="form-card" id="form"><h2>' . e($heading) . '</h2><form id="leadForm" novalidate>'
         . '<input type="hidden" name="landing_page_id" value="' . e($pageId) . '"><input type="hidden" name="landing_path"><input type="hidden" name="utm_source"><input type="hidden" name="utm_medium"><input type="hidden" name="utm_campaign"><input type="hidden" name="utm_term"><input type="hidden" name="utm_content"><input type="hidden" name="gclid"><input type="hidden" name="gbraid"><input type="hidden" name="wbraid"><input type="hidden" name="ttclid"><input type="hidden" name="fbclid"><input type="hidden" name="referrer">'
         . '<div class="field"><label for="full_name">الاسم</label><input id="full_name" name="full_name" autocomplete="name" minlength="2" required placeholder="اكتب اسمك"></div>'
         . '<div class="field"><label for="phone">رقم الجوال</label><input id="phone" name="phone" class="ltr-input" type="tel" inputmode="tel" autocomplete="tel" required placeholder="اكتب رقم الجوال" dir="ltr"></div>'
         . '<div class="field"><label for="city">المدينة</label><input id="city" name="city" list="cities" autocomplete="address-level2" required placeholder="اختر أو اكتب المدينة"><datalist id="cities"><option value="جدة"><option value="مكة المكرمة"><option value="الرياض"><option value="المدينة المنورة"><option value="الطائف"><option value="الدمام"><option value="الخبر"></datalist></div>'
-        . '<div class="two"><div class="field"><label for="property_type">نوع العقار</label><select id="property_type" name="property_type"><option value="">اختر</option><option>وحدة جاهزة</option><option>بناء ذاتي</option><option>رهن عقاري</option></select></div><div class="field"><label for="employer_type">جهة العمل</label><select id="employer_type" name="employer_type"><option value="">اختر</option><option>حكومي مدني</option><option>حكومي عسكري</option><option>شبه حكومي</option><option>قطاع خاص</option><option>متقاعد</option></select></div></div>'
-        . '<label class="consent"><input type="checkbox" name="privacy_consent" value="1" checked required><span>أوافق على <a href="/سياسة-الخصوصية/" target="_blank" rel="noopener">سياسة الخصوصية</a> والتواصل معي بخصوص الطلب.</span></label><button class="btn btn-primary" type="submit">إرسال طلب التقييم</button><div class="form-status" id="formStatus" role="status" aria-live="polite"></div></form></aside>';
+        . '<div class="two"><div class="field"><label for="property_type">' . e($propertyLabel) . '</label><select id="property_type" name="property_type"' . $propertyRequired . '>' . $propertyOptions . '</select></div><div class="field"><label for="employer_type">' . e($employerLabel) . '</label><select id="employer_type" name="employer_type"><option value="">اختر</option><option>حكومي مدني</option><option>حكومي عسكري</option><option>شبه حكومي</option><option>قطاع خاص</option><option>متقاعد</option></select></div></div>'
+        . '<label class="consent"><input type="checkbox" name="privacy_consent" value="1" checked required><span>أوافق على <a href="/سياسة-الخصوصية/" target="_blank" rel="noopener">سياسة الخصوصية</a> والتواصل معي بخصوص الطلب.</span></label><button class="btn btn-primary" type="submit">' . e($submitLabel) . '</button><div class="form-status" id="formStatus" role="status" aria-live="polite"></div></form></aside>';
 }
 function trustBar(): string {
     $items = [['chart','تحليل الحالة','الدخل والالتزامات والاستقطاع'],['wallet','حلول مالية','مسارات قابلة للدراسة حسب الحالة'],['home','فرص عقارية','ربط القدرة بخيارات التملك'],['shield','خصوصية البيانات','حفظ آمن ومتابعة واضحة']];
@@ -27,14 +36,26 @@ function serviceCards(): string {
     foreach ($cards as [$url,$ic,$title,$text]) $html .= '<article class="card"><span class="icon">' . icon($ic) . '</span><h3>' . e($title) . '</h3><p>' . e($text) . '</p><a href="' . e($url) . '">اعرف التفاصيل ←</a></article>';
     return $html . '</div>';
 }
+function buyerServiceCards(): string {
+    $cards = [
+        ['home','بيت أو منزل','لمن يبحث عن منزل للتملك ويريد ربط قرار الشراء بقدرته التمويلية.'],
+        ['home','شقة أو فيلا','حدد نوع الوحدة والمدينة وابدأ طلب شراء حقيقي بدل البحث العام.'],
+        ['chart','أرض أو بناء ذاتي','ابدأ من هدف شراء الأرض أو البناء الذاتي ثم نراجع المسار المناسب.'],
+        ['wallet','شراء عبر التمويل البنكي','نربط احتياج العقار بالمسار التمويلي دون تحويل الصفحة إلى استفسارات مديونية.'],
+    ];
+    $html = '<div class="cards">';
+    foreach ($cards as [$ic,$title,$text]) $html .= '<article class="card"><span class="icon">' . icon($ic) . '</span><h3>' . e($title) . '</h3><p>' . e($text) . '</p><a href="#form">ابدأ طلب الشراء ←</a></article>';
+    return $html . '</div>';
+}
 function pageHtml(string $path, array $p, string $leadEndpoint): string {
     $chips = ''; foreach ($p['chips'] as $chip) $chips .= '<span class="chip">' . icon('check') . e($chip) . '</span>';
     $wa = 'https://wa.me/' . WHATSAPP_NUMBER . '?text=' . rawurlencode('مرحبًا أركان التنفيذية، أرغب في استشارة بخصوص ' . $p['tag'] . '.');
     $heroStyle = '--hero-image:url(' . e($p['hero']) . ')';
+    $serviceCardsHtml = ($p['id'] ?? '') === 'P5' ? buyerServiceCards() : serviceCards();
     $body = '<body class="' . e($p['theme']) . '">' . headerHtml()
         . '<main><section class="hero" style="' . $heroStyle . '"><div class="hero-overlay"></div><div class="container hero-grid"><div class="hero-copy"><span class="tag">' . e($p['tag']) . '</span><h1>' . e($p['h1']) . '</h1><p>' . e($p['intro']) . '</p><div class="chips">' . $chips . '</div><div class="hero-note">' . icon('shield') . '<span>أركان التنفيذية تقدم حلولًا واستشارات مالية وعقارية، وليست بنكًا ولا تمنح قرضًا مباشرًا أو تضمن موافقة جهة تمويل.</span></div></div>' . formHtml($p['id']) . '</div></section>'
         . trustBar()
-        . '<section class="section section-white"><div class="container"><div class="section-head"><h2>' . e($p['section_title']) . '</h2><p>' . e($p['section_intro']) . '</p></div>' . serviceCards() . '</div></section>'
+        . '<section class="section section-white"><div class="container"><div class="section-head"><h2>' . e($p['section_title']) . '</h2><p>' . e($p['section_intro']) . '</p></div>' . $serviceCardsHtml . '</div></section>'
         . '<section class="section section-ice"><div class="container"><div class="section-head"><span class="tag light-tag">خطوات واضحة</span><h2 class="top-gap">من الطلب إلى الخطوة التالية</h2><p>أرسل بياناتك الأساسية، وسيتواصل معك الفريق لفهم حالتك وتوضيح الخيارات المتاحة.</p></div><div class="steps"><article class="step"><h3>أرسل البيانات الأساسية</h3><p>الاسم والجوال والمدينة، مع اختيار نوع العقار أو جهة العمل على الأقل.</p></article><article class="step"><h3>نراجع حالتك</h3><p>نفهم الهدف والمشكلة ونحدد المعلومات الإضافية المطلوبة عند الحاجة.</p></article><article class="step"><h3>نوضح المسار المناسب</h3><p>نتواصل معك لشرح الخيارات والخطوة التالية بصورة واضحة.</p></article></div></div></section>'
         . '<section class="section brand-band"><div class="container brand-grid"><div><span class="tag">أركان التنفيذية</span><h2 class="top-gap">حل مالي وعقاري تحت سقف واحد</h2><p>نجمع بين فهم القدرة المالية والخبرة العقارية لمساعدتك على اتخاذ خطوة أوضح نحو التملك.</p></div><div class="brand-points"><div class="brand-point"><span class="icon">' . icon('chart') . '</span><div><strong>تحليل الالتزامات والقدرة</strong><br><small>فهم الصورة المالية قبل اختيار المسار.</small></div></div><div class="brand-point"><span class="icon">' . icon('home') . '</span><div><strong>خيارات عقارية مناسبة</strong><br><small>ربط الهدف العقاري بالقدرة الفعلية.</small></div></div><div class="brand-point"><span class="icon">' . icon('shield') . '</span><div><strong>وضوح بلا وعود مضللة</strong><br><small>كل حالة تخضع لمتطلبات الجهات ذات العلاقة.</small></div></div></div></div></section>'
         . '<section class="section section-mist"><div class="container faq"><div class="section-head"><h2>الأسئلة الشائعة</h2><p>إجابات مباشرة قبل إرسال طلب التقييم.</p></div><details><summary>هل أركان بنك أو جهة تمويل؟</summary><p>لا. أركان التنفيذية تقدم حلولًا واستشارات مالية وعقارية ولا تمنح قرضًا مباشرًا.</p></details><details><summary>هل يمكن ضمان قبول التمويل؟</summary><p>لا يمكن ضمان موافقة أي جهة. الهدف هو دراسة الحالة وتوضيح المسارات التي يمكن بحثها وفق المتطلبات.</p></details><details><summary>هل الاستشارة الأولية مجانية؟</summary><p>نعم، التقييم الأولي للبيانات الأساسية مجاني، وقد نحتاج معلومات إضافية لفهم الحالة بصورة أدق.</p></details><details><summary>هل يجب اختيار نوع العقار وجهة العمل معًا؟</summary><p>لا، يكفي اختيار واحد منهما على الأقل لإرسال الطلب، ويمكن اختيار الاثنين إذا كانت البيانات متاحة.</p></details></div></section>'
