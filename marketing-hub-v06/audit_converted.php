@@ -14,7 +14,7 @@ elseif($type==='whatsapp.smb.message.echoes'&&isset($p['whatsappMessage'])){$m=$
 elseif($type==='whatsapp.smb.history'&&isset($p['whatsappInboundMessage'])){$m=$p['whatsappInboundMessage'];$dir='inbound';}
 elseif($type==='whatsapp.smb.history'&&isset($p['whatsappMessage'])){$m=$p['whatsappMessage'];$dir='outbound';}
 if(!is_array($m))continue;$w=s($m['wabaId']??'');$cust=s($dir==='inbound'?($m['from']??''):($m['to']??''));if($w===''||$cust==='')continue;$id=substr(hash('sha256',$w.'|'.$cust),0,24);if(!isset($targets[$id]))continue;$at=s($m['sendTime']??$r['createTime']??'');$rows[$id][]=['direction'=>$dir,'at'=>$at,'type'=>s($m['type']??''),'text'=>txt($m),'referral'=>is_array($m['referral']??null)?$m['referral']:[]];}fclose($fh);}
-$words=['تم الدفع','دفعت','تم التحويل','حولت','حوّلت','تم الحجز','حجزت','تم التعاقد','وقعت العقد','وقّعت العقد','اشتريت','paid','payment done','contract signed','purchased'];
+$words=['تم التعاقد','وقعت العقد','وقّعت العقد','تم توقيع العقد','اشتريت العقار','اشتريت الوحدة','تم شراء العقار','تم شراء الوحدة','contract signed','property purchased','unit purchased'];
 $out=[];
 foreach(array_keys($targets) as $id){$msgs=$rows[$id]??[];usort($msgs,fn($a,$b)=>strcmp($a['at'],$b['at']));$firstIn=null;$firstOut=null;$hits=[];$ref=false;
 foreach($msgs as $m){if($m['direction']==='inbound'&&$firstIn===null)$firstIn=$m;if($m['direction']==='outbound'&&$firstOut===null)$firstOut=$m;if($m['direction']==='inbound'){if(!empty($m['referral']))$ref=true;$l=low($m['text']);foreach($words as $w)if($w!==''&&str_contains($l,low($w))){$hits[]=['at'=>$m['at'],'matched'=>$w,'text'=>$m['text']];break;}}}
