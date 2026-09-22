@@ -181,7 +181,7 @@ function parse_contact_source(array $contact):array{
     $u=strtolower($sourceUrl);
     if(str_contains($u,'gclid=')||str_contains($u,'gbraid=')||str_contains($u,'wbraid=')||str_contains($u,'utm_source=google')){
         $key='google';$label='Google Ads';
-    }elseif(str_contains($u,'utm_source=tiktok')||str_contains($u,'tiktok')){
+    }elseif($sourceType==='TIKTOK_AD'||str_contains($u,'utm_source=tiktok')||str_contains($u,'tiktok')){
         $key='tiktok';$label='TikTok Ads';
     }elseif(str_contains($u,'utm_source=facebook')||str_contains($u,'utm_source=instagram')||str_contains($u,'facebook.com')||str_contains($u,'instagram.com')){
         $key='meta';$label='Meta Ads';
