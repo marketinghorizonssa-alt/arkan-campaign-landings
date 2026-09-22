@@ -144,28 +144,6 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
         return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'ycloud_chatlink_source_url','source_url'=>$inboundSourceUrl!==''?$inboundSourceUrl:lr_s($ref['source_url']??'')];
     }
 
-    // Website-origin WhatsApp clicks are attributed to Google Ads by the user's reporting rule.
-    // High-confidence path: website CTAs append one of these source markers.
-    $websiteMarker = lr_contains($text, [
-        'source:web','source:website','source=web','source=website',
-        '[source:web]','[source:website]','المصدر: الموقع','المصدر:الموقع',
-        'المصدر: website','المصدر:website','utm_source=google','gclid='
-    ]);
-    if ($websiteMarker) {
-        return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'website_marker'];
-    }
-
-    // Backfill known website-prefilled WhatsApp templates used before source:web was added.
-    $websiteTemplate = (
-        lr_contains($text,['أرغب في حجز خدمة','ارغب في حجز خدمة','أريد عرض خدمة','اريد عرض خدمة','أود حجز خدمة','اود حجز خدمة']) ||
-        (
-            lr_contains($text,['مرحب','اهلاً','أهلاً','مرحبا']) &&
-            lr_contains($text,['أرغب في','ارغب في','أود الاستفسار','اود الاستفسار','أريد الاستفسار','اريد الاستفسار','أريد معرفة','اريد معرفة'])
-        )
-    );
-    if ($websiteTemplate) {
-        return ['key'=>'google','label'=>'Google Ads','confidence'=>'medium','reason'=>'known_website_template'];
-    }
 
     if (str_contains($refText, 'google') || lr_contains($text, ['المصدر: Google Ads','المصدر:Google Ads','source: google ads','جوجل ادز','google ads'])) {
         return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>str_contains($refText,'google') ? 'referral' : 'message_source_tag'];
