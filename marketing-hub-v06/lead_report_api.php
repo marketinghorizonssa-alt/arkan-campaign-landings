@@ -316,6 +316,31 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
             $messageRows[]=['direction'=>$m['direction'],'type'=>$m['type'],'text'=>$m['text'],'at'=>$m['at_local']];
         }
         $leadId=substr(hash('sha256',$key.'|'.$firstEpoch),0,16);
+        $convMeta=is_array($aiByKey[$key]??null)?$aiByKey[$key]:[];
+        $attribution=[
+            'source_url'=>lr_s($convMeta['chatlink_source_url']??$convMeta['ycloud_inbound_source_url']??''),
+            'landing_url'=>lr_s($convMeta['attribution_landing_url']??''),
+            'referrer'=>lr_s($convMeta['attribution_referrer']??''),
+            'click_id'=>lr_s($convMeta['ycloud_chatlink_click_id']??''),
+            'params'=>is_array($convMeta['attribution_params']??null)?$convMeta['attribution_params']:[],
+            'utm'=>is_array($convMeta['attribution_utm']??null)?$convMeta['attribution_utm']:[],
+            'first_touch'=>is_array($convMeta['attribution_first_touch']??null)?$convMeta['attribution_first_touch']:[],
+            'last_touch'=>is_array($convMeta['attribution_last_touch']??null)?$convMeta['attribution_last_touch']:[],
+            'current_touch'=>is_array($convMeta['attribution_current_touch']??null)?$convMeta['attribution_current_touch']:[],
+            'touch_history'=>is_array($convMeta['attribution_touch_history']??null)?$convMeta['attribution_touch_history']:[],
+            'click_ids'=>[
+                'gclid'=>lr_s($convMeta['google_gclid']??''),
+                'gbraid'=>lr_s($convMeta['google_gbraid']??''),
+                'wbraid'=>lr_s($convMeta['google_wbraid']??''),
+                'dclid'=>lr_s($convMeta['google_dclid']??''),
+                'fbclid'=>lr_s($convMeta['meta_fbclid']??''),
+                'ttclid'=>lr_s($convMeta['tiktok_ttclid']??''),
+                'scclid'=>lr_s($convMeta['snapchat_scclid']??''),
+                'msclkid'=>lr_s($convMeta['microsoft_msclkid']??''),
+                'li_fat_id'=>lr_s($convMeta['linkedin_li_fat_id']??''),
+                'twclid'=>lr_s($convMeta['x_twclid']??'')
+            ]
+        ];
         $leads[]=[
             'lead_id'=>$leadId,
             'client_id'=>$t['client_id'],
@@ -324,6 +349,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
             'first_contact_at'=>lr_iso_local((string)$t['first_inbound']['at_utc'],$tz),
             'source'=>$src,
             'quality'=>$quality,
+            'attribution'=>$attribution,
             'message_count'=>count($messageRows),
             'messages'=>$messageRows
         ];
@@ -350,7 +376,7 @@ function lr_csv(array $report): never {
     header('Content-Disposition: attachment; filename="'.$filename.'"');
     echo "\xEF\xBB\xBF";
     $out=fopen('php://output','wb');
-    fputcsv($out,['Client','From','To','Lead #','Customer phone','First contact','Source','Source confidence','Evaluation','Quality score','Evaluation summary','Message time','Direction','Message type','Message text']);
+    fputcsv($out,['Client','From','To','Lead #','Customer phone','First contact','Source','Source confidence','Source URL','Landing URL','Referrer','Click IDs','UTMs','All attribution params','Evaluation','Quality score','Evaluation summary','Message time','Direction','Message type','Message text']);
     $i=0;
     foreach(($report['leads']??[]) as $lead){
         $i++;
@@ -361,6 +387,10 @@ function lr_csv(array $report): never {
                 $lead['client_name']??'', $report['from']??'', $report['to']??'', $i,
                 $lead['customer_phone']??'', $lead['first_contact_at']??'',
                 $lead['source']['label']??'', $lead['source']['confidence']??'',
+                $lead['attribution']['source_url']??'', $lead['attribution']['landing_url']??'', $lead['attribution']['referrer']??'',
+                json_encode($lead['attribution']['click_ids']??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
+                json_encode($lead['attribution']['utm']??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
+                json_encode($lead['attribution']['params']??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
                 $lead['quality']['label']??'', $lead['quality']['score']??0, $lead['quality']['summary']??'',
                 $m['at']??'', $m['direction']??'', $m['type']??'', $m['text']??''
             ]);
