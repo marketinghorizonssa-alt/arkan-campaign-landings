@@ -45,7 +45,7 @@
 </div>
 
 <section class="card">
-<div class="section-title"><div><b>مصادر الإحالات</b><div class="muted" style="font-size:12px;margin-top:4px">لو مفيش attribution إعلاني متتبع، بيتعرض Organic / Direct مع confidence منخفض.</div></div><div id="sources"></div></div>
+<div class="section-title"><div><b>مصادر الإحالات</b><div class="muted" style="font-size:12px;margin-top:4px">قاعدة الإسناد: Website WhatsApp = Google Ads. إشارات TikTok/Meta/Snap تتقدم على الموقع. Direct WhatsApp بدون إشارة موقع أو إعلان = Organic / Direct.</div></div><div id="sources"></div></div>
 </section>
 
 <section class="card">
