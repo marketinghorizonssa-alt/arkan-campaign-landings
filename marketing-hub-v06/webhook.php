@@ -364,6 +364,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'attribution_first_touch'=>is_array($chatClick['first_touch']??null)?$chatClick['first_touch']:($prev['attribution_first_touch']??[]),
         'attribution_last_touch'=>is_array($chatClick['last_touch']??null)?$chatClick['last_touch']:($prev['attribution_last_touch']??[]),
         'attribution_current_touch'=>is_array($chatClick['current_touch']??null)?$chatClick['current_touch']:($prev['attribution_current_touch']??[]),
+        'attribution_touch_history'=>is_array($chatClick['touch_history']??null)?$chatClick['touch_history']:($prev['attribution_touch_history']??[]),
         'google_gclid'=>(string)($chatClick['gclid']??($prev['google_gclid']??'')),
         'google_gbraid'=>(string)($chatClick['gbraid']??($prev['google_gbraid']??'')),
         'google_wbraid'=>(string)($chatClick['wbraid']??($prev['google_wbraid']??'')),
