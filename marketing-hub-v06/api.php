@@ -160,7 +160,7 @@ function sync_connection_numbers(string $apiKey, string $connectionId, string $c
 
 $action=(string)($_GET['action']??'health');
 $convFile=$base.'/conversations.json'; $conversionFile=$base.'/conversion_events.jsonl'; $deliveryFile=$base.'/platform_delivery.jsonl'; $rawFile=$base.'/raw_events.jsonl';
-$clientsFile=$base.'/clients.json'; $numbersFile=$base.'/whatsapp_numbers.json'; $mappingsFile=$base.'/platform_mappings.json'; $connectionsFile=$base.'/ycloud_connections.json';
+$clientsFile=$base.'/clients.json'; $numbersFile=$base.'/whatsapp_numbers.json'; $mappingsFile=$base.'/platform_mappings.json'; $connectionsFile=$base.'/ycloud_connections.json'; $chatlinkClicksFile=$base.'/chatlink_clicks.json';
 $connections=ensure_legacy_connection($connectionsFile,$legacyKeyFile);
 
 if($action==='health'){
@@ -223,6 +223,50 @@ if($action==='platform_mapping_save'&&$_SERVER['REQUEST_METHOD']==='POST'){
     if(!in_array($platform,$allowed,true)||$clientId===''||!isset($clients[$clientId])){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'platform_and_client_required']);exit;}if($numberId!==''&&!isset($numbers[$numberId])){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'number_not_found']);exit;}
     $m=load_json($mappingsFile,[]);$id=trim((string)($body['id']??''));if($id===''||!isset($m[$id])){foreach($m as $mid=>$x)if((string)($x['platform']??'')===$platform&&(string)($x['client_id']??'')===$clientId&&(string)($x['number_id']??'')===$numberId){$id=(string)$mid;break;}}
     if($id===''||!isset($m[$id]))$id=make_id('map');$now=gmdate('c');$m[$id]=['id'=>$id,'platform'=>$platform,'client_id'=>$clientId,'number_id'=>$numberId,'account_id'=>trim((string)($body['account_id']??'')),'account_name'=>trim((string)($body['account_name']??'')),'event_set_id'=>trim((string)($body['event_set_id']??'')),'status'=>trim((string)($body['status']??'configured'))?:'configured','created_at'=>(string)($m[$id]['created_at']??$now),'updated_at'=>$now];save_json($mappingsFile,$m);echo json_encode(['ok'=>true,'mapping'=>$m[$id]],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
+}
+if($action==='chatlink_click'&&$_SERVER['REQUEST_METHOD']==='POST'){
+    $body=$_POST;
+    if(!$body){
+        $j=body_json();
+        if($j)$body=$j;
+    }
+    $clickId=trim((string)($body['click_id']??''));
+    $sourceUrl=trim((string)($body['source_url']??''));
+    $interactionId=trim((string)($body['interaction_id']??''));
+    $widgetId=trim((string)($body['widget_id']??''));
+    $businessPhone=normalize_phone((string)($body['business_phone']??''));
+    if(!preg_match('/^clk_[A-Za-z0-9_-]{4,80}$/',$clickId)){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_click_id']);exit;}
+    if($sourceUrl===''||strlen($sourceUrl)>3000){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_source_url']);exit;}
+    $parts=parse_url($sourceUrl);
+    $host=strtolower((string)($parts['host']??''));
+    if(($parts['scheme']??'')!=='https'||!in_array($host,['pcare.sa','www.pcare.sa'],true)){http_response_code(403);echo json_encode(['ok'=>false,'error'=>'source_host_not_allowed']);exit;}
+    if($businessPhone!==''&&preg_replace('/\D+/','',$businessPhone)!=='966505952042'){http_response_code(403);echo json_encode(['ok'=>false,'error'=>'business_phone_not_allowed']);exit;}
+    parse_str((string)($parts['query']??''),$q);
+    $gclid=trim((string)($q['gclid']??''));
+    $gbraid=trim((string)($q['gbraid']??''));
+    $wbraid=trim((string)($q['wbraid']??''));
+    $utmSource=strtolower(trim((string)($q['utm_source']??'')));
+    $utmMedium=trim((string)($q['utm_medium']??''));
+    $utmCampaign=trim((string)($q['utm_campaign']??''));
+    $platform='website';$label='Website / YCloud Chat Link';$reason='ycloud_chatlink_click';
+    if($gclid!==''||$gbraid!==''||$wbraid!==''||$utmSource==='google'){$platform='google';$label='Google Ads';$reason='ycloud_chatlink_google_click_id';}
+    elseif(str_contains($utmSource,'tiktok')){$platform='tiktok';$label='TikTok Ads';$reason='ycloud_chatlink_utm';}
+    elseif(in_array($utmSource,['facebook','instagram','meta'],true)){$platform='meta';$label='Meta Ads';$reason='ycloud_chatlink_utm';}
+    elseif(str_contains($utmSource,'snap')){$platform='snapchat';$label='Snapchat Ads';$reason='ycloud_chatlink_utm';}
+    $clicks=load_json($chatlinkClicksFile,[]);
+    $now=time();
+    foreach($clicks as $k=>$v){$ts=strtotime((string)($v['created_at']??''));if($ts&&$now-$ts>2592000)unset($clicks[$k]);}
+    $clicks[$clickId]=[
+        'click_id'=>$clickId,'interaction_id'=>$interactionId,'widget_id'=>$widgetId,
+        'business_phone'=>$businessPhone!==''?$businessPhone:'+966505952042',
+        'source_url'=>$sourceUrl,'traffic_source_key'=>$platform,'traffic_source_label'=>$label,
+        'traffic_source_confidence'=>'high','traffic_source_reason'=>$reason,
+        'gclid'=>$gclid,'gbraid'=>$gbraid,'wbraid'=>$wbraid,
+        'utm_source'=>$utmSource,'utm_medium'=>$utmMedium,'utm_campaign'=>$utmCampaign,
+        'created_at'=>gmdate('c'),'matched_at'=>null,'matched_customer'=>null
+    ];
+    if(!save_json($chatlinkClicksFile,$clicks)){http_response_code(500);echo json_encode(['ok'=>false,'error'=>'save_failed']);exit;}
+    echo json_encode(['ok'=>true,'click_id'=>$clickId,'source'=>$platform],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
 }
 if($action==='conversations'){ $c=array_values(load_json($convFile,[]));usort($c,fn($a,$b)=>strcmp((string)($b['last_message_at']??''),(string)($a['last_message_at']??'')));echo json_encode(['ok'=>true,'conversations'=>$c],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit; }
 if($action==='events'){echo json_encode(['ok'=>true,'events'=>read_jsonl($conversionFile,200)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
