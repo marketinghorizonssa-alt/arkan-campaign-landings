@@ -281,24 +281,24 @@ try{
     if($action==='csv') lr_csv($report);
     if($action==='drive_export'){
         if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);throw new RuntimeException('method_not_allowed');}
-        $urlFile=$secure.'/google_report_webhook_url';
-        $secretFile=$secure.'/google_report_webhook_secret';
-        $url=is_file($urlFile)?trim((string)file_get_contents($urlFile)):'';
-        $secret=is_file($secretFile)?trim((string)file_get_contents($secretFile)):'';
-        if($url===''||$secret===''){http_response_code(409);header('Content-Type: application/json; charset=utf-8');echo json_encode(['ok'=>false,'error'=>'drive_not_configured']);exit;}
-        $rows=[];
-        $i=0;
-        foreach($report['leads'] as $lead){$i++;foreach($lead['messages'] as $m)$rows[]=[
-            'lead_no'=>$i,'client'=>$lead['client_name'],'customer_phone'=>$lead['customer_phone'],'first_contact'=>$lead['first_contact_at'],
-            'source'=>$lead['source']['label'],'evaluation'=>$lead['quality']['label'],'quality_score'=>$lead['quality']['score'],
-            'message_time'=>$m['at'],'direction'=>$m['direction'],'message_type'=>$m['type'],'message_text'=>$m['text']
-        ];}
-        $payload=json_encode(['secret'=>$secret,'title'=>'WhatsApp Leads - '.$report['client_name'].' - '.$from.' to '.$to,'report'=>$report,'rows'=>$rows],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-        $ch=curl_init($url);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['Content-Type: application/json'],CURLOPT_POSTFIELDS=>$payload,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>30,CURLOPT_FOLLOWLOCATION=>false]);
-        $body=curl_exec($ch);$errno=curl_errno($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
-        $decoded=is_string($body)?json_decode($body,true):null;
-        if($errno!==0||$status<200||$status>=300||!is_array($decoded)||empty($decoded['ok'])){http_response_code(502);header('Content-Type: application/json; charset=utf-8');echo json_encode(['ok'=>false,'error'=>'drive_export_failed','status'=>$status]);exit;}
-        header('Content-Type: application/json; charset=utf-8');echo json_encode(['ok'=>true,'url'=>$decoded['url']??null,'sheet_id'=>$decoded['sheet_id']??null],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
+        if(!is_dir($secure) && !@mkdir($secure,0700,true)){http_response_code(500);throw new RuntimeException('secure_dir_unavailable');}
+        $stateFile=$secure.'/google_report_state.json';
+        $state=[
+            'client_id'=>$client,
+            'client_name'=>$report['client_name']??'',
+            'from'=>$from,
+            'to'=>$to,
+            'updated_at'=>(new DateTimeImmutable('now',$tz))->format(DateTimeInterface::ATOM),
+            'new_customers'=>(int)($report['summary']['new_customers']??0)
+        ];
+        $tmp=$stateFile.'.tmp';
+        if(file_put_contents($tmp,json_encode($state,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT),LOCK_EX)===false || !rename($tmp,$stateFile)){
+            http_response_code(500);header('Content-Type: application/json; charset=utf-8');echo json_encode(['ok'=>false,'error'=>'drive_state_write_failed']);exit;
+        }
+        $sheetId='1EEWHlQkf3Y3Fzv0e2uZ3fWHxD14_mRM1gkQfTlYfNT4';
+        $sheetUrl='https://docs.google.com/spreadsheets/d/'.$sheetId.'/edit';
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok'=>true,'url'=>$sheetUrl,'sheet_id'=>$sheetId,'updated_at'=>$state['updated_at'],'new_customers'=>$state['new_customers']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
     }
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($report,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
