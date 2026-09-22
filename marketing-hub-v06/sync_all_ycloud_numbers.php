@@ -84,58 +84,8 @@ function ns_bootstrap_reporting(string $secureDir): void {
 
 ns_bootstrap_reporting($secureDir);
 
-function ns_reset_pcare_saudi_test_contact(string $secureDir,string $ycloudSecureDir,string $legacyKeyFile,string $base): array {
-    $marker=$secureDir.'/.pcare_saudi_test_contact_reset_20260922';
-    $resultFile=$secureDir.'/.pcare_saudi_test_contact_reset_20260922.json';
-    if(is_file($marker)){
-        $old=is_file($resultFile)?json_decode((string)file_get_contents($resultFile),true):null;
-        return is_array($old)?$old:['ok'=>true,'status'=>'already_done'];
-    }
-    $conn='yc_9a6e2357c08902';
-    $phone='+966574802797';
-    $key=ns_key($conn,$ycloudSecureDir,$legacyKeyFile);
-    if($key==='')return ['ok'=>false,'error'=>'missing_key'];
-    $url='https://api.ycloud.com/v2/contact/contacts/'.rawurlencode($phone);
-    $call=function(string $method)use($key,$url):array{
-        $ch=curl_init($url);
-        curl_setopt_array($ch,[
-            CURLOPT_RETURNTRANSFER=>true,
-            CURLOPT_CUSTOMREQUEST=>$method,
-            CURLOPT_HTTPHEADER=>['X-API-Key: '.$key,'Accept: application/json'],
-            CURLOPT_CONNECTTIMEOUT=>8,
-            CURLOPT_TIMEOUT=>25,
-            CURLOPT_FOLLOWLOCATION=>false
-        ]);
-        $body=curl_exec($ch);
-        $errno=curl_errno($ch);
-        $status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);
-        $error=curl_error($ch);
-        curl_close($ch);
-        return ['status'=>$status,'errno'=>$errno,'error'=>$errno?$error:null,'body'=>is_string($body)?$body:''];
-    };
-    $del=$call('DELETE');
-    $get=$call('GET');
-    $srcFile=$base.'/contact_sources.json';
-    $src=ns_json($srcFile,[]);
-    $localKey=$conn.'|'.preg_replace('/\D+/','',$phone);
-    $localRemoved=array_key_exists($localKey,$src);
-    unset($src[$localKey]);
-    if($localRemoved)ns_save($srcFile,$src);
-    $result=[
-        'ok'=>in_array($del['status'],[200,404],true)&&$get['status']===404,
-        'delete_status'=>$del['status'],
-        'verify_status'=>$get['status'],
-        'local_source_removed'=>$localRemoved,
-        'at'=>gmdate('c')
-    ];
-    @file_put_contents($resultFile,json_encode($result,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT),LOCK_EX);
-    if($result['ok'])@file_put_contents($marker,gmdate('c')."\n",LOCK_EX);
-    return $result;
-}
-$pcareReset=ns_reset_pcare_saudi_test_contact($secureDir,$ycloudSecureDir,$legacyKeyFile,$base);
-
 if (is_file($stateFile) && (time() - (int)@filemtime($stateFile)) < 900) {
-    echo json_encode(['ok'=>true,'status'=>'throttled','last_run'=>trim((string)@file_get_contents($stateFile)),'pcare_test_reset'=>$pcareReset], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok'=>true,'status'=>'throttled','last_run'=>trim((string)@file_get_contents($stateFile))], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     exit;
 }
 
