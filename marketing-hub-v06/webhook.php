@@ -14,6 +14,7 @@ $connectionsFile=$base.'/ycloud_connections.json';
 $numbersFile=$base.'/whatsapp_numbers.json';
 $automationRulesFile=$base.'/automation_rules.json';
 $deliveryFile=$base.'/platform_delivery.jsonl';
+$contactSourcesFile=$base.'/contact_sources.json';
 
 function load_json(string $file,array $default=[]):array{
     if(!is_file($file)) return $default;
@@ -156,6 +157,37 @@ function is_substantive(string $text,string $type):bool{
 function recent_push(array $recent,array $item,int $limit=12):array{
     $recent[]=$item;if(count($recent)>$limit)$recent=array_slice($recent,-$limit);return array_values($recent);
 }
+function contact_source_key(string $connectionId,string $phone):string{
+    return $connectionId.'|'.preg_replace('/\D+/','',$phone);
+}
+function parse_contact_source(array $contact):array{
+    $sourceType=strtoupper(trim((string)($contact['sourceType']??'')));
+    $sourceId=trim((string)($contact['sourceId']??''));
+    $sourceUrl=trim((string)($contact['sourceUrl']??''));
+    $lastConnected=normalize_phone((string)($contact['lastConnectedNumber']??''));
+    $key='unknown';$label='Unknown';$confidence='high';$reason='ycloud_contact_source';
+    $u=strtolower($sourceUrl);
+    if(str_contains($u,'gclid=')||str_contains($u,'gbraid=')||str_contains($u,'wbraid=')||str_contains($u,'utm_source=google')){
+        $key='google';$label='Google Ads';
+    }elseif(str_contains($u,'utm_source=tiktok')||str_contains($u,'tiktok')){
+        $key='tiktok';$label='TikTok Ads';
+    }elseif(str_contains($u,'utm_source=facebook')||str_contains($u,'utm_source=instagram')||str_contains($u,'facebook.com')||str_contains($u,'instagram.com')){
+        $key='meta';$label='Meta Ads';
+    }elseif(str_contains($u,'utm_source=snapchat')||str_contains($u,'snapchat')){
+        $key='snapchat';$label='Snapchat Ads';
+    }elseif($sourceType==='GROWTH_TOOL'){
+        $key='website';$label='Website / YCloud Chat Link';
+    }elseif($sourceType==='AD'){
+        $key='ad';$label='Ad';
+    }elseif($sourceType==='WHATSAPP'||$sourceType==='SMB'){
+        $key='organic';$label='Organic / Direct';
+    }
+    return [
+        'source_type'=>$sourceType,'source_id'=>$sourceId,'source_url'=>$sourceUrl,
+        'last_connected_number'=>$lastConnected,'traffic_source_key'=>$key,
+        'traffic_source_label'=>$label,'traffic_source_confidence'=>$confidence,'traffic_source_reason'=>$reason
+    ];
+}
 function automation_rules(string $file,string $clientId):array{
     $cfg=load_json($file,[]);$default=is_array($cfg['default']??null)?$cfg['default']:[];$client=is_array($cfg['clients'][$clientId]??null)?$cfg['clients'][$clientId]:[];
     return array_replace_recursive($default,$client);
@@ -259,7 +291,40 @@ $handleOutbound=function(array $m,bool $history=false)use(&$conversations,&$conv
     $conversations[$id]=$conv;save_json($convFile,$conversations);$conversationUpdated=true;
 };
 
-if($type==='whatsapp.inbound_message.received'&&isset($event['whatsappInboundMessage'])&&is_array($event['whatsappInboundMessage']))$handleInbound($event['whatsappInboundMessage'],false);
+if($type==='contact.created'&&isset($event['contactCreated'])&&is_array($event['contactCreated'])){
+    $contact=$event['contactCreated'];
+    $phone=normalize_phone((string)($contact['phoneNumber']??''));
+    if($phone!==''){
+        $sources=load_json($contactSourcesFile,[]);
+        $parsed=parse_contact_source($contact);
+        $k=contact_source_key($connectionId,$phone);
+        $sources[$k]=array_merge([
+            'id'=>(string)($contact['id']??''),'ycloud_connection_id'=>$connectionId,'client_id'=>$clientId,
+            'phone_number'=>$phone,'created_at'=>(string)($contact['createTime']??$event['createTime']??gmdate('c')),
+            'updated_at'=>gmdate('c')
+        ],$parsed);
+        save_json($contactSourcesFile,$sources);
+
+        foreach($conversations as $cid=>$conv){
+            if(!is_array($conv))continue;
+            if(normalize_phone((string)($conv['customer_number']??''))!==$phone)continue;
+            if($connectionId!==''&&(string)($conv['ycloud_connection_id']??'')!==$connectionId)continue;
+            $conv['ycloud_contact_source_type']=$parsed['source_type'];
+            $conv['ycloud_contact_source_id']=$parsed['source_id'];
+            $conv['ycloud_contact_source_url']=$parsed['source_url'];
+            if($parsed['traffic_source_key']!=='unknown'){
+                $conv['traffic_source_key']=$parsed['traffic_source_key'];
+                $conv['traffic_source_label']=$parsed['traffic_source_label'];
+                $conv['traffic_source_confidence']=$parsed['traffic_source_confidence'];
+                $conv['traffic_source_reason']=$parsed['traffic_source_reason'];
+            }
+            $conv['updated_at']=gmdate('c');
+            $conversations[$cid]=$conv;$conversationUpdated=true;
+        }
+        if($conversationUpdated)save_json($convFile,$conversations);
+    }
+}
+elseif($type==='whatsapp.inbound_message.received'&&isset($event['whatsappInboundMessage'])&&is_array($event['whatsappInboundMessage']))$handleInbound($event['whatsappInboundMessage'],false);
 elseif($type==='whatsapp.smb.message.echoes'&&isset($event['whatsappMessage'])&&is_array($event['whatsappMessage']))$handleOutbound($event['whatsappMessage'],false);
 elseif($type==='whatsapp.smb.history'){
     if(isset($event['whatsappInboundMessage'])&&is_array($event['whatsappInboundMessage']))$handleInbound($event['whatsappInboundMessage'],true);
