@@ -84,7 +84,7 @@ function lr_contains(string $text, array $needles): bool {
     foreach ($needles as $n) if ($n !== '' && str_contains($t, lr_lower((string)$n))) return true;
     return false;
 }
-function lr_source(array $firstInbound, array $messages): array {
+function lr_source(array $firstInbound, array $messages, array $contactSource=[]): array {
     $raw = is_array($firstInbound['raw'] ?? null) ? $firstInbound['raw'] : [];
     $ref = is_array($raw['referral'] ?? null) ? $raw['referral'] : [];
     $clid = lr_s($ref['ctwa_clid'] ?? $ref['ctwaClid'] ?? '');
@@ -112,6 +112,20 @@ function lr_source(array $firstInbound, array $messages): array {
     }
     if (str_contains($refText, 'x.com') || str_contains($refText, 'twitter')) {
         return ['key'=>'x','label'=>'X Ads','confidence'=>'high','reason'=>'referral'];
+    }
+
+    // YCloud Contact/Growth Tool source metadata is independent of message text.
+    $ck=lr_s($contactSource['traffic_source_key']??'');
+    if($ck!=='' && $ck!=='unknown'){
+        return [
+            'key'=>$ck,
+            'label'=>lr_s($contactSource['traffic_source_label']??$ck),
+            'confidence'=>lr_s($contactSource['traffic_source_confidence']??'high') ?: 'high',
+            'reason'=>lr_s($contactSource['traffic_source_reason']??'ycloud_contact_source') ?: 'ycloud_contact_source',
+            'ycloud_source_type'=>lr_s($contactSource['source_type']??''),
+            'ycloud_source_id'=>lr_s($contactSource['source_id']??''),
+            'source_url'=>lr_s($contactSource['source_url']??'')
+        ];
     }
 
     // Website-origin WhatsApp clicks are attributed to Google Ads by the user's reporting rule.
@@ -179,6 +193,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
     $clientsRaw = lr_json($base.'/clients.json', []);
     $numbersRaw = lr_json($base.'/whatsapp_numbers.json', []);
     $conversationsRaw = lr_json($base.'/conversations.json', []);
+    $contactSourcesRaw = lr_json($base.'/contact_sources.json', []);
 
     $clients=[]; $clientNames=[];
     foreach ($clientsRaw as $k=>$c) {
@@ -199,6 +214,19 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         $w=lr_s($n['waba_id'] ?? '');
         if ($p!=='') $byPhone[$p]=$cid;
         if ($w!=='') $byWaba[$w]=$cid;
+    }
+
+    $contactSourceByKey=[];
+    foreach($contactSourcesRaw as $s){
+        if(!is_array($s))continue;
+        $cid=lr_s($s['client_id']??'');
+        $phone=lr_phone($s['phone_number']??'');
+        if($cid===''||$phone==='')continue;
+        $k=$cid.'|'.$phone;
+        $stamp=lr_s($s['updated_at']??$s['created_at']??'');
+        if(!isset($contactSourceByKey[$k])||strcmp($stamp,lr_s($contactSourceByKey[$k]['_stamp']??''))>=0){
+            $s['_stamp']=$stamp;$contactSourceByKey[$k]=$s;
+        }
     }
 
     $aiByKey=[];
@@ -270,7 +298,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         $messages=array_values($t['messages']);
         usort($messages,fn($a,$b)=>($a['epoch']<=>$b['epoch']));
         $messages=array_values(array_filter($messages,fn($m)=>$m['epoch']>=$firstEpoch && $m['epoch']<=$end));
-        $src=lr_source($t['first_inbound'],$messages);
+        $src=lr_source($t['first_inbound'],$messages,$contactSourceByKey[$key]??[]);
         $quality=lr_stage($aiByKey[$key]??[]);
         $messageRows=[];
         foreach($messages as $m) {
