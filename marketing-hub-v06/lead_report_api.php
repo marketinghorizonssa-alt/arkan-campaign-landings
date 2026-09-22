@@ -84,9 +84,21 @@ function lr_contains(string $text, array $needles): bool {
     foreach ($needles as $n) if ($n !== '' && str_contains($t, lr_lower((string)$n))) return true;
     return false;
 }
+function lr_inbound_source_url(array $raw): string {
+    $candidates=[
+        $raw['sourceUrl']??null,$raw['source_url']??null,$raw['trafficSourceUrl']??null,$raw['traffic_source_url']??null,
+        $raw['referral']['source_url']??null,$raw['referral']['sourceUrl']??null,
+        $raw['tracking']['sourceUrl']??null,$raw['tracking']['source_url']??null,
+        $raw['trafficSource']['url']??null,$raw['trafficSource']['sourceUrl']??null
+    ];
+    foreach($candidates as $v) if(is_string($v)&&trim($v)!=='') return trim($v);
+    return '';
+}
 function lr_source(array $firstInbound, array $messages, array $contactSource=[]): array {
     $raw = is_array($firstInbound['raw'] ?? null) ? $firstInbound['raw'] : [];
     $ref = is_array($raw['referral'] ?? null) ? $raw['referral'] : [];
+    $inboundSourceUrl=lr_inbound_source_url($raw);
+    if($inboundSourceUrl!==''&&empty($ref['source_url'])){$ref['source_url']=$inboundSourceUrl;if(empty($ref['source_type']))$ref['source_type']='growth_tool';}
     $clid = lr_s($ref['ctwa_clid'] ?? $ref['ctwaClid'] ?? '');
     $sourceType = lr_lower(lr_s($ref['source_type'] ?? $ref['sourceType'] ?? ''));
     $refText = lr_lower(
@@ -126,6 +138,10 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
             'ycloud_source_id'=>lr_s($contactSource['source_id']??''),
             'source_url'=>lr_s($contactSource['source_url']??'')
         ];
+    }
+
+    if(str_contains($refText,'gclid=')||str_contains($refText,'gbraid=')||str_contains($refText,'wbraid=')||str_contains($refText,'utm_source=google')){
+        return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'ycloud_chatlink_source_url','source_url'=>$inboundSourceUrl!==''?$inboundSourceUrl:lr_s($ref['source_url']??'')];
     }
 
     // Website-origin WhatsApp clicks are attributed to Google Ads by the user's reporting rule.
