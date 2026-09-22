@@ -324,14 +324,38 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
     $messageSource=message_source_meta($m);
     $rawBody=(string)($m['text']['body']??'');
     $chatlink=decode_chatlink_tracking($rawBody);
-    $chatClick=[];
+    $chatClick=[];$chatClickMatchMethod='';
+    $clicks=load_json($chatlinkClicksFile,[]);
     if($chatlink['click_id']!==''){
-        $clicks=load_json($chatlinkClicksFile,[]);
         $chatClick=is_array($clicks[$chatlink['click_id']]??null)?$clicks[$chatlink['click_id']]:[];
-        if($chatClick){
-            $clicks[$chatlink['click_id']]['matched_at']=gmdate('c');
-            $clicks[$chatlink['click_id']]['matched_customer']=$customer;
-            $clicks[$chatlink['click_id']]['matched_business']=$business;
+        if($chatClick)$chatClickMatchMethod='hidden_token';
+    }
+    if(!$chatClick&&$isNew&&!$history){
+        $sentEpoch=strtotime($sentAt)?:time();
+        $candidates=[];
+        foreach($clicks as $clickId=>$row){
+            if(!is_array($row)||!empty($row['matched_at']))continue;
+            if(normalize_phone((string)($row['business_number']??''))!==normalize_phone($business))continue;
+            $captured=strtotime((string)($row['captured_at']??''));
+            if(!$captured||$captured>$sentEpoch)continue;
+            $age=$sentEpoch-$captured;
+            if($age<0||$age>300)continue;
+            $candidates[$clickId]=['row'=>$row,'age'=>$age];
+        }
+        if(count($candidates)===1){
+            $onlyKey=array_key_first($candidates);
+            $chatClick=$candidates[$onlyKey]['row'];
+            $chatlink['click_id']=$onlyKey;
+            $chatClickMatchMethod='single_recent_unmatched_click';
+        }
+    }
+    if($chatClick&&($chatlink['click_id']??'')!==''){
+        $cid=(string)$chatlink['click_id'];
+        if(isset($clicks[$cid])&&is_array($clicks[$cid])){
+            $clicks[$cid]['matched_at']=gmdate('c');
+            $clicks[$cid]['matched_customer']=$customer;
+            $clicks[$cid]['matched_business']=$business;
+            $clicks[$cid]['match_method']=$chatClickMatchMethod;
             save_json($chatlinkClicksFile,$clicks);
         }
     }
@@ -340,8 +364,8 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         $traffic=[
             'key'=>(string)($chatClick['traffic_source_key']??'website'),
             'label'=>(string)($chatClick['traffic_source_label']??'Website / YCloud Chat Link'),
-            'confidence'=>(string)($chatClick['traffic_source_confidence']??'high'),
-            'reason'=>(string)($chatClick['traffic_source_reason']??'ycloud_chatlink_click_id')
+            'confidence'=>$chatClickMatchMethod==='hidden_token'?(string)($chatClick['traffic_source_confidence']??'high'):'medium',
+            'reason'=>$chatClickMatchMethod==='hidden_token'?(string)($chatClick['traffic_source_reason']??'ycloud_chatlink_click_id'):'single_recent_unmatched_click'
         ];
     }
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];$recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId]);
@@ -356,6 +380,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'ycloud_message_source_type'=>$messageSource['source_type']??'','ycloud_message_source_id'=>$messageSource['source_id']??'','ycloud_message_source_url'=>$messageSource['source_url']??'',
         'ycloud_chatlink_click_id'=>$chatlink['click_id']??'',
         'ycloud_chatlink_decoded'=>(string)($chatlink['decoded']??''),
+        'attribution_match_method'=>$chatClickMatchMethod!==''?$chatClickMatchMethod:(string)($prev['attribution_match_method']??''),
         'chatlink_source_url'=>(string)($chatClick['source_url']??($prev['chatlink_source_url']??'')),
         'attribution_landing_url'=>(string)($chatClick['landing_url']??($prev['attribution_landing_url']??'')),
         'attribution_referrer'=>(string)($chatClick['referrer']??($prev['attribution_referrer']??'')),
