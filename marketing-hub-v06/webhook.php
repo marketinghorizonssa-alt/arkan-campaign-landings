@@ -15,6 +15,7 @@ $numbersFile=$base.'/whatsapp_numbers.json';
 $automationRulesFile=$base.'/automation_rules.json';
 $deliveryFile=$base.'/platform_delivery.jsonl';
 $contactSourcesFile=$base.'/contact_sources.json';
+$chatlinkClicksFile=$base.'/chatlink_clicks.json';
 
 function load_json(string $file,array $default=[]):array{
     if(!is_file($file)) return $default;
@@ -41,9 +42,29 @@ function normalize_phone(string $phone):string{
     return $digits===''?'':$plus.$digits;
 }
 function safe_id(string $id):bool{return(bool)preg_match('/^yc_[a-z0-9_]{4,80}$/',$id);}
+function decode_chatlink_tracking(string $text):array{
+    if(!preg_match('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]{16,}/u',$text,$m))return ['click_id'=>'','decoded'=>'','token'=>''];
+    $chars=preg_split('//u',$m[0],-1,PREG_SPLIT_NO_EMPTY);
+    if(!is_array($chars)||count($chars)<4)return ['click_id'=>'','decoded'=>'','token'=>''];
+    $map=["\u{200B}"=>0,"\u{200C}"=>1,"\u{200D}"=>2,"\u{FEFF}"=>3];
+    $bytes='';$n=count($chars)-count($chars)%4;
+    for($i=0;$i<$n;$i+=4){
+        if(!isset($map[$chars[$i]],$map[$chars[$i+1]],$map[$chars[$i+2]],$map[$chars[$i+3]]))break;
+        $v=($map[$chars[$i]]<<6)|($map[$chars[$i+1]]<<4)|($map[$chars[$i+2]]<<2)|$map[$chars[$i+3]];
+        $bytes.=chr($v);
+    }
+    $click='';
+    if(preg_match('/ycloud\.chatlink\.(clk_[A-Za-z0-9_-]{4,80})/',$bytes,$mm))$click=$mm[1];
+    return ['click_id'=>$click,'decoded'=>$bytes,'token'=>$m[0]];
+}
+function strip_chatlink_tracking(string $text):string{
+    $x=preg_replace('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]{16,}/u','',$text)??$text;
+    $x=preg_replace('/^[،,]\s*/u','',$x)??$x;
+    return trim($x);
+}
 function msg_text(array $m):string{
     $type=(string)($m['type']??'unknown');
-    if($type==='text') return trim((string)($m['text']['body']??''));
+    if($type==='text') return strip_chatlink_tracking(trim((string)($m['text']['body']??'')));
     foreach(['image','video','document','audio','sticker'] as $k){
         if($type===$k&&isset($m[$k])){
             $caption=trim((string)($m[$k]['caption']??'')); if($caption!=='') return $caption;
@@ -294,14 +315,35 @@ $endpointId=(string)($_SERVER['HTTP_X_WEBHOOK_ENDPOINT_ID']??'');append_jsonl($r
 if($connectionId!==''&&isset($connections[$connectionId])){$connections[$connectionId]['last_webhook_at']=gmdate('c');$connections[$connectionId]['last_event_type']=$type;if($endpointId!=='')$connections[$connectionId]['last_endpoint_id']=$endpointId;$connections[$connectionId]['updated_at']=gmdate('c');save_json($connectionsFile,$connections);}
 $clientId=$connectionId!==''?(string)($connections[$connectionId]['client_id']??''):'';$conversations=load_json($convFile,[]);$conversationUpdated=false;$conversionCreated=0;$autoLabel=null;
 
-$handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conversationUpdated,&$conversionCreated,&$autoLabel,$convFile,$conversionFile,$deliveryFile,$event,$eventId,$connectionId,$clientId,$numbersFile,$automationRulesFile,$ycloudSecureDir,$legacyKeyFile){
+$handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conversationUpdated,&$conversionCreated,&$autoLabel,$convFile,$conversionFile,$deliveryFile,$event,$eventId,$connectionId,$clientId,$numbersFile,$automationRulesFile,$ycloudSecureDir,$legacyKeyFile,$chatlinkClicksFile){
     $waba=(string)($m['wabaId']??'');$customer=(string)($m['from']??'');$business=(string)($m['to']??'');$id=substr(hash('sha256',$waba.'|'.$customer),0,24);$isNew=!isset($conversations[$id]);
     $profile=is_array($m['customerProfile']??null)?$m['customerProfile']:[];$referral=is_array($m['referral']??null)?$m['referral']:[];$prev=$conversations[$id]??[];$numberId=upsert_number($numbersFile,$business,$waba,$connectionId,$clientId);
     $text=msg_text($m);$msgType=(string)($m['type']??'unknown');$sentAt=(string)($m['sendTime']??$event['createTime']??gmdate('c'));$repliedToStaff=(string)($prev['last_direction']??'')==='outbound_app';
     $inboundSourceUrl=extract_inbound_source_url($m);
     if($inboundSourceUrl!==''&&empty($referral['source_url'])){$referral['source_url']=$inboundSourceUrl;if(empty($referral['source_type']))$referral['source_type']='growth_tool';}
     $messageSource=message_source_meta($m);
+    $rawBody=(string)($m['text']['body']??'');
+    $chatlink=decode_chatlink_tracking($rawBody);
+    $chatClick=[];
+    if($chatlink['click_id']!==''){
+        $clicks=load_json($chatlinkClicksFile,[]);
+        $chatClick=is_array($clicks[$chatlink['click_id']]??null)?$clicks[$chatlink['click_id']]:[];
+        if($chatClick){
+            $clicks[$chatlink['click_id']]['matched_at']=gmdate('c');
+            $clicks[$chatlink['click_id']]['matched_customer']=$customer;
+            $clicks[$chatlink['click_id']]['matched_business']=$business;
+            save_json($chatlinkClicksFile,$clicks);
+        }
+    }
     $traffic=infer_traffic_source($text,$referral,$prev,$messageSource);
+    if($chatClick){
+        $traffic=[
+            'key'=>(string)($chatClick['traffic_source_key']??'website'),
+            'label'=>(string)($chatClick['traffic_source_label']??'Website / YCloud Chat Link'),
+            'confidence'=>(string)($chatClick['traffic_source_confidence']??'high'),
+            'reason'=>(string)($chatClick['traffic_source_reason']??'ycloud_chatlink_click_id')
+        ];
+    }
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];$recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId]);
     $inbound=(int)($prev['inbound_count']??0)+($history?0:1);$outbound=(int)($prev['outbound_count']??0);
     $conv=array_merge($prev,[
@@ -312,6 +354,14 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'ycloud_inbound_source_url'=>$inboundSourceUrl!==''?$inboundSourceUrl:(string)($prev['ycloud_inbound_source_url']??''),
         'traffic_source_key'=>$traffic['key'],'traffic_source_label'=>$traffic['label'],'traffic_source_confidence'=>$traffic['confidence'],'traffic_source_reason'=>$traffic['reason'],
         'ycloud_message_source_type'=>$messageSource['source_type']??'','ycloud_message_source_id'=>$messageSource['source_id']??'','ycloud_message_source_url'=>$messageSource['source_url']??'',
+        'ycloud_chatlink_click_id'=>$chatlink['click_id']??'',
+        'chatlink_source_url'=>(string)($chatClick['source_url']??($prev['chatlink_source_url']??'')),
+        'google_gclid'=>(string)($chatClick['gclid']??($prev['google_gclid']??'')),
+        'google_gbraid'=>(string)($chatClick['gbraid']??($prev['google_gbraid']??'')),
+        'google_wbraid'=>(string)($chatClick['wbraid']??($prev['google_wbraid']??'')),
+        'utm_source'=>(string)($chatClick['utm_source']??($prev['utm_source']??'')),
+        'utm_medium'=>(string)($chatClick['utm_medium']??($prev['utm_medium']??'')),
+        'utm_campaign'=>(string)($chatClick['utm_campaign']??($prev['utm_campaign']??'')),
         'inbound_count'=>$inbound,'outbound_count'=>$outbound,'recent_messages'=>$recent,'last_customer_reply_to_staff'=>$repliedToStaff,'updated_at'=>gmdate('c')
     ]);
     if($isNew&&!$history){add_conversion_event($conversionFile,$conv,'conversation_started',$eventId,['origin'=>'whatsapp_inbound','source'=>'automation']);$conversionCreated++;}
