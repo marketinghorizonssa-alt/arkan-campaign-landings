@@ -151,6 +151,7 @@ $record=[
  'first_touch'=>$first,
  'last_touch'=>$last,
  'current_touch'=>$current,
+ 'touch_history'=>clean_map($j['touch_history']??[]),
  'query_params'=>$query ?: $currentParams,
  'utm'=>$utm,
  'traffic_source_key'=>$src['key'],
