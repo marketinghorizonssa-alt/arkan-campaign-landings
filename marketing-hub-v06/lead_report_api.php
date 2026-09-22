@@ -94,7 +94,7 @@ function lr_inbound_source_url(array $raw): string {
     foreach($candidates as $v) if(is_string($v)&&trim($v)!=='') return trim($v);
     return '';
 }
-function lr_source(array $firstInbound, array $messages, array $contactSource=[]): array {
+function lr_source(array $firstInbound, array $messages, array $contactSource=[], array $conversationSource=[]): array {
     $raw = is_array($firstInbound['raw'] ?? null) ? $firstInbound['raw'] : [];
     $ref = is_array($raw['referral'] ?? null) ? $raw['referral'] : [];
     $inboundSourceUrl=lr_inbound_source_url($raw);
@@ -124,6 +124,18 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
     }
     if (str_contains($refText, 'x.com') || str_contains($refText, 'twitter')) {
         return ['key'=>'x','label'=>'X Ads','confidence'=>'high','reason'=>'referral'];
+    }
+
+    // Persisted YCloud inbound/source metadata from the conversation.
+    $pk=lr_s($conversationSource['traffic_source_key']??'');
+    if($pk!=='' && $pk!=='organic' && $pk!=='unknown'){
+        return [
+            'key'=>$pk,
+            'label'=>lr_s($conversationSource['traffic_source_label']??$pk),
+            'confidence'=>lr_s($conversationSource['traffic_source_confidence']??'high') ?: 'high',
+            'reason'=>lr_s($conversationSource['traffic_source_reason']??'ycloud_inbound_source') ?: 'ycloud_inbound_source',
+            'source_url'=>lr_s($conversationSource['ycloud_message_source_url']??$conversationSource['ycloud_contact_source_url']??'')
+        ];
     }
 
     // YCloud Contact/Growth Tool source metadata is independent of message text.
@@ -292,7 +304,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         $messages=array_values($t['messages']);
         usort($messages,fn($a,$b)=>($a['epoch']<=>$b['epoch']));
         $messages=array_values(array_filter($messages,fn($m)=>$m['epoch']>=$firstEpoch && $m['epoch']<=$end));
-        $src=lr_source($t['first_inbound'],$messages,$contactSourceByKey[$key]??[]);
+        $src=lr_source($t['first_inbound'],$messages,$contactSourceByKey[$key]??[],$aiByKey[$key]??[]);
         $quality=lr_stage($aiByKey[$key]??[]);
         $messageRows=[];
         foreach($messages as $m) {
