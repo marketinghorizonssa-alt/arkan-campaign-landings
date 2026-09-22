@@ -77,7 +77,7 @@ function attributionHtml(l){
  const a=l.attribution||{},utm=a.utm||{},ids=a.click_ids||{},params=a.params||{};
  const rows=[];
  function add(k,v){if(v!==undefined&&v!==null&&String(v)!=='')rows.push('<div class="attritem"><b>'+esc(k)+'</b>'+esc(typeof v==='object'?JSON.stringify(v):v)+'</div>')}
- add('Source URL',a.source_url);add('Landing URL',a.landing_url);add('Referrer',a.referrer);add('YCloud Click ID',a.click_id);
+ add('Source URL',a.source_url);add('Landing URL',a.landing_url);add('Referrer',a.referrer);add('YCloud Click ID',a.click_id);add('Match Method',a.match_method);
  Object.entries(ids).forEach(([k,v])=>add(k,v));
  Object.entries(utm).forEach(([k,v])=>add(k,v));
  const extra=Object.fromEntries(Object.entries(params).filter(([k])=>!Object.prototype.hasOwnProperty.call(utm,k)&&!Object.prototype.hasOwnProperty.call(ids,k)));
