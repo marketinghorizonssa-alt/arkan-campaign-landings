@@ -111,6 +111,16 @@ function contains_any(string $text,array $needles):bool{
     foreach($needles as $needle){$needle=strtolower(trim((string)$needle));if($needle!==''&&str_contains($text,$needle))return true;}
     return false;
 }
+function extract_inbound_source_url(array $m):string{
+    $candidates=[
+        $m['sourceUrl']??null,$m['source_url']??null,$m['trafficSourceUrl']??null,$m['traffic_source_url']??null,
+        $m['referral']['source_url']??null,$m['referral']['sourceUrl']??null,
+        $m['tracking']['sourceUrl']??null,$m['tracking']['source_url']??null,
+        $m['trafficSource']['url']??null,$m['trafficSource']['sourceUrl']??null
+    ];
+    foreach($candidates as $v){if(is_string($v)&&trim($v)!=='')return trim($v);}
+    return '';
+}
 function infer_traffic_source(string $text,array $referral,array $prev=[]):array{
     $low=function_exists('mb_strtolower')?mb_strtolower(trim($text),'UTF-8'):strtolower(trim($text));
     $refText=function_exists('mb_strtolower')
@@ -138,6 +148,8 @@ function infer_traffic_source(string $text,array $referral,array $prev=[]):array
     );
     if($siteTemplate) return ['key'=>'google','label'=>'Google Ads','confidence'=>'medium','reason'=>'known_website_template'];
 
+    if(str_contains($refText,'gclid=')||str_contains($refText,'gbraid=')||str_contains($refText,'wbraid=')||str_contains($refText,'utm_source=google'))
+        return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'ycloud_chatlink_source_url'];
     if(str_contains($refText,'google')||contains_any($text,['المصدر: Google Ads','المصدر:Google Ads','source: google ads','جوجل ادز','google ads']))
         return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'platform_evidence'];
 
@@ -263,6 +275,8 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
     $waba=(string)($m['wabaId']??'');$customer=(string)($m['from']??'');$business=(string)($m['to']??'');$id=substr(hash('sha256',$waba.'|'.$customer),0,24);$isNew=!isset($conversations[$id]);
     $profile=is_array($m['customerProfile']??null)?$m['customerProfile']:[];$referral=is_array($m['referral']??null)?$m['referral']:[];$prev=$conversations[$id]??[];$numberId=upsert_number($numbersFile,$business,$waba,$connectionId,$clientId);
     $text=msg_text($m);$msgType=(string)($m['type']??'unknown');$sentAt=(string)($m['sendTime']??$event['createTime']??gmdate('c'));$repliedToStaff=(string)($prev['last_direction']??'')==='outbound_app';
+    $inboundSourceUrl=extract_inbound_source_url($m);
+    if($inboundSourceUrl!==''&&empty($referral['source_url'])){$referral['source_url']=$inboundSourceUrl;if(empty($referral['source_type']))$referral['source_type']='growth_tool';}
     $traffic=infer_traffic_source($text,$referral,$prev);
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];$recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId]);
     $inbound=(int)($prev['inbound_count']??0)+($history?0:1);$outbound=(int)($prev['outbound_count']??0);
@@ -271,6 +285,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'waba_id'=>$waba,'business_number'=>$business,'customer_number'=>$customer,'contact_name'=>(string)($profile['name']??($prev['contact_name']??$customer)),'contact_username'=>(string)($profile['username']??($prev['contact_username']??'')),
         'first_seen_at'=>$prev['first_seen_at']??$sentAt,'last_message_at'=>$sentAt,'last_message_text'=>$text,'last_message_type'=>$msgType,'last_direction'=>$history?'history_inbound':'inbound','last_source_event_id'=>$eventId,
         'current_tag'=>$prev['current_tag']??null,'ctwa_clid'=>(string)($referral['ctwa_clid']??($prev['ctwa_clid']??'')),'ad_source_id'=>(string)($referral['source_id']??($prev['ad_source_id']??'')),'ad_source_type'=>(string)($referral['source_type']??($prev['ad_source_type']??'')),'ad_headline'=>(string)($referral['headline']??($prev['ad_headline']??'')),
+        'ycloud_inbound_source_url'=>$inboundSourceUrl!==''?$inboundSourceUrl:(string)($prev['ycloud_inbound_source_url']??''),
         'traffic_source_key'=>$traffic['key'],'traffic_source_label'=>$traffic['label'],'traffic_source_confidence'=>$traffic['confidence'],'traffic_source_reason'=>$traffic['reason'],
         'inbound_count'=>$inbound,'outbound_count'=>$outbound,'recent_messages'=>$recent,'last_customer_reply_to_staff'=>$repliedToStaff,'updated_at'=>gmdate('c')
     ]);
