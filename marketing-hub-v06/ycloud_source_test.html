@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YCloud Source Attribution Test</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0b1020;color:#fff;margin:0;padding:40px}
+.card{max-width:720px;margin:auto;background:#141d32;border:1px solid #2b3857;border-radius:18px;padding:24px}
+code{display:block;background:#0b1426;padding:14px;border-radius:10px;overflow-wrap:anywhere;color:#b8c6df}
+.small{color:#9cafcf;font-size:14px}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>YCloud Attribution Test</h1>
+<p>Open the WhatsApp widget and send any message. The message text does not matter.</p>
+<div class="small">Current page URL (the value we expect YCloud to record as sourceUrl):</div>
+<code id="u"></code>
+</div>
+<script>document.getElementById('u').textContent=location.href;</script>
+<script type="text/javascript">
+;(function (m, ei, q, i, a, j, s) {
+  m[i] = m[i] || function () { ;(m[i].a = m[i].a || []).push(arguments) };
+  ;(j = ei.createElement(q)), (s = ei.getElementsByTagName(q)[0]);
+  j.async = true;
+  j.crossorigin = true;
+  j.charset = 'UTF-8';
+  j.src = 'https://sdk.ycloud.com/growth-tool/install.js';
+  s.parentNode.insertBefore(j, s);
+  j.onload = function () {
+    window._YCLOUD.init('20C51550438717A46A0686AC5F11B5A4', {
+      onWidgetOpen: function (event) {
+        console.log('ycloud_widget_open', event);
+      },
+      onWidgetWhatsAppClick: function (event) {
+        console.log('ycloud_whatsapp_click', event);
+      }
+    })
+  };
+})(window, document, 'script', '_YCLOUD')
+</script>
+</body>
+</html>
