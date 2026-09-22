@@ -78,18 +78,23 @@ if(!is_array($j)){http_response_code(400);echo json_encode(['ok'=>false,'error'=
 
 $sourceUrl=trim((string)($j['source_url']??''));
 $openUrl=trim((string)($j['open_whatsapp_url']??''));
+$directClickId=trim((string)($j['click_id']??''));
 $interactionId=trim((string)($j['interaction_id']??''));
 $widgetId=trim((string)($j['widget_id']??''));
 
-if($sourceUrl===''||$openUrl===''){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'missing_source_or_open_url']);exit;}
+if($sourceUrl===''||($openUrl===''&&$directClickId==='')){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'missing_source_or_click']);exit;}
 $sp=@parse_url($sourceUrl);
 if(!is_array($sp)||strtolower((string)($sp['scheme']??''))!=='https'){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_source_url']);exit;}
 
-$op=@parse_url($openUrl);$oq=[];
-if(is_array($op)&&isset($op['query']))parse_str((string)$op['query'],$oq);
-$text=(string)($oq['text']??'');
-$dec=cc_decode($text);
-$clickId=(string)$dec['click_id'];
+$dec=['click_id'=>'','decoded'=>''];
+$clickId=$directClickId;
+if($clickId===''){
+    $op=@parse_url($openUrl);$oq=[];
+    if(is_array($op)&&isset($op['query']))parse_str((string)$op['query'],$oq);
+    $text=(string)($oq['text']??'');
+    $dec=cc_decode($text);
+    $clickId=(string)$dec['click_id'];
+}
 if($clickId===''||!preg_match('/^clk_[A-Za-z0-9_-]{4,120}$/',$clickId)){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'click_id_not_found']);exit;}
 
 $row=array_merge([
