@@ -161,6 +161,11 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
         return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>str_contains($refText,'google') ? 'referral' : 'message_source_tag'];
     }
 
+    // Website-generated WhatsApp CTA. Historical messages may not include an ad-platform tag.
+    if (lr_contains($text, ['أريد طلب خدمة من موقع الموحد للاستقدام','موقع الموحد للاستقدام'])) {
+        return ['key'=>'website','label'=>'Website / Landing Page','confidence'=>'high','reason'=>'website_prefilled_whatsapp_message'];
+    }
+
     // No ad/site evidence means the person contacted WhatsApp directly.
     return ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
 }
@@ -377,6 +382,28 @@ try{
     $report=lr_build($client,$from,$to,$tz,$base);
     if($action==='report' && $client!=='') lr_save_live_state($secure,$report,$client,$from,$to,$tz);
     if($action==='csv') lr_csv($report);
+    if($action==='site_recovery'){
+        $rows=[];
+        foreach(($report['leads']??[]) as $lead){
+            if(($lead['source']['key']??'')!=='website') continue;
+            $first='';
+            foreach(($lead['messages']??[]) as $m){if(($m['direction']??'')==='inbound'){ $first=lr_s($m['text']??''); break; }}
+            $name='';$service='';$nationality='';$details='';$page='';
+            if(preg_match('/الاسم:\s*([^\r\n]+)/u',$first,$mm))$name=trim($mm[1]);
+            if(preg_match('/الخدمة:\s*([^\r\n]+)/u',$first,$mm))$service=trim($mm[1]);
+            if(preg_match('/الجنسية:\s*([^\r\n]+)/u',$first,$mm))$nationality=trim($mm[1]);
+            if(preg_match('/التفاصيل:\s*(.*?)(?:الصفحة:|$)/us',$first,$mm))$details=trim($mm[1]);
+            if(preg_match('/الصفحة:\s*([^\r\n]+)/u',$first,$mm))$page=trim($mm[1]);
+            $rows[]=[
+                'lead_id'=>$lead['lead_id']??'','customer_phone'=>$lead['customer_phone']??'','first_contact_at'=>$lead['first_contact_at']??'',
+                'name'=>$name,'service'=>$service,'nationality'=>$nationality,'details'=>$details,'page'=>$page,
+                'source'=>$lead['source']??[],'quality'=>$lead['quality']??[]
+            ];
+        }
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok'=>true,'client_id'=>$client,'from'=>$from,'to'=>$to,'count'=>count($rows),'rows'=>$rows],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+        exit;
+    }
     if($action==='drive_export'){
         if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);throw new RuntimeException('method_not_allowed');}
         if(!is_dir($secure) && !@mkdir($secure,0700,true)){http_response_code(500);throw new RuntimeException('secure_dir_unavailable');}
