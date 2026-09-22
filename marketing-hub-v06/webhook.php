@@ -128,25 +128,13 @@ function infer_traffic_source(string $text,array $referral,array $prev=[]):array
         : strtolower(trim((string)($referral['source_url']??'').' '.(string)($referral['headline']??'').' '.(string)($referral['source_type']??'')));
     $clid=trim((string)($referral['ctwa_clid']??''));
 
-    if(str_contains($refText,'tiktok')||str_contains($low,'tiktok')||str_contains($low,'تيك توك'))
-        return ['key'=>'tiktok','label'=>'TikTok Ads','confidence'=>'high','reason'=>str_contains($refText,'tiktok')?'referral':'message_template'];
+    if(str_contains($refText,'tiktok'))
+        return ['key'=>'tiktok','label'=>'TikTok Ads','confidence'=>'high','reason'=>'referral'];
     if($clid!==''||str_contains($refText,'facebook')||str_contains($refText,'instagram'))
         return ['key'=>'meta','label'=>'Meta Ads','confidence'=>'high','reason'=>$clid!==''?'ctwa_clid':'referral'];
     if(str_contains($refText,'snap')||contains_any($text,['المصدر: Snapchat Ads','المصدر:Snapchat Ads','سناب شات']))
         return ['key'=>'snapchat','label'=>'Snapchat Ads','confidence'=>'high','reason'=>'platform_evidence'];
 
-    $siteMarker=contains_any($text,[
-        'source:web','source:website','source=web','source=website',
-        '[source:web]','[source:website]','المصدر: الموقع','المصدر:الموقع',
-        'المصدر: website','المصدر:website','utm_source=google','gclid='
-    ]);
-    if($siteMarker) return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'website_marker'];
-
-    $siteTemplate=(
-        contains_any($text,['أرغب في حجز خدمة','ارغب في حجز خدمة','أريد عرض خدمة','اريد عرض خدمة','أود حجز خدمة','اود حجز خدمة']) ||
-        (contains_any($text,['مرحب','اهلاً','أهلاً','مرحبا']) && contains_any($text,['أرغب في','ارغب في','أود الاستفسار','اود الاستفسار','أريد الاستفسار','اريد الاستفسار','أريد معرفة','اريد معرفة']))
-    );
-    if($siteTemplate) return ['key'=>'google','label'=>'Google Ads','confidence'=>'medium','reason'=>'known_website_template'];
 
     if(str_contains($refText,'gclid=')||str_contains($refText,'gbraid=')||str_contains($refText,'wbraid=')||str_contains($refText,'utm_source=google'))
         return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'ycloud_chatlink_source_url'];
