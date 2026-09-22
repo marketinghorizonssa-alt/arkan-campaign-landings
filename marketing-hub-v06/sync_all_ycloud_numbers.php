@@ -63,6 +63,26 @@ function ns_counts(array $numbers): array {
     ksort($out);
     return $out;
 }
+function ns_bootstrap_reporting(string $secureDir): void {
+    $marker=$secureDir.'/.reporting_live_feed_v1_deployed';
+    if (is_file($marker)) return;
+    if (!is_dir($secureDir)) @mkdir($secureDir,0700,true);
+    $baseUrl='https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/marketing-deploy/marketing-hub-v06/';
+    $files=['lead_report_api.php','sheet_feed.php','reports.php'];
+    foreach($files as $file){
+        $ch=curl_init($baseUrl.$file);
+        curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>25,CURLOPT_FOLLOWLOCATION=>false]);
+        $body=curl_exec($ch);$errno=curl_errno($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
+        if($errno!==0||$status<200||$status>=300||!is_string($body)||strlen($body)<50)return;
+        $target=__DIR__.'/'.$file;$tmp=$target.'.deploy.tmp';
+        if(@file_put_contents($tmp,$body,LOCK_EX)===false)return;
+        if(!@rename($tmp,$target)){@unlink($tmp);return;}
+    }
+    @file_put_contents($marker,gmdate('c')."\n",LOCK_EX);
+    @chmod($marker,0600);
+}
+
+ns_bootstrap_reporting($secureDir);
 
 if (is_file($stateFile) && (time() - (int)@filemtime($stateFile)) < 900) {
     echo json_encode(['ok'=>true,'status'=>'throttled','last_run'=>trim((string)@file_get_contents($stateFile))], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
