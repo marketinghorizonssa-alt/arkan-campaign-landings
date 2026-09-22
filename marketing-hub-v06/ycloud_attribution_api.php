@@ -103,10 +103,10 @@ $row['traffic_source_key']=$sourceKey;
 $row['traffic_source_label']=$sourceLabel;
 $row['traffic_source_confidence']='high';
 $row['traffic_source_reason']='ycloud_chatlink_click_id';
-$row['first_touch']=$row;
-$row['last_touch']=$row;
-$row['current_touch']=$row;
-$row['touch_history']=[$row];
+$row['first_touch']=is_array($j['first_touch']??null)?$j['first_touch']:[];
+$row['last_touch']=is_array($j['last_touch']??null)?$j['last_touch']:[];
+$row['current_touch']=is_array($j['current_touch']??null)?$j['current_touch']:[];
+$row['touch_history']=is_array($j['touch_history']??null)?array_slice($j['touch_history'],-20):[];
 
 $map=load_map($file);
 $map[$clickId]=$row;
