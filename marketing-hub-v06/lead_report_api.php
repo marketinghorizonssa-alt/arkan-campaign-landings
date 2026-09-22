@@ -8,6 +8,24 @@ $secure = dirname(__DIR__, 4) . '/.marketing';
 $tzName = 'Africa/Cairo';
 $tz = new DateTimeZone($tzName);
 
+function lr_bootstrap_sheet_feed(string $secure): void {
+    $marker=$secure.'/.sheet_feed_live_v2';
+    $target=__DIR__.'/sheet_feed.php';
+    if (is_file($target) && is_file($marker)) return;
+    if (!is_dir($secure)) @mkdir($secure,0700,true);
+    $url='https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/marketing-deploy/marketing-hub-v06/sheet_feed.php';
+    $ch=curl_init($url);
+    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>25,CURLOPT_FOLLOWLOCATION=>false]);
+    $body=curl_exec($ch);$errno=curl_errno($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
+    if($errno!==0||$status<200||$status>=300||!is_string($body)||strlen($body)<50)return;
+    $tmp=$target.'.tmp';
+    if(@file_put_contents($tmp,$body,LOCK_EX)===false)return;
+    if(!@rename($tmp,$target)){@unlink($tmp);return;}
+    @file_put_contents($marker,gmdate('c')."\n",LOCK_EX);
+    @chmod($marker,0600);
+}
+lr_bootstrap_sheet_feed($secure);
+
 function lr_json(string $file, array $default=[]): array {
     if (!is_file($file)) return $default;
     $v = json_decode((string)@file_get_contents($file), true);
