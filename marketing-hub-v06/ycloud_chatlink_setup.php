@@ -5,6 +5,7 @@ if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 $base=__DIR__.'/data';
 $secure=dirname(__DIR__,4).'/.marketing/ycloud';
 $connectionsFile=$base.'/ycloud_connections.json';
+$contactSourcesFile=$base.'/contact_sources.json';
 $targetClient='cl_0e6efd258397db';
 
 function jload(string $f):array{
@@ -61,23 +62,54 @@ foreach($conns as $id=>$conn){
         }
     }
 
-    $contacts=req($key,'GET','/v2/contact/contacts?limit=100&includeTotal=true');
-    $entry['contacts_status']=$contacts['status'];
-    $counts=[];$growth=0;$examples=[];
-    foreach(list_items($contacts['json']) as $ct){
-        if(!is_array($ct))continue;
+    $counts=[];$growth=0;$examples=[];$allContacts=[];$contactsStatus=200;
+    for($page=1;$page<=100;$page++){
+        $contacts=req($key,'GET','/v2/contact/contacts?page='.$page.'&limit=100&includeTotal=true');
+        $contactsStatus=$contacts['status'];
+        if(!$contacts['ok'])break;
+        $items=list_items($contacts['json']);
+        foreach($items as $ct)if(is_array($ct))$allContacts[]=$ct;
+        if(count($items)<100)break;
+    }
+    $entry['contacts_status']=$contactsStatus;
+    $sources=jload($contactSourcesFile);
+    foreach($allContacts as $ct){
         $st=strtoupper((string)($ct['sourceType']??'UNKNOWN'));
         $counts[$st]=($counts[$st]??0)+1;
+        $phone=preg_replace('/\\D+/','',(string)($ct['phoneNumber']??''))??'';
+        $sourceUrl=(string)($ct['sourceUrl']??'');
+        $u=strtolower($sourceUrl);
+        $tk='unknown';$tl='Unknown';
+        if(str_contains($u,'gclid=')||str_contains($u,'gbraid=')||str_contains($u,'wbraid=')||str_contains($u,'utm_source=google')){$tk='google';$tl='Google Ads';}
+        elseif(str_contains($u,'tiktok')||str_contains($u,'utm_source=tiktok')){$tk='tiktok';$tl='TikTok Ads';}
+        elseif(str_contains($u,'facebook')||str_contains($u,'instagram')||str_contains($u,'utm_source=facebook')||str_contains($u,'utm_source=instagram')){$tk='meta';$tl='Meta Ads';}
+        elseif(str_contains($u,'snapchat')||str_contains($u,'utm_source=snapchat')){$tk='snapchat';$tl='Snapchat Ads';}
+        elseif($st==='GROWTH_TOOL'){$tk='website';$tl='Website / YCloud Chat Link';}
+        elseif($st==='AD'){$tk='ad';$tl='Ad';}
+        elseif($st==='WHATSAPP'||$st==='SMB'){$tk='organic';$tl='Organic / Direct';}
+        if($phone!==''){
+            $sk=$id.'|'.$phone;
+            $sources[$sk]=[
+                'id'=>(string)($ct['id']??''),'ycloud_connection_id'=>$id,'client_id'=>$targetClient,
+                'phone_number'=>'+'.$phone,'source_type'=>$st,'source_id'=>(string)($ct['sourceId']??''),
+                'source_url'=>$sourceUrl,'last_connected_number'=>(string)($ct['lastConnectedNumber']??''),
+                'traffic_source_key'=>$tk,'traffic_source_label'=>$tl,'traffic_source_confidence'=>'high',
+                'traffic_source_reason'=>'ycloud_contact_backfill',
+                'created_at'=>(string)($ct['createTime']??gmdate('c')),'updated_at'=>gmdate('c')
+            ];
+        }
         if($st==='GROWTH_TOOL'){
             $growth++;
             if(count($examples)<5)$examples[]=[
                 'sourceId'=>(string)($ct['sourceId']??''),
-                'sourceUrl'=>(string)($ct['sourceUrl']??''),
+                'sourceUrl'=>$sourceUrl,
                 'lastConnectedNumber'=>(string)($ct['lastConnectedNumber']??'')
             ];
         }
     }
+    if($sources)file_put_contents($contactSourcesFile,json_encode($sources,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT),LOCK_EX);
     ksort($counts);
+    $entry['contacts_scanned']=count($allContacts);
     $entry['source_type_counts']=$counts;
     $entry['growth_tool_contacts']=$growth;
     $entry['growth_tool_examples']=$examples;
