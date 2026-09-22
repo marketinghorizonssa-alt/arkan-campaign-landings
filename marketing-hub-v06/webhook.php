@@ -175,6 +175,8 @@ function parse_contact_source(array $contact):array{
         $key='meta';$label='Meta Ads';
     }elseif(str_contains($u,'utm_source=snapchat')||str_contains($u,'snapchat')){
         $key='snapchat';$label='Snapchat Ads';
+    }elseif($sourceType==='TIKTOK_AD'){
+        $key='tiktok';$label='TikTok Ads';
     }elseif($sourceType==='GROWTH_TOOL'){
         $key='website';$label='Website / YCloud Chat Link';
     }elseif($sourceType==='AD'){
