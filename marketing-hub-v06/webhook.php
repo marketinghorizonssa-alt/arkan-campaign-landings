@@ -110,6 +110,39 @@ function contains_any(string $text,array $needles):bool{
     foreach($needles as $needle){$needle=strtolower(trim((string)$needle));if($needle!==''&&str_contains($text,$needle))return true;}
     return false;
 }
+function infer_traffic_source(string $text,array $referral,array $prev=[]):array{
+    $low=function_exists('mb_strtolower')?mb_strtolower(trim($text),'UTF-8'):strtolower(trim($text));
+    $refText=function_exists('mb_strtolower')
+        ? mb_strtolower(trim((string)($referral['source_url']??'').' '.(string)($referral['headline']??'').' '.(string)($referral['source_type']??'')),'UTF-8')
+        : strtolower(trim((string)($referral['source_url']??'').' '.(string)($referral['headline']??'').' '.(string)($referral['source_type']??'')));
+    $clid=trim((string)($referral['ctwa_clid']??''));
+
+    if(str_contains($refText,'tiktok')||str_contains($low,'tiktok')||str_contains($low,'تيك توك'))
+        return ['key'=>'tiktok','label'=>'TikTok Ads','confidence'=>'high','reason'=>str_contains($refText,'tiktok')?'referral':'message_template'];
+    if($clid!==''||str_contains($refText,'facebook')||str_contains($refText,'instagram'))
+        return ['key'=>'meta','label'=>'Meta Ads','confidence'=>'high','reason'=>$clid!==''?'ctwa_clid':'referral'];
+    if(str_contains($refText,'snap')||contains_any($text,['المصدر: Snapchat Ads','المصدر:Snapchat Ads','سناب شات']))
+        return ['key'=>'snapchat','label'=>'Snapchat Ads','confidence'=>'high','reason'=>'platform_evidence'];
+
+    $siteMarker=contains_any($text,[
+        'source:web','source:website','source=web','source=website',
+        '[source:web]','[source:website]','المصدر: الموقع','المصدر:الموقع',
+        'المصدر: website','المصدر:website','utm_source=google','gclid='
+    ]);
+    if($siteMarker) return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'website_marker'];
+
+    $siteTemplate=(contains_any($text,['أرغب في حجز خدمة','ارغب في حجز خدمة','أريد عرض خدمة','اريد عرض خدمة','أود حجز خدمة','اود حجز خدمة'])
+        && contains_any($text,['مرحب','اهلاً','أهلاً']));
+    if($siteTemplate) return ['key'=>'google','label'=>'Google Ads','confidence'=>'medium','reason'=>'known_website_template'];
+
+    if(str_contains($refText,'google')||contains_any($text,['المصدر: Google Ads','المصدر:Google Ads','source: google ads','جوجل ادز','google ads']))
+        return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'platform_evidence'];
+
+    if(!empty($prev['traffic_source_key']) && ($prev['traffic_source_key']??'')!=='organic')
+        return ['key'=>(string)$prev['traffic_source_key'],'label'=>(string)($prev['traffic_source_label']??$prev['traffic_source_key']),'confidence'=>(string)($prev['traffic_source_confidence']??'medium'),'reason'=>(string)($prev['traffic_source_reason']??'previous_attribution')];
+
+    return ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
+}
 function is_substantive(string $text,string $type):bool{
     if(in_array($type,['location','contacts','document','image','video','audio','interactive'],true))return true;
     $t=trim(strtolower($text));if($t==='')return false;
@@ -196,6 +229,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
     $waba=(string)($m['wabaId']??'');$customer=(string)($m['from']??'');$business=(string)($m['to']??'');$id=substr(hash('sha256',$waba.'|'.$customer),0,24);$isNew=!isset($conversations[$id]);
     $profile=is_array($m['customerProfile']??null)?$m['customerProfile']:[];$referral=is_array($m['referral']??null)?$m['referral']:[];$prev=$conversations[$id]??[];$numberId=upsert_number($numbersFile,$business,$waba,$connectionId,$clientId);
     $text=msg_text($m);$msgType=(string)($m['type']??'unknown');$sentAt=(string)($m['sendTime']??$event['createTime']??gmdate('c'));$repliedToStaff=(string)($prev['last_direction']??'')==='outbound_app';
+    $traffic=infer_traffic_source($text,$referral,$prev);
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];$recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId]);
     $inbound=(int)($prev['inbound_count']??0)+($history?0:1);$outbound=(int)($prev['outbound_count']??0);
     $conv=array_merge($prev,[
@@ -203,6 +237,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'waba_id'=>$waba,'business_number'=>$business,'customer_number'=>$customer,'contact_name'=>(string)($profile['name']??($prev['contact_name']??$customer)),'contact_username'=>(string)($profile['username']??($prev['contact_username']??'')),
         'first_seen_at'=>$prev['first_seen_at']??$sentAt,'last_message_at'=>$sentAt,'last_message_text'=>$text,'last_message_type'=>$msgType,'last_direction'=>$history?'history_inbound':'inbound','last_source_event_id'=>$eventId,
         'current_tag'=>$prev['current_tag']??null,'ctwa_clid'=>(string)($referral['ctwa_clid']??($prev['ctwa_clid']??'')),'ad_source_id'=>(string)($referral['source_id']??($prev['ad_source_id']??'')),'ad_source_type'=>(string)($referral['source_type']??($prev['ad_source_type']??'')),'ad_headline'=>(string)($referral['headline']??($prev['ad_headline']??'')),
+        'traffic_source_key'=>$traffic['key'],'traffic_source_label'=>$traffic['label'],'traffic_source_confidence'=>$traffic['confidence'],'traffic_source_reason'=>$traffic['reason'],
         'inbound_count'=>$inbound,'outbound_count'=>$outbound,'recent_messages'=>$recent,'last_customer_reply_to_staff'=>$repliedToStaff,'updated_at'=>gmdate('c')
     ]);
     if($isNew&&!$history){add_conversion_event($conversionFile,$conv,'conversation_started',$eventId,['origin'=>'whatsapp_inbound','source'=>'automation']);$conversionCreated++;}
