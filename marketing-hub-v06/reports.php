@@ -53,10 +53,10 @@
 <div><b>تفاصيل العملاء الجدد</b><div class="muted" id="definition" style="font-size:12px;margin-top:4px"></div></div>
 <div class="toolbar">
 <button class="btn ok" onclick="downloadCsv()">Download CSV</button>
-<button class="btn warn" onclick="exportDrive()">Export Google Sheet</button>
+<button class="btn warn" onclick="exportDrive()">تحديث وفتح Google Sheet</button>
 </div>
 </div>
-<div class="notice" style="margin-top:12px">اضغط على أي صف لفتح المحادثة. التصدير يضع كل رسالة في صف مستقل مع رقم العميل، المصدر، التقييم، وقت الرسالة واتجاهها.</div>
+<div class="notice" style="margin-top:12px">اضغط على أي صف لفتح المحادثة. زر Google Sheet يحدّث الـLive Sheet بنفس العميل والفترة ويفتحه. أول مرة فقط Google قد يطلب Allow access للـExternal URL.</div>
 <div id="tableWrap"><div class="empty">اختر العميل والتاريخ واضغط إظهار التقرير.</div></div>
 </section>
 </main>
@@ -83,7 +83,7 @@ h+='<tr class="details" id="d'+i+'"><td colspan="8"><div class="conv">'+(l.messa
 h+='</tbody></table></div>';$('tableWrap').innerHTML=h}
 function toggleDetail(i){const x=$('d'+i);if(x)x.classList.toggle('open')}
 function downloadCsv(){if(!R){toast('شغّل التقرير الأول');return}const c=$('client').value,f=$('from').value,t=$('to').value;location.href='lead_report_api.php?action=csv&client_id='+encodeURIComponent(c)+'&from='+encodeURIComponent(f)+'&to='+encodeURIComponent(t)}
-async function exportDrive(){if(!R){toast('شغّل التقرير الأول');return}const c=$('client').value,f=$('from').value,t=$('to').value;try{const x=await j('lead_report_api.php?action=drive_export&client_id='+encodeURIComponent(c)+'&from='+encodeURIComponent(f)+'&to='+encodeURIComponent(t),{method:'POST'});toast('تم إنشاء Google Sheet');if(x.url)window.open(x.url,'_blank')}catch(e){if(e.message==='drive_not_configured')toast('ربط Google Drive المباشر غير مفعّل على السيرفر لسه. Download CSV شغال الآن.');else toast('فشل التصدير إلى Drive: '+e.message)}}
+async function exportDrive(){if(!R){toast('شغّل التقرير الأول');return}const c=$('client').value,f=$('from').value,t=$('to').value;try{const x=await j('lead_report_api.php?action=drive_export&client_id='+encodeURIComponent(c)+'&from='+encodeURIComponent(f)+'&to='+encodeURIComponent(t),{method:'POST'});toast('تم تحديث Live Google Sheet');if(x.url)window.open(x.url,'_blank')}catch(e){toast('فشل تحديث Google Sheet: '+e.message)}}
 preset('today');loadClients().catch(e=>toast(e.message));
 </script>
 </body></html>
