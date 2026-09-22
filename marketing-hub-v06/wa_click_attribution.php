@@ -172,10 +172,48 @@ $all[$clickId]=array_replace_recursive($prev,$record);
 if(!save_json_file($mapFile,$all)){http_response_code(500);echo json_encode(['ok'=>false,'error'=>'write_failed']);exit;}
 append_jsonl_file($logFile,$record);
 
+// Event ordering is not guaranteed: if the WhatsApp webhook arrived milliseconds before
+// this browser attribution request, backfill the already-created conversation now.
+$backfilled=0;
+$convFile=$base.'/conversations.json';
+$convs=load_json_file($convFile);
+if($convs){
+  foreach($convs as $cid=>$conv){
+    if(!is_array($conv))continue;
+    if(clean_scalar($conv['client_id']??'')!==$clientId)continue;
+    if(clean_scalar($conv['ycloud_chatlink_click_id']??'')!==$clickId)continue;
+    $conv['traffic_source_key']=$src['key'];
+    $conv['traffic_source_label']=$src['label'];
+    $conv['traffic_source_reason']='chatlink_click_map';
+    $conv['traffic_source_confidence']=$src['confidence'];
+    $conv['chatlink_source_url']=$sourceUrl;
+    $conv['attribution_landing_url']=$record['landing_url'];
+    $conv['attribution_referrer']=$referrer;
+    $conv['attribution_params']=$record['query_params'];
+    $conv['attribution_utm']=$utm;
+    $conv['attribution_first_touch']=$first;
+    $conv['attribution_last_touch']=$last;
+    $conv['attribution_current_touch']=$current;
+    $conv['attribution_touch_history']=$record['touch_history'];
+    foreach([
+      'gclid'=>'google_gclid','gbraid'=>'google_gbraid','wbraid'=>'google_wbraid','dclid'=>'google_dclid',
+      'fbclid'=>'meta_fbclid','ttclid'=>'tiktok_ttclid','msclkid'=>'microsoft_msclkid',
+      'li_fat_id'=>'linkedin_li_fat_id','twclid'=>'x_twclid'
+    ] as $rk=>$ck){if(!empty($record[$rk]))$conv[$ck]=$record[$rk];}
+    if(!empty($record['scclid']))$conv['snapchat_scclid']=$record['scclid'];
+    elseif(!empty($record['ScCid']))$conv['snapchat_scclid']=$record['ScCid'];
+    foreach($utm as $uk=>$uv)$conv[$uk]=$uv;
+    $conv['updated_at']=gmdate('c');
+    $convs[$cid]=$conv;$backfilled++;
+  }
+  if($backfilled)save_json_file($convFile,$convs);
+}
+
 echo json_encode([
  'ok'=>true,
  'click_id'=>$clickId,
  'source'=>$src['key'],
  'utm_keys'=>array_keys($utm),
- 'captured_params'=>count($record['query_params'])
+ 'captured_params'=>count($record['query_params']),
+ 'backfilled_conversations'=>$backfilled
 ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
