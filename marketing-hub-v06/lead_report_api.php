@@ -322,6 +322,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
             'landing_url'=>lr_s($convMeta['attribution_landing_url']??''),
             'referrer'=>lr_s($convMeta['attribution_referrer']??''),
             'click_id'=>lr_s($convMeta['ycloud_chatlink_click_id']??''),
+            'match_method'=>lr_s($convMeta['attribution_match_method']??''),
             'params'=>is_array($convMeta['attribution_params']??null)?$convMeta['attribution_params']:[],
             'utm'=>is_array($convMeta['attribution_utm']??null)?$convMeta['attribution_utm']:[],
             'first_touch'=>is_array($convMeta['attribution_first_touch']??null)?$convMeta['attribution_first_touch']:[],
