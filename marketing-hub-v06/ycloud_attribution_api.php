@@ -24,7 +24,7 @@ $clickId=$m[1];
 
 $base=__DIR__.'/data';
 if(!is_dir($base))@mkdir($base,0755,true);
-$file=$base.'/ycloud_click_attribution.json';
+$file=$base.'/chatlink_clicks.json';
 
 function load_map(string $f):array{
     $v=is_file($f)?json_decode((string)file_get_contents($f),true):[];
@@ -59,6 +59,8 @@ $row=[
     'business_number'=>'+966505952042',
     'interaction_id'=>clean_scalar($j['interaction_id']??'',200),
     'page_url'=>clean_scalar($j['page_url']??'',2000),
+    'source_url'=>clean_scalar($j['page_url']??'',2000),
+    'landing_url'=>clean_scalar($j['page_url']??'',2000),
     'landing_path'=>clean_scalar($j['landing_path']??'',500),
     'referrer'=>clean_scalar($j['referrer']??'',2000),
     'gclid'=>clean_scalar($allParams['gclid']??'',500),
@@ -71,9 +73,41 @@ $row=[
     'sccid'=>clean_scalar($allParams['sccid']??'',500),
     'utm'=>$utm,
     'params'=>$allParams,
+    'query_params'=>$allParams,
+    'utm_source'=>clean_scalar($allParams['utm_source']??'',500),
+    'utm_medium'=>clean_scalar($allParams['utm_medium']??'',500),
+    'utm_campaign'=>clean_scalar($allParams['utm_campaign']??'',500),
+    'utm_id'=>clean_scalar($allParams['utm_id']??'',500),
+    'utm_term'=>clean_scalar($allParams['utm_term']??'',500),
+    'utm_content'=>clean_scalar($allParams['utm_content']??'',500),
+    'utm_source_platform'=>clean_scalar($allParams['utm_source_platform']??'',500),
+    'utm_creative_format'=>clean_scalar($allParams['utm_creative_format']??'',500),
+    'utm_marketing_tactic'=>clean_scalar($allParams['utm_marketing_tactic']??'',500),
+    'scclid'=>clean_scalar($allParams['scclid']??$allParams['ScCid']??'',500),
+    'li_fat_id'=>clean_scalar($allParams['li_fat_id']??'',500),
+    'twclid'=>clean_scalar($allParams['twclid']??'',500),
     'captured_at'=>gmdate('c'),
     'user_agent'=>clean_scalar($_SERVER['HTTP_USER_AGENT']??'',700)
 ];
+
+$sourceKey='website';$sourceLabel='Website / YCloud Chat Link';
+$lowUrl=strtolower((string)$row['page_url']);
+if($row['gclid']!==''||$row['gbraid']!==''||$row['wbraid']!==''||str_contains($lowUrl,'utm_source=google')){$sourceKey='google';$sourceLabel='Google Ads';}
+elseif($row['ttclid']!==''||str_contains($lowUrl,'utm_source=tiktok')){$sourceKey='tiktok';$sourceLabel='TikTok Ads';}
+elseif($row['fbclid']!==''||str_contains($lowUrl,'utm_source=facebook')||str_contains($lowUrl,'utm_source=instagram')){$sourceKey='meta';$sourceLabel='Meta Ads';}
+elseif($row['scclid']!==''||str_contains($lowUrl,'utm_source=snapchat')){$sourceKey='snapchat';$sourceLabel='Snapchat Ads';}
+elseif($row['msclkid']!==''||str_contains($lowUrl,'utm_source=bing')){$sourceKey='bing';$sourceLabel='Microsoft Ads';}
+elseif($row['li_fat_id']!==''||str_contains($lowUrl,'utm_source=linkedin')){$sourceKey='linkedin';$sourceLabel='LinkedIn Ads';}
+elseif($row['twclid']!==''||str_contains($lowUrl,'utm_source=x')||str_contains($lowUrl,'utm_source=twitter')){$sourceKey='x';$sourceLabel='X Ads';}
+$row['traffic_source_key']=$sourceKey;
+$row['traffic_source_label']=$sourceLabel;
+$row['traffic_source_confidence']='high';
+$row['traffic_source_reason']='ycloud_chatlink_click_id';
+$row['first_touch']=$row;
+$row['last_touch']=$row;
+$row['current_touch']=$row;
+$row['touch_history']=[$row];
+
 $map=load_map($file);
 $map[$clickId]=$row;
 if(count($map)>20000){
