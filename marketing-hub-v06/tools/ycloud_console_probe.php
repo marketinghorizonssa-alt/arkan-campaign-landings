@@ -30,7 +30,7 @@ foreach($ids as $id){
   }
   if($hash==='')continue;
   if($name==='')$name=$id;
-  $url=$base.$name.'.'.$hash.'.js';
+  $url=$base.'async/'.$name.'.'.$hash.'.js';
   $body=get($url);
   $hasModule=str_contains($body,$module.':')||str_contains($body,$module.',');
   $out['files'][]=['id'=>$id,'values'=>$vals,'url'=>$url,'bytes'=>strlen($body),'has_module'=>$hasModule];
