@@ -121,7 +121,24 @@ function extract_inbound_source_url(array $m):string{
     foreach($candidates as $v){if(is_string($v)&&trim($v)!=='')return trim($v);}
     return '';
 }
-function infer_traffic_source(string $text,array $referral,array $prev=[]):array{
+function message_source_meta(array $m):array{
+    $candidates=[
+        $m,
+        is_array($m['trafficSource']??null)?$m['trafficSource']:[],
+        is_array($m['source']??null)?$m['source']:[],
+        is_array($m['growthTool']??null)?$m['growthTool']:[],
+        is_array($m['customerProfile']??null)?$m['customerProfile']:[]
+    ];
+    $out=['source_type'=>'','source_id'=>'','source_url'=>''];
+    foreach($candidates as $x){
+        if(!is_array($x))continue;
+        if($out['source_type']==='')$out['source_type']=trim((string)($x['sourceType']??$x['source_type']??''));
+        if($out['source_id']==='')$out['source_id']=trim((string)($x['sourceId']??$x['source_id']??''));
+        if($out['source_url']==='')$out['source_url']=trim((string)($x['sourceUrl']??$x['source_url']??$x['url']??''));
+    }
+    return $out;
+}
+function infer_traffic_source(string $text,array $referral,array $prev=[],array $messageSource=[]):array{
     $low=function_exists('mb_strtolower')?mb_strtolower(trim($text),'UTF-8'):strtolower(trim($text));
     $refText=function_exists('mb_strtolower')
         ? mb_strtolower(trim((string)($referral['source_url']??'').' '.(string)($referral['headline']??'').' '.(string)($referral['source_type']??'')),'UTF-8')
@@ -140,6 +157,22 @@ function infer_traffic_source(string $text,array $referral,array $prev=[]):array
         return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'ycloud_chatlink_source_url'];
     if(str_contains($refText,'google')||contains_any($text,['المصدر: Google Ads','المصدر:Google Ads','source: google ads','جوجل ادز','google ads']))
         return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'platform_evidence'];
+
+    $msType=strtoupper(trim((string)($messageSource['source_type']??'')));
+    $msUrl=trim((string)($messageSource['source_url']??''));
+    $msLow=strtolower($msUrl);
+    if($msUrl!==''||$msType!==''){
+        if(str_contains($msLow,'gclid=')||str_contains($msLow,'gbraid=')||str_contains($msLow,'wbraid=')||str_contains($msLow,'utm_source=google'))
+            return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'ycloud_inbound_source_url'];
+        if(str_contains($msLow,'tiktok')||$msType==='TIKTOK_AD')
+            return ['key'=>'tiktok','label'=>'TikTok Ads','confidence'=>'high','reason'=>'ycloud_inbound_source'];
+        if(str_contains($msLow,'facebook')||str_contains($msLow,'instagram')||$msType==='AD')
+            return ['key'=>'meta','label'=>'Meta Ads','confidence'=>'high','reason'=>'ycloud_inbound_source'];
+        if(str_contains($msLow,'snapchat'))
+            return ['key'=>'snapchat','label'=>'Snapchat Ads','confidence'=>'high','reason'=>'ycloud_inbound_source'];
+        if($msType==='GROWTH_TOOL')
+            return ['key'=>'website','label'=>'Website / YCloud Chat Link','confidence'=>'high','reason'=>'ycloud_growth_tool'];
+    }
 
     if(!empty($prev['traffic_source_key']) && ($prev['traffic_source_key']??'')!=='organic')
         return ['key'=>(string)$prev['traffic_source_key'],'label'=>(string)($prev['traffic_source_label']??$prev['traffic_source_key']),'confidence'=>(string)($prev['traffic_source_confidence']??'medium'),'reason'=>(string)($prev['traffic_source_reason']??'previous_attribution')];
@@ -267,7 +300,8 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
     $text=msg_text($m);$msgType=(string)($m['type']??'unknown');$sentAt=(string)($m['sendTime']??$event['createTime']??gmdate('c'));$repliedToStaff=(string)($prev['last_direction']??'')==='outbound_app';
     $inboundSourceUrl=extract_inbound_source_url($m);
     if($inboundSourceUrl!==''&&empty($referral['source_url'])){$referral['source_url']=$inboundSourceUrl;if(empty($referral['source_type']))$referral['source_type']='growth_tool';}
-    $traffic=infer_traffic_source($text,$referral,$prev);
+    $messageSource=message_source_meta($m);
+    $traffic=infer_traffic_source($text,$referral,$prev,$messageSource);
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];$recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId]);
     $inbound=(int)($prev['inbound_count']??0)+($history?0:1);$outbound=(int)($prev['outbound_count']??0);
     $conv=array_merge($prev,[
@@ -277,6 +311,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'current_tag'=>$prev['current_tag']??null,'ctwa_clid'=>(string)($referral['ctwa_clid']??($prev['ctwa_clid']??'')),'ad_source_id'=>(string)($referral['source_id']??($prev['ad_source_id']??'')),'ad_source_type'=>(string)($referral['source_type']??($prev['ad_source_type']??'')),'ad_headline'=>(string)($referral['headline']??($prev['ad_headline']??'')),
         'ycloud_inbound_source_url'=>$inboundSourceUrl!==''?$inboundSourceUrl:(string)($prev['ycloud_inbound_source_url']??''),
         'traffic_source_key'=>$traffic['key'],'traffic_source_label'=>$traffic['label'],'traffic_source_confidence'=>$traffic['confidence'],'traffic_source_reason'=>$traffic['reason'],
+        'ycloud_message_source_type'=>$messageSource['source_type']??'','ycloud_message_source_id'=>$messageSource['source_id']??'','ycloud_message_source_url'=>$messageSource['source_url']??'',
         'inbound_count'=>$inbound,'outbound_count'=>$outbound,'recent_messages'=>$recent,'last_customer_reply_to_staff'=>$repliedToStaff,'updated_at'=>gmdate('c')
     ]);
     if($isNew&&!$history){add_conversion_event($conversionFile,$conv,'conversation_started',$eventId,['origin'=>'whatsapp_inbound','source'=>'automation']);$conversionCreated++;}
