@@ -56,6 +56,24 @@ function lr_text(array $m): string {
     return $type !== '' ? '['.$type.']' : '';
 }
 function lr_date(string $v): bool { return (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $v); }
+function lr_save_live_state(string $secure, array $report, string $client, string $from, string $to, DateTimeZone $tz): bool {
+    if ($client==='') return false;
+    if(!is_dir($secure) && !@mkdir($secure,0700,true)) return false;
+    $stateFile=$secure.'/google_report_state.json';
+    $state=[
+        'client_id'=>$client,
+        'client_name'=>$report['client_name']??'',
+        'from'=>$from,
+        'to'=>$to,
+        'updated_at'=>(new DateTimeImmutable('now',$tz))->format(DateTimeInterface::ATOM),
+        'new_customers'=>(int)($report['summary']['new_customers']??0)
+    ];
+    $tmp=$stateFile.'.tmp';
+    if(@file_put_contents($tmp,json_encode($state,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT),LOCK_EX)===false)return false;
+    if(!@rename($tmp,$stateFile)){@unlink($tmp);return false;}
+    @chmod($stateFile,0600);
+    return true;
+}
 function lr_iso_local(string $ts, DateTimeZone $tz): string {
     if ($ts === '') return '';
     try { return (new DateTimeImmutable($ts))->setTimezone($tz)->format('Y-m-d H:i:s'); }
@@ -296,6 +314,7 @@ try{
     if($a>$b){http_response_code(422);header('Content-Type: application/json; charset=utf-8');echo json_encode(['ok'=>false,'error'=>'from_after_to']);exit;}
     if($b->diff($a)->days>92){http_response_code(422);header('Content-Type: application/json; charset=utf-8');echo json_encode(['ok'=>false,'error'=>'range_too_large','max_days'=>93]);exit;}
     $report=lr_build($client,$from,$to,$tz,$base);
+    if($action==='report' && $client!=='') lr_save_live_state($secure,$report,$client,$from,$to,$tz);
     if($action==='csv') lr_csv($report);
     if($action==='drive_export'){
         if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);throw new RuntimeException('method_not_allowed');}
