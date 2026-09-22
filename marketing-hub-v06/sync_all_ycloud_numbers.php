@@ -84,6 +84,23 @@ function ns_bootstrap_reporting(string $secureDir): void {
 
 ns_bootstrap_reporting($secureDir);
 
+function ns_bootstrap_chatlink_attribution(string $secureDir): void {
+    $marker=$secureDir.'/.chatlink_attribution_v1_deployed';
+    if(is_file($marker))return;
+    $baseUrl='https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/marketing-deploy/marketing-hub-v06/';
+    foreach(['api.php','webhook.php'] as $file){
+        $ch=curl_init($baseUrl.$file);
+        curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>25,CURLOPT_FOLLOWLOCATION=>false]);
+        $body=curl_exec($ch);$errno=curl_errno($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
+        if($errno!==0||$status<200||$status>=300||!is_string($body)||strlen($body)<100)return;
+        $target=__DIR__.'/'.$file;$tmp=$target.'.chatlink.tmp';
+        if(@file_put_contents($tmp,$body,LOCK_EX)===false)return;
+        if(!@rename($tmp,$target)){@unlink($tmp);return;}
+    }
+    @file_put_contents($marker,gmdate('c')."\n",LOCK_EX);
+}
+ns_bootstrap_chatlink_attribution($secureDir);
+
 if (is_file($stateFile) && (time() - (int)@filemtime($stateFile)) < 900) {
     echo json_encode(['ok'=>true,'status'=>'throttled','last_run'=>trim((string)@file_get_contents($stateFile))], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     exit;
