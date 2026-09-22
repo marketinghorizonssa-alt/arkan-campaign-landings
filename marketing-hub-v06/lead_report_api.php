@@ -88,25 +88,23 @@ function lr_source(array $firstInbound, array $messages): array {
     $raw = is_array($firstInbound['raw'] ?? null) ? $firstInbound['raw'] : [];
     $ref = is_array($raw['referral'] ?? null) ? $raw['referral'] : [];
     $clid = lr_s($ref['ctwa_clid'] ?? $ref['ctwaClid'] ?? '');
+    $sourceType = lr_lower(lr_s($ref['source_type'] ?? $ref['sourceType'] ?? ''));
     $refText = lr_lower(
         lr_s($ref['source_url'] ?? $ref['sourceUrl'] ?? '') . ' ' .
-        lr_s($ref['headline'] ?? '') . ' ' .
-        lr_s($ref['source_type'] ?? $ref['sourceType'] ?? '')
+        lr_s($ref['headline'] ?? '') . ' ' . $sourceType
     );
     $text = '';
     foreach ($messages as $m) if (($m['direction'] ?? '') === 'inbound') $text .= ' '.lr_s($m['text'] ?? '');
     $low = lr_lower($text);
 
-    if ($clid !== '' || str_contains($refText, 'facebook') || str_contains($refText, 'instagram')) {
-        return ['key'=>'meta','label'=>'Meta Ads','confidence'=>'high','reason'=>$clid !== '' ? 'ctwa_clid' : 'referral'];
-    }
+    // Explicit ad-platform evidence always wins.
     if (str_contains($refText, 'tiktok') || str_contains($low, 'tiktok') || str_contains($low, 'تيك توك')) {
         return ['key'=>'tiktok','label'=>'TikTok Ads','confidence'=>'high','reason'=>str_contains($refText,'tiktok') ? 'referral' : 'message_template'];
     }
-    if (str_contains($refText, 'google') || lr_contains($text, ['المصدر: Google Ads','المصدر:Google Ads','source: google ads','جوجل ادز','google ads'])) {
-        return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>str_contains($refText,'google') ? 'referral' : 'message_source_tag'];
+    if ($clid !== '' || str_contains($refText, 'facebook') || str_contains($refText, 'instagram') || str_contains($sourceType,'ad')) {
+        return ['key'=>'meta','label'=>'Meta Ads','confidence'=>'high','reason'=>$clid !== '' ? 'ctwa_clid' : 'referral'];
     }
-    if (str_contains($refText, 'snap') || lr_contains($text, ['المصدر: Snapchat Ads','المصدر:Snapchat Ads','snapchat ads','سناب شات','سناب'])) {
+    if (str_contains($refText, 'snap') || lr_contains($text, ['المصدر: Snapchat Ads','المصدر:Snapchat Ads','snapchat ads','سناب شات'])) {
         return ['key'=>'snapchat','label'=>'Snapchat Ads','confidence'=>'high','reason'=>str_contains($refText,'snap') ? 'referral' : 'message_source_tag'];
     }
     if (str_contains($refText, 'linkedin') || str_contains($low, 'linkedin')) {
@@ -115,7 +113,34 @@ function lr_source(array $firstInbound, array $messages): array {
     if (str_contains($refText, 'x.com') || str_contains($refText, 'twitter')) {
         return ['key'=>'x','label'=>'X Ads','confidence'=>'high','reason'=>'referral'];
     }
-    return ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'low','reason'=>'no_tracked_ad_attribution'];
+
+    // Website-origin WhatsApp clicks are attributed to Google Ads by the user's reporting rule.
+    // High-confidence path: website CTAs append one of these source markers.
+    $websiteMarker = lr_contains($text, [
+        'source:web','source:website','source=web','source=website',
+        '[source:web]','[source:website]','المصدر: الموقع','المصدر:الموقع',
+        'المصدر: website','المصدر:website','utm_source=google','gclid='
+    ]);
+    if ($websiteMarker) {
+        return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'website_marker'];
+    }
+
+    // Backfill known website-prefilled WhatsApp templates used before source:web was added.
+    $websiteTemplate = (
+        lr_contains($text,['أرغب في حجز خدمة','ارغب في حجز خدمة']) ||
+        lr_contains($text,['أريد عرض خدمة','اريد عرض خدمة']) ||
+        lr_contains($text,['أود حجز خدمة','اود حجز خدمة'])
+    ) && lr_contains($text,['مرحب','اهلاً','أهلاً']);
+    if ($websiteTemplate) {
+        return ['key'=>'google','label'=>'Google Ads','confidence'=>'medium','reason'=>'known_website_template'];
+    }
+
+    if (str_contains($refText, 'google') || lr_contains($text, ['المصدر: Google Ads','المصدر:Google Ads','source: google ads','جوجل ادز','google ads'])) {
+        return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>str_contains($refText,'google') ? 'referral' : 'message_source_tag'];
+    }
+
+    // No ad/site evidence means the person contacted WhatsApp directly.
+    return ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
 }
 function lr_stage(array $ai): array {
     $tag = lr_lower(lr_s($ai['current_tag'] ?? ''));
