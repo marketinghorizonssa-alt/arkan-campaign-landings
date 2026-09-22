@@ -131,8 +131,10 @@ function infer_traffic_source(string $text,array $referral,array $prev=[]):array
     ]);
     if($siteMarker) return ['key'=>'google','label'=>'Google Ads','confidence'=>'high','reason'=>'website_marker'];
 
-    $siteTemplate=(contains_any($text,['أرغب في حجز خدمة','ارغب في حجز خدمة','أريد عرض خدمة','اريد عرض خدمة','أود حجز خدمة','اود حجز خدمة'])
-        && contains_any($text,['مرحب','اهلاً','أهلاً']));
+    $siteTemplate=(
+        contains_any($text,['أرغب في حجز خدمة','ارغب في حجز خدمة','أريد عرض خدمة','اريد عرض خدمة','أود حجز خدمة','اود حجز خدمة']) ||
+        (contains_any($text,['مرحب','اهلاً','أهلاً','مرحبا']) && contains_any($text,['أرغب في','ارغب في','أود الاستفسار','اود الاستفسار','أريد الاستفسار','اريد الاستفسار','أريد معرفة','اريد معرفة']))
+    );
     if($siteTemplate) return ['key'=>'google','label'=>'Google Ads','confidence'=>'medium','reason'=>'known_website_template'];
 
     if(str_contains($refText,'google')||contains_any($text,['المصدر: Google Ads','المصدر:Google Ads','source: google ads','جوجل ادز','google ads']))
