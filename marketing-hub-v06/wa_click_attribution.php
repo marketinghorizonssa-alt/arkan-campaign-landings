@@ -140,6 +140,7 @@ $record=[
  'click_id'=>$clickId,
  'click_token'=>$token,
  'client_id'=>$clientId,
+ 'business_number'=>clean_scalar($j['business_number']??($clientId==='cl_0e6efd258397db'?'+966505952042':''),64),
  'interaction_id'=>clean_scalar($j['interaction_id']??'',160),
  'source_url'=>$sourceUrl,
  'page_url'=>$pageUrl,
