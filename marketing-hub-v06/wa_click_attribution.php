@@ -19,7 +19,11 @@ if(($_SERVER['REQUEST_METHOD']??'')==='OPTIONS'){http_response_code(204);exit;}
 if(($_SERVER['REQUEST_METHOD']??'')!=='POST'){http_response_code(405);echo json_encode(['ok'=>false,'error'=>'method_not_allowed']);exit;}
 
 $base=__DIR__.'/data';
+$secure=dirname(__DIR__,4).'/.marketing';
 if(!is_dir($base)) @mkdir($base,0775,true);
+if(!is_dir($secure)) @mkdir($secure,0700,true);
+$clientConfigFile=__DIR__.'/wa_attribution_clients.json';
+$tokenSecretFile=$secure.'/horizons_wa_token_secret';
 $mapFile=$base.'/chatlink_clicks.json';
 $logFile=$base.'/chatlink_click_events.jsonl';
 
@@ -93,6 +97,32 @@ function detect_source(array $maps,string $sourceUrl,string $referrer):array{
   return ['key'=>'organic','label'=>'Organic / Direct','reason'=>'no_campaign_signal','confidence'=>'medium'];
 }
 
+function normalize_digits(string $v):string{return preg_replace('/\\D+/','',$v)??'';}
+function hzn_secret(string $file):string{
+  if(is_file($file)){
+    $s=trim((string)@file_get_contents($file));
+    if(strlen($s)>=32)return$s;
+  }
+  $s=bin2hex(random_bytes(32));
+  @file_put_contents($file,$s."\n",LOCK_EX);@chmod($file,0600);
+  return$s;
+}
+function b64url(string $raw):string{return rtrim(strtr(base64_encode($raw),'+/','-_'),'=');}
+function hzn_token(string $secret,string $clientId,string $clickId,string $business):string{
+  $payload=$clientId.'|'.$clickId.'|'.normalize_digits($business);
+  $sig=substr(b64url(hash_hmac('sha256',$payload,$secret,true)),0,22);
+  return'hzn1.'.$clickId.'.'.$sig;
+}
+function hzn_token_valid(string $token,string $secret,string $clientId,string $clickId,string $business):bool{
+  if(!preg_match('/^hzn1\\.(clk_[A-Za-z0-9_-]{4,120})\\.([A-Za-z0-9_-]{10,64})$/',$token,$m))return false;
+  if($m[1]!==$clickId)return false;
+  return hash_equals(hzn_token($secret,$clientId,$clickId,$business),$token);
+}
+function client_registry(string $file):array{
+  $j=load_json_file($file);
+  return is_array($j['clients']??null)?$j['clients']:[];
+}
+
 $raw=(string)file_get_contents('php://input');
 if($raw===''||strlen($raw)>131072){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'invalid_body']);exit;}
 $j=json_decode($raw,true);
@@ -101,33 +131,44 @@ if(!is_array($j)){http_response_code(400);echo json_encode(['ok'=>false,'error'=
 $clientId=clean_scalar($j['client_id']??'');
 if(!preg_match('/^cl_[a-z0-9]{8,40}$/',$clientId)){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_client']);exit;}
 
-$knownClients=[
-  'cl_0e6efd258397db'=>[
-    'business_number'=>'+966505952042',
-    'origins'=>['https://pcare.sa','https://www.pcare.sa','https://marketing.hositee.com']
-  ],
-  'cl_3ea5ae96e05c6b'=>[
-    'business_number'=>'+966537033347',
-    'origins'=>['https://almowahid.sa','https://www.almowahid.sa','https://marketing.hositee.com']
-  ]
-];
-$known=$knownClients[$clientId]??null;
-if(is_array($known)&&$origin!==''&&!in_array($origin,(array)$known['origins'],true)){
-  http_response_code(403);echo json_encode(['ok'=>false,'error'=>'client_origin_mismatch']);exit;
-}
+$registry=client_registry($clientConfigFile);
+$known=$registry[$clientId]??null;
 $businessNumber=clean_scalar($j['business_number']??'',64);
 if(is_array($known)){
-  $expected=(string)$known['business_number'];
-  if($businessNumber!==''&&preg_replace('/\D+/','',$businessNumber)!==preg_replace('/\D+/','',$expected)){
-    http_response_code(422);echo json_encode(['ok'=>false,'error'=>'business_number_mismatch']);exit;
+  $origins=is_array($known['origins']??null)?$known['origins']:[];
+  if($origin!==''&&$origins&&!in_array($origin,$origins,true)){
+    http_response_code(403);echo json_encode(['ok'=>false,'error'=>'client_origin_mismatch']);exit;
   }
-  $businessNumber=$expected;
+  $numbers=is_array($known['business_numbers']??null)?$known['business_numbers']:[];
+  if($businessNumber===''&&count($numbers)===1)$businessNumber=(string)$numbers[0];
+  if($numbers){
+    $ok=false;foreach($numbers as $n){if(normalize_digits((string)$n)===normalize_digits($businessNumber)){$ok=true;break;}}
+    if(!$ok){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'business_number_mismatch']);exit;}
+  }
+}else{
+  // Generic onboarding path: source origin must match source_url host and the client id
+  // remains scoped in the stored click record. Add the client to the registry for strict mode.
+  $sourceCandidate=clean_scalar($j['source_url']??$j['page_url']??'',8192);
+  if($origin!==''&&$sourceCandidate!==''){
+    $oh=strtolower((string)parse_url($origin,PHP_URL_HOST));
+    $sh=strtolower((string)parse_url($sourceCandidate,PHP_URL_HOST));
+    if($oh===''||$sh===''||$oh!==$sh){http_response_code(403);echo json_encode(['ok'=>false,'error'=>'origin_source_mismatch']);exit;}
+  }
 }
-
 $token=clean_scalar($j['click_token']??$j['token']??'',4096);
 $clickId=clean_scalar($j['click_id']??'',160);
+$mint=!empty($j['mint_horizons_token']);
 if($clickId==='' && preg_match('/(clk_[A-Za-z0-9_-]{4,120})/',$token,$m))$clickId=$m[1];
-if($clickId===''||!preg_match('/^clk_[A-Za-z0-9_-]{4,120}$/',$clickId)){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_click_id']);exit;}
+if($mint){
+  $clickId='clk_'.bin2hex(random_bytes(12));
+  $token=hzn_token(hzn_secret($tokenSecretFile),$clientId,$clickId,$businessNumber);
+}elseif($clickId===''||!preg_match('/^clk_[A-Za-z0-9_-]{4,120}$/',$clickId)){
+  http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_click_id']);exit;
+}
+$tokenVersion=str_starts_with($token,'hzn1.')?'hzn1':(str_starts_with($token,'hzn.attr.')?'hzn_legacy':(str_starts_with($token,'ycloud.chatlink.')?'ycloud':''));
+if($tokenVersion==='hzn1'&&!hzn_token_valid($token,hzn_secret($tokenSecretFile),$clientId,$clickId,$businessNumber)){
+  http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_horizons_token']);exit;
+}
 
 $first=clean_map($j['first_touch']??[]);
 $last=clean_map($j['last_touch']??[]);
@@ -164,6 +205,8 @@ ksort($utm);
 $record=[
  'click_id'=>$clickId,
  'click_token'=>$token,
+ 'token_version'=>$tokenVersion,
+ 'token_verified'=>$tokenVersion==='hzn1',
  'client_id'=>$clientId,
  'business_number'=>$businessNumber,
  'interaction_id'=>clean_scalar($j['interaction_id']??'',160),
@@ -238,6 +281,8 @@ if($convs){
 echo json_encode([
  'ok'=>true,
  'click_id'=>$clickId,
+ 'click_token'=>$token,
+ 'token_version'=>$tokenVersion,
  'source'=>$src['key'],
  'utm_keys'=>array_keys($utm),
  'captured_params'=>count($record['query_params']),
