@@ -44,11 +44,8 @@ function normalize_phone(string $phone):string{
 }
 function safe_id(string $id):bool{return(bool)preg_match('/^yc_[a-z0-9_]{4,80}$/',$id);}
 function decode_chatlink_tracking(string $text):array{
-    $empty=['click_id'=>'','decoded'=>'','token'=>''];
+    $empty=['click_id'=>'','decoded'=>'','token'=>'','decoded_token'=>'','format'=>''];
     $map=["\u{200B}"=>0,"\u{200C}"=>1,"\u{200D}"=>2,"\u{FEFF}"=>3];
-
-    // First try every contiguous run. If WhatsApp/YCloud inserted harmless separators,
-    // fall back to aggregating the supported zero-width symbols across the message.
     $candidates=[];
     if(preg_match_all('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]{4,}/u',$text,$runs)){
         foreach(($runs[0]??[]) as $run)$candidates[]=$run;
@@ -59,16 +56,23 @@ function decode_chatlink_tracking(string $text):array{
     }
     if(!$candidates)return $empty;
 
-    foreach($candidates as $token){
-        $chars=preg_split('//u',$token,-1,PREG_SPLIT_NO_EMPTY);
+    foreach($candidates as $hidden){
+        $chars=preg_split('//u',$hidden,-1,PREG_SPLIT_NO_EMPTY);
         if(!is_array($chars)||count($chars)<4)continue;
         $bytes='';$n=count($chars)-count($chars)%4;
         for($i=0;$i<$n;$i+=4){
             if(!isset($map[$chars[$i]],$map[$chars[$i+1]],$map[$chars[$i+2]],$map[$chars[$i+3]])){ $bytes=''; break; }
             $bytes.=chr(($map[$chars[$i]]<<6)|($map[$chars[$i+1]]<<4)|($map[$chars[$i+2]]<<2)|$map[$chars[$i+3]]);
         }
-        if($bytes!==''&&preg_match('/(?:ycloud\.chatlink|hzn\.attr)\.(clk_[A-Za-z0-9_-]{4,120})/',$bytes,$mm)){
-            return ['click_id'=>$mm[1],'decoded'=>$bytes,'token'=>$token];
+        if($bytes==='')continue;
+        if(preg_match('/(hzn1\.(clk_[A-Za-z0-9_-]{4,120})\.[A-Za-z0-9_-]{10,64})/',$bytes,$m)){
+            return ['click_id'=>$m[2],'decoded'=>$bytes,'token'=>$hidden,'decoded_token'=>$m[1],'format'=>'hzn1'];
+        }
+        if(preg_match('/(hzn\.attr\.(clk_[A-Za-z0-9_-]{4,120}))/',$bytes,$m)){
+            return ['click_id'=>$m[2],'decoded'=>$bytes,'token'=>$hidden,'decoded_token'=>$m[1],'format'=>'hzn_legacy'];
+        }
+        if(preg_match('/(ycloud\.chatlink\.(clk_[A-Za-z0-9_-]{4,120})(?:\.[A-Za-z0-9_-]{4,160})?)/',$bytes,$m)){
+            return ['click_id'=>$m[2],'decoded'=>$bytes,'token'=>$hidden,'decoded_token'=>$m[1],'format'=>'ycloud'];
         }
     }
     return $empty;
@@ -437,8 +441,25 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
     $chatClick=[];$chatClickMatchMethod='';
     $clicks=load_json($chatlinkClicksFile,[]);
     if($chatlink['click_id']!==''){
-        $chatClick=is_array($clicks[$chatlink['click_id']]??null)?$clicks[$chatlink['click_id']]:[];
-        if($chatClick)$chatClickMatchMethod='hidden_token';
+        $candidate=is_array($clicks[$chatlink['click_id']]??null)?$clicks[$chatlink['click_id']]:[];
+        if($candidate){
+            $format=(string)($chatlink['format']??'');
+            $valid=true;
+            if($format==='hzn1'){
+                $storedToken=(string)($candidate['click_token']??'');
+                $decodedToken=(string)($chatlink['decoded_token']??'');
+                $sameClient=(string)($candidate['client_id']??'')===$clientId;
+                $storedBusiness=normalize_phone((string)($candidate['business_number']??''));
+                $sameBusiness=$storedBusiness===''||normalize_phone($business)===$storedBusiness;
+                $valid=$storedToken!==''&&$decodedToken!==''&&hash_equals($storedToken,$decodedToken)&&$sameClient&&$sameBusiness;
+                if($valid)$chatClickMatchMethod='horizons_hidden_token';
+            }elseif($format==='hzn_legacy'){
+                $chatClickMatchMethod='horizons_legacy_hidden_token';
+            }else{
+                $chatClickMatchMethod='ycloud_hidden_token';
+            }
+            if($valid)$chatClick=$candidate;
+        }
     }
 
     // Strict order: confirmed native platform > hidden encoded click > deferred 5-minute fallback > unknown.
@@ -453,29 +474,30 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
             $clicks[$cid]['matched_at']=gmdate('c');
             $clicks[$cid]['matched_customer']=$customer;
             $clicks[$cid]['matched_business']=$business;
-            $clicks[$cid]['match_method']='native_superseded_hidden_token';
+            $clicks[$cid]['match_method']='native_superseded_'.(($chatlink['format']??'')==='hzn1'?'horizons_token':'hidden_token');
             save_json($chatlinkClicksFile,$clicks);
         }
     }elseif($chatClick){
+        $isHzn=(string)($chatlink['format']??'')==='hzn1';
         $traffic=[
             'key'=>(string)($chatClick['traffic_source_key']??'website'),
-            'label'=>(string)($chatClick['traffic_source_label']??'Website / YCloud Chat Link'),
-            'confidence'=>(string)($chatClick['traffic_source_confidence']??'high'),
-            'reason'=>(string)($chatClick['traffic_source_reason']??'ycloud_chatlink_click_id')
+            'label'=>(string)($chatClick['traffic_source_label']??'Website / HORIZONS Attribution'),
+            'confidence'=>'high',
+            'reason'=>$isHzn?'horizons_signed_hidden_token':(string)($chatClick['traffic_source_reason']??'hidden_click_token')
         ];
-        $chatClickMatchMethod='hidden_token';
+        if($chatClickMatchMethod==='')$chatClickMatchMethod=$isHzn?'horizons_hidden_token':'hidden_token';
         if(($chatlink['click_id']??'')!==''){
             $cid=(string)$chatlink['click_id'];
             if(isset($clicks[$cid])&&is_array($clicks[$cid])){
                 $clicks[$cid]['matched_at']=gmdate('c');
                 $clicks[$cid]['matched_customer']=$customer;
                 $clicks[$cid]['matched_business']=$business;
-                $clicks[$cid]['match_method']='hidden_token';
+                $clicks[$cid]['match_method']=$chatClickMatchMethod;
                 save_json($chatlinkClicksFile,$clicks);
             }
         }
-    }elseif($isNew&&!$history&&in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b'],true)){
-        // P Care + Almowahid: defer the timestamp guess until the complete click window is closed.
+    }elseif($isNew&&!$history&&$clientId!==''){
+        // Any configured client: defer timestamp attribution until the complete click window is closed.
         $traffic=[
             'key'=>'unknown',
             'label'=>'Unknown',
@@ -500,6 +522,9 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'ycloud_message_source_type'=>$messageSource['source_type']??'','ycloud_message_source_id'=>$messageSource['source_id']??'','ycloud_message_source_url'=>$messageSource['source_url']??'',
         'ycloud_chatlink_click_id'=>$chatlink['click_id']??'',
         'ycloud_chatlink_decoded'=>(string)($chatlink['decoded']??''),
+        'horizons_wa_click_id'=>(string)($chatlink['click_id']??($prev['horizons_wa_click_id']??'')),
+        'horizons_wa_token_format'=>(string)($chatlink['format']??($prev['horizons_wa_token_format']??'')),
+        'horizons_wa_token_decoded'=>(string)($chatlink['decoded_token']??($prev['horizons_wa_token_decoded']??'')),
         'attribution_match_method'=>$chatClickMatchMethod!==''?$chatClickMatchMethod:(string)($prev['attribution_match_method']??''),
         'chatlink_source_url'=>(string)($chatClick['source_url']??($prev['chatlink_source_url']??'')),
         'attribution_landing_url'=>(string)($chatClick['landing_url']??($prev['attribution_landing_url']??'')),
