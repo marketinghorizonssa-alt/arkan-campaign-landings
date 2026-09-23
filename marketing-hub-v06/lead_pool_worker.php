@@ -191,15 +191,34 @@ foreach($clients as $clientId=>$bundle){
         if(!$firstRun && $prevStage!=='' && $prevStage!==$stage && in_array($stage,$exportStages,true)){
             $eventId='ev_' . substr(lp_hmac($secret,$clientId,$leadId,$prevStage,$stage,lp_s($r['last_seen_at'])),0,32);
             $polarity=lp_s($config['stage_polarity'][$stage]??'neutral'); $origin=$source;
-            if(in_array($origin,$platforms,true) && (bool)($cfg['source_native_delivery']??true)){
-                $route=['event_id'=>$eventId,'client_id'=>$clientId,'lead_id'=>$leadId,'contact_id'=>$r['contact_id'],'stage'=>$stage,'polarity'=>$polarity,'origin_source'=>$origin,'target_platform'=>$origin,'route_type'=>'online_conversion','attribution'=>'source_native','native_ids'=>$r['native_ids'],'campaign'=>$r['campaign'],'occurred_at'=>$r['last_seen_at']?:gmdate('c'),'delivery_status'=>'queued'];
-                lp_append_jsonl($dir.'/routing_outbox.jsonl',$route);$result['routes_queued']++;
-            }
-            foreach($platforms as $target){
-                if($target===$origin)continue;
-                $consent=(bool)($cfg['consent_verified']??false); $status=$consent?'queued':'blocked_consent';
-                $route=['event_id'=>$eventId.'_'.$target,'client_id'=>$clientId,'lead_id'=>$leadId,'contact_id'=>$r['contact_id'],'stage'=>$stage,'polarity'=>$polarity,'origin_source'=>$origin,'target_platform'=>$target,'route_type'=>'first_party_offline','attribution'=>'none_do_not_credit_target_platform','first_party'=>$r['first_party'],'occurred_at'=>$r['last_seen_at']?:gmdate('c'),'delivery_status'=>$status];
-                lp_append_jsonl($dir.'/routing_outbox.jsonl',$route); if($status==='queued')$result['routes_queued']++;else$result['routes_blocked_consent']++;
+            $broadcastAll=(bool)($cfg['broadcast_qualified_to_all_platforms']??false);
+            if($broadcastAll && in_array($stage,['qualified','converted'],true)){
+                foreach($platforms as $target){
+                    $route=[
+                        'event_id'=>$eventId.'_'.$target,
+                        'client_id'=>$clientId,'lead_id'=>$leadId,'contact_id'=>$r['contact_id'],
+                        'stage'=>$stage,'polarity'=>$polarity,'origin_source'=>$origin,'target_platform'=>$target,
+                        'route_type'=>'first_party_offline',
+                        'attribution'=>'platform_match_from_real_crm_outcome',
+                        'first_party'=>$r['first_party'],
+                        'native_ids'=>$r['native_ids'],
+                        'campaign'=>$r['campaign'],
+                        'occurred_at'=>$r['last_seen_at']?:gmdate('c'),
+                        'delivery_status'=>'queued'
+                    ];
+                    lp_append_jsonl($dir.'/routing_outbox.jsonl',$route);$result['routes_queued']++;
+                }
+            } else {
+                if(in_array($origin,$platforms,true) && (bool)($cfg['source_native_delivery']??true)){
+                    $route=['event_id'=>$eventId,'client_id'=>$clientId,'lead_id'=>$leadId,'contact_id'=>$r['contact_id'],'stage'=>$stage,'polarity'=>$polarity,'origin_source'=>$origin,'target_platform'=>$origin,'route_type'=>'online_conversion','attribution'=>'source_native','native_ids'=>$r['native_ids'],'campaign'=>$r['campaign'],'occurred_at'=>$r['last_seen_at']?:gmdate('c'),'delivery_status'=>'queued'];
+                    lp_append_jsonl($dir.'/routing_outbox.jsonl',$route);$result['routes_queued']++;
+                }
+                foreach($platforms as $target){
+                    if($target===$origin)continue;
+                    $consent=(bool)($cfg['consent_verified']??false); $status=$consent?'queued':'blocked_consent';
+                    $route=['event_id'=>$eventId.'_'.$target,'client_id'=>$clientId,'lead_id'=>$leadId,'contact_id'=>$r['contact_id'],'stage'=>$stage,'polarity'=>$polarity,'origin_source'=>$origin,'target_platform'=>$target,'route_type'=>'first_party_offline','attribution'=>'none_do_not_credit_target_platform','first_party'=>$r['first_party'],'occurred_at'=>$r['last_seen_at']?:gmdate('c'),'delivery_status'=>$status];
+                    lp_append_jsonl($dir.'/routing_outbox.jsonl',$route); if($status==='queued')$result['routes_queued']++;else$result['routes_blocked_consent']++;
+                }
             }
         }
         $nextState[$leadId]=['stage'=>$stage,'source'=>$source,'last_seen_at'=>$r['last_seen_at'],'updated_at'=>gmdate('c')];
