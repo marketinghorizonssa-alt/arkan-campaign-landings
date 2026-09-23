@@ -40,8 +40,20 @@ function gc_google_time(string $raw):string{
     return $d->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:sP');
 }
 
-$method=(string)($_SERVER['REQUEST_METHOD']??'GET');
-$token=gc_s($_GET['token']??'');
+$cli=PHP_SAPI==='cli';
+$cliCommand=$cli?strtolower(gc_s($argv[1]??'feed')):'';
+if($cli&&$cliCommand==='ack'){
+    $ids=array_values(array_filter(array_map('trim',explode(',',gc_s($argv[2]??'')))));
+    $written=0;
+    foreach($ids as $eventId){
+        if(!preg_match('/^gcv_[a-f0-9]{16,64}$/',$eventId))continue;
+        if(gc_append($deliveryFile,['event_id'=>$eventId,'success'=>true,'customer_id'=>'','google_request_id'=>'scheduled_mcp','error'=>'','acked_at'=>gmdate('c')]))$written++;
+    }
+    echo json_encode(['ok'=>true,'acked'=>$written],JSON_UNESCAPED_SLASHES)."\n";exit;
+}
+
+$method=$cli?'GET':(string)($_SERVER['REQUEST_METHOD']??'GET');
+$token=$cli?$expected:gc_s($_GET['token']??'');
 if($method==='POST'){
     $j=json_decode((string)file_get_contents('php://input'),true);
     if(is_array($j)&&$token==='')$token=gc_s($j['token']??'');
