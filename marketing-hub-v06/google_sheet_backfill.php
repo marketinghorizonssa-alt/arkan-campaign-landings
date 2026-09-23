@@ -1,8 +1,18 @@
 <?php
 declare(strict_types=1);
-if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
-
 $base=__DIR__.'/data';
+$secure=dirname(__DIR__,4).'/.marketing';
+if(PHP_SAPI!=='cli'){
+  header('Content-Type: application/json; charset=utf-8');
+  header('Cache-Control: no-store');
+  $tokenFile=$secure.'/google_conversion_feed_token';
+  $expected=is_file($tokenFile)?trim((string)@file_get_contents($tokenFile)):'';
+  $provided=is_scalar($_GET['token']??null)?trim((string)$_GET['token']):'';
+  if($expected===''||$provided===''||!hash_equals($expected,$provided)){
+    http_response_code(403);echo json_encode(['ok'=>false,'error'=>'forbidden']);exit;
+  }
+}
+
 $convFile=$base.'/conversations.json';
 
 function bf_json(string $f,array $d=[]):array{
