@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "storage": {
     "scope": "per_client",
     "secure_only": true,
@@ -12,7 +12,6 @@
   },
   "stages": [
     "message_received",
-    "new",
     "interested",
     "qualified",
     "unqualified",
