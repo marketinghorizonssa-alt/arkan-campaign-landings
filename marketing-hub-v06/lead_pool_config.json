@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "storage": {
     "scope": "per_client",
     "secure_only": true,
@@ -72,7 +72,9 @@
     "enabled": true,
     "consent_verified": false,
     "cross_platform_delivery": "queued",
-    "uncalibrated_quality_delivery": "queue_only"
+    "uncalibrated_quality_delivery": "queue_only",
+    "accept_automation_stage": true,
+    "quality_profile": "whatsapp_funnel_v1"
   },
   "clients": {
     "cl_76c4e019afc588": {
