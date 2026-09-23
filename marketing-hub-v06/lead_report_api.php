@@ -171,26 +171,60 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
 }
 function lr_stage(array $ai): array {
     $tag = lr_lower(lr_s($ai['current_tag'] ?? ''));
-    $manual = ['interested'=>'interested','qualified'=>'qualified','purchased'=>'converted','converted'=>'converted','lost'=>'unqualified'];
-    if ($tag !== '' && isset($manual[$tag])) {
+    $map = [
+        'message_received'=>'message_received',
+        'interested'=>'interested',
+        'qualified'=>'qualified',
+        'purchased'=>'converted',
+        'converted'=>'converted',
+        'lost'=>'lost'
+    ];
+    if ($tag !== '' && isset($map[$tag])) {
+        $key=$map[$tag];
         return [
-            'key'=>$manual[$tag],
-            'label'=>match($manual[$tag]){'qualified'=>'Qualified','interested'=>'Interested','converted'=>'Converted','unqualified'=>'Unqualified',default=>'New'},
+            'key'=>$key,
+            'label'=>match($key){
+                'message_received'=>'Message Received',
+                'interested'=>'Interested',
+                'qualified'=>'Qualified',
+                'converted'=>'Converted',
+                'lost'=>'Lost',
+                default=>'Message Received'
+            },
             'score'=>(int)($ai['ai_quality_score'] ?? 0),
-            'summary'=>lr_s($ai['ai_summary'] ?? '') ?: 'Manual evaluation',
-            'reason'=>lr_s($ai['ai_reason'] ?? ''),
-            'method'=>'manual'
+            'summary'=>lr_s($ai['ai_summary'] ?? '') ?: lr_s($ai['auto_label_reason'] ?? ''),
+            'reason'=>lr_s($ai['auto_label_reason'] ?? $ai['ai_reason'] ?? ''),
+            'method'=>lr_s($ai['tag_source'] ?? '') ?: 'hub_status'
         ];
     }
+
+    // Report invariant: an actual inbound referral can never be "not evaluated".
+    $valid=(int)($ai['valid_inbound_count'] ?? $ai['inbound_count'] ?? 0);
+    if($valid>=1){
+        return [
+            'key'=>'message_received','label'=>'Message Received',
+            'score'=>(int)($ai['ai_quality_score'] ?? 0),
+            'summary'=>'First valid customer message received',
+            'reason'=>'first_valid_customer_message',
+            'method'=>'report_fallback'
+        ];
+    }
+
     $stage = lr_lower(lr_s($ai['ai_stage'] ?? ''));
-    if (!in_array($stage, ['new','interested','qualified','converted','unqualified'], true)) $stage = 'new';
+    $fallback=match($stage){
+        'interested'=>'interested','qualified'=>'qualified','converted'=>'converted','unqualified'=>'lost',
+        default=>'message_received'
+    };
     return [
-        'key'=>$stage,
-        'label'=>match($stage){'qualified'=>'Qualified','interested'=>'Interested','converted'=>'Converted','unqualified'=>'Unqualified',default=>'New / Not evaluated'},
+        'key'=>$fallback,
+        'label'=>match($fallback){
+            'interested'=>'Interested','qualified'=>'Qualified','converted'=>'Converted','lost'=>'Lost',
+            default=>'Message Received'
+        },
         'score'=>(int)($ai['ai_quality_score'] ?? 0),
         'summary'=>lr_s($ai['ai_summary'] ?? ''),
         'reason'=>lr_s($ai['ai_reason'] ?? ''),
-        'method'=>lr_s($ai['ai_stage'] ?? '') !== '' ? 'ai' : 'not_evaluated'
+        'method'=>$stage!==''?'ai_fallback':'report_fallback'
     ];
 }
 function lr_client_id(array $m, string $direction, array $byPhone, array $byWaba): string {
@@ -299,7 +333,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
     $end=(new DateTimeImmutable($toStr.' 23:59:59',$tz))->getTimestamp();
     $leads=[]; $summary=[
         'new_customers'=>0,'messages'=>0,'paid_ads'=>0,'organic'=>0,
-        'quality'=>['converted'=>0,'qualified'=>0,'interested'=>0,'new'=>0,'unqualified'=>0],
+        'quality'=>['message_received'=>0,'interested'=>0,'qualified'=>0,'converted'=>0,'lost'=>0],
         'sources'=>[]
     ];
 
@@ -363,7 +397,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
     usort($leads,fn($a,$b)=>strcmp($a['first_contact_at'],$b['first_contact_at']));
     arsort($summary['sources']);
     return [
-        'ok'=>true,'version'=>'lead-report-v1','timezone'=>$tz->getName(),'from'=>$fromStr,'to'=>$toStr,
+        'ok'=>true,'version'=>'lead-report-v2-funnel-status','timezone'=>$tz->getName(),'from'=>$fromStr,'to'=>$toStr,
         'client_id'=>$clientFilter?:null,'client_name'=>$clientFilter!==''?($clientNames[$clientFilter]??$clientFilter):'All clients',
         'generated_at'=>(new DateTimeImmutable('now',$tz))->format(DateTimeInterface::ATOM),
         'definition'=>'New customer = earliest inbound WhatsApp message in available synced history falls inside the selected date range; client resolved by business WhatsApp number/WABA.',
@@ -377,7 +411,7 @@ function lr_csv(array $report): never {
     header('Content-Disposition: attachment; filename="'.$filename.'"');
     echo "\xEF\xBB\xBF";
     $out=fopen('php://output','wb');
-    fputcsv($out,['Client','From','To','Lead #','Customer phone','First contact','Source','Source confidence','Source URL','Landing URL','Referrer','Click IDs','UTMs','All attribution params','Evaluation','Quality score','Evaluation summary','Message time','Direction','Message type','Message text']);
+    fputcsv($out,['Client','From','To','Lead #','Customer phone','First contact','Source','Source confidence','Source URL','Landing URL','Referrer','Click IDs','UTMs','All attribution params','Status','Quality score','Status summary','Message time','Direction','Message type','Message text']);
     $i=0;
     foreach(($report['leads']??[]) as $lead){
         $i++;
