@@ -6,7 +6,8 @@ $secure=dirname(__DIR__,4).'/.marketing';
 $tokenFile=$secure.'/qualified_pool_tokens.json';
 $clients=[
   'cl_0e6efd258397db'=>['name'=>'BCARE'],
-  'cl_3ea5ae96e05c6b'=>['name'=>'ALMOWAHID']
+  'cl_3ea5ae96e05c6b'=>['name'=>'ALMOWAHID'],
+  'cl_cbb797950cc8d4'=>['name'=>'ETIZAN']
 ];
 
 function qlp_json(string $f,array $d=[]):array{
