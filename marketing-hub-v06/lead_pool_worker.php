@@ -95,6 +95,7 @@ foreach (($baseQuality['leads'] ?? []) as $r) if (is_array($r) && lp_s($r['lead_
 $evalByLead=[];
 foreach (($contextQuality['leads'] ?? []) as $r) if (is_array($r) && lp_s($r['lead_id'] ?? '') !== '') $evalByLead[lp_s($r['lead_id'])] = $r;
 
+$conversationStore = lp_json($base . '/conversations.json', []);
 $connections = lp_json($base . '/ycloud_connections.json', []); $connClient=[];
 foreach ($connections as $k=>$v) if (is_array($v)) { $id=lp_s($v['id'] ?? (is_string($k)?$k:'')); if($id!=='') $connClient[$id]=lp_s($v['client_id']??''); }
 
@@ -142,19 +143,28 @@ foreach($allLeadIds as $convId){
         $manual=true; $manualStage=match($manualTag){'purchased'=>'converted','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
     }
     $calibrated=(bool)($cfg['quality_calibrated']??false);
-    $stage=$manualStage!==''?$manualStage:($calibrated?strtolower(lp_s($e['stage']??'new')):'new');
+    $conv=is_array($conversationStore[$convId]??null)?$conversationStore[$convId]:[];
+    $autoTag=strtolower(lp_s($conv['current_tag']??''));
+    $autoStage=match($autoTag){'purchased','converted'=>'converted','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
+    $acceptAutomation=(bool)($cfg['accept_automation_stage']??false);
+    $stage=$manualStage!==''?$manualStage:(($acceptAutomation&&$autoStage!=='')?$autoStage:($calibrated?strtolower(lp_s($e['stage']??'new')):'new'));
     if(!in_array($stage,$config['stages']??[],true))$stage='new';
 
     $ref=strtoupper(lp_s($id['ref_token']??'')); $attrLead=strtoupper(lp_s($id['attribution_lead_id']??'')); $attr=null; $join='';
     if($ref!==''&&isset($byRef[$ref])){$attr=$byRef[$ref];$join='visit_ref';}
     elseif($attrLead!==''&&isset($byAttrLead[$attrLead])){$attr=$byAttrLead[$attrLead];$join='lead_id';}
     $tracking=is_array($attr['tracking']??null)?$attr['tracking']:[];
-    $source=$attr?lp_source(lp_s($attr['source']??'')):lp_source(lp_s(($e['source']['source']??null)?:($b['source']??'')));
+    $source=$attr?lp_source(lp_s($attr['source']??'')):lp_source(lp_s(($e['source']['source']??null)?:($b['source']??($conv['traffic_source_key']??''))));
     $sourceConfidence=$attr?'high':lp_s(($e['source']['confidence']??null)?:($b['source_confidence']??'low'));
     $sourceReason=$attr?('server_attribution_'.$join):lp_s(($e['source']['reason']??null)?:($b['source_reason']??'no_evidence'));
     $native=[
-        'gclid'=>lp_s($tracking['gclid']??''),'wbraid'=>lp_s($tracking['wbraid']??''),'gbraid'=>lp_s($tracking['gbraid']??''),'ttclid'=>lp_s($tracking['ttclid']??''),
-        'fbclid'=>lp_s($tracking['fbclid']??''),'ctwa_clid'=>lp_s($id['ctwa_clid']??''),'sccid'=>lp_s($tracking['sccid']??$tracking['ScCid']??$tracking['sc_click_id']??'')
+        'gclid'=>lp_s($tracking['gclid']??($conv['google_gclid']??'')),
+        'wbraid'=>lp_s($tracking['wbraid']??($conv['google_wbraid']??'')),
+        'gbraid'=>lp_s($tracking['gbraid']??($conv['google_gbraid']??'')),
+        'ttclid'=>lp_s($tracking['ttclid']??($conv['tiktok_ttclid']??'')),
+        'fbclid'=>lp_s($tracking['fbclid']??($conv['meta_fbclid']??'')),
+        'ctwa_clid'=>lp_s($id['ctwa_clid']??($conv['ctwa_clid']??'')),
+        'sccid'=>lp_s($tracking['sccid']??$tracking['ScCid']??$tracking['sc_click_id']??($conv['snapchat_scclid']??''))
     ];
     $campaign=['campaign_id'=>lp_s($tracking['campaign_id']??''),'campaign_name'=>lp_s($tracking['campaign_name']??''),'ad_group_id'=>lp_s($tracking['ad_group_id']??''),'ad_group_name'=>lp_s($tracking['ad_group_name']??''),'ad_id'=>lp_s($tracking['ad_id']??''),'keyword'=>lp_s($tracking['keyword']??''),'match_type'=>lp_s($tracking['match_type']??'')];
     $phoneHash=$phone!==''?hash('sha256',$phone):'';
