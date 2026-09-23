@@ -128,4 +128,21 @@ foreach(['cl_0e6efd258397db','cl_3ea5ae96e05c6b'] as $cid){
     usort($out['clients'][$cid]['stages'][$stage],fn($x,$y)=>strcmp((string)$x['conversion_time'],(string)$y['conversion_time']));
   }
 }
+$argClient=strtolower(trim((string)($argv[1]??'')));
+$argStage=strtolower(trim((string)($argv[2]??'')));
+if($argClient!==''&&$argStage!==''){
+  $cid=match($argClient){
+    'bcare','pcare','cl_0e6efd258397db'=>'cl_0e6efd258397db',
+    'almowahid','mowahid','cl_3ea5ae96e05c6b'=>'cl_3ea5ae96e05c6b',
+    default=>$argClient
+  };
+  $stage=match($argStage){
+    'message','message_started','started'=>'message_started',
+    'interested'=>'interested','qualified'=>'qualified',
+    'converted','purchased'=>'converted',
+    default=>$argStage
+  };
+  echo json_encode($out['clients'][$cid]['stages'][$stage]??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n";
+  exit;
+}
 echo json_encode($out,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)."\n";
