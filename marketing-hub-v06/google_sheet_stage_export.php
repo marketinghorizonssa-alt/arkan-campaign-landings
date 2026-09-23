@@ -59,7 +59,7 @@ function sx_time(string $raw):string{
 function sx_event_stage(string $e):string{
   $e=strtolower(trim($e));
   return match($e){
-    'conversation_started'=>'message_started',
+    'conversation_started','message_received'=>'message_started',
     'interested'=>'interested',
     'qualified'=>'qualified',
     'purchased','converted'=>'converted',
