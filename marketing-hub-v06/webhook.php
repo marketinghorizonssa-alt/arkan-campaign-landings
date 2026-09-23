@@ -44,19 +44,34 @@ function normalize_phone(string $phone):string{
 }
 function safe_id(string $id):bool{return(bool)preg_match('/^yc_[a-z0-9_]{4,80}$/',$id);}
 function decode_chatlink_tracking(string $text):array{
-    if(!preg_match('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]{16,}/u',$text,$m))return ['click_id'=>'','decoded'=>'','token'=>''];
-    $chars=preg_split('//u',$m[0],-1,PREG_SPLIT_NO_EMPTY);
-    if(!is_array($chars)||count($chars)<4)return ['click_id'=>'','decoded'=>'','token'=>''];
+    $empty=['click_id'=>'','decoded'=>'','token'=>''];
     $map=["\u{200B}"=>0,"\u{200C}"=>1,"\u{200D}"=>2,"\u{FEFF}"=>3];
-    $bytes='';$n=count($chars)-count($chars)%4;
-    for($i=0;$i<$n;$i+=4){
-        if(!isset($map[$chars[$i]],$map[$chars[$i+1]],$map[$chars[$i+2]],$map[$chars[$i+3]]))break;
-        $v=($map[$chars[$i]]<<6)|($map[$chars[$i+1]]<<4)|($map[$chars[$i+2]]<<2)|$map[$chars[$i+3]];
-        $bytes.=chr($v);
+
+    // First try every contiguous run. If WhatsApp/YCloud inserted harmless separators,
+    // fall back to aggregating the supported zero-width symbols across the message.
+    $candidates=[];
+    if(preg_match_all('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]{4,}/u',$text,$runs)){
+        foreach(($runs[0]??[]) as $run)$candidates[]=$run;
     }
-    $click='';
-    if(preg_match('/(?:ycloud\.chatlink|hzn\.attr)\.(clk_[A-Za-z0-9_-]{4,80})/',$bytes,$mm))$click=$mm[1];
-    return ['click_id'=>$click,'decoded'=>$bytes,'token'=>$m[0]];
+    if(preg_match_all('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]/u',$text,$all)){
+        $joined=implode('',(array)($all[0]??[]));
+        if(mb_strlen($joined,'UTF-8')>=16)$candidates[]=$joined;
+    }
+    if(!$candidates)return $empty;
+
+    foreach($candidates as $token){
+        $chars=preg_split('//u',$token,-1,PREG_SPLIT_NO_EMPTY);
+        if(!is_array($chars)||count($chars)<4)continue;
+        $bytes='';$n=count($chars)-count($chars)%4;
+        for($i=0;$i<$n;$i+=4){
+            if(!isset($map[$chars[$i]],$map[$chars[$i+1]],$map[$chars[$i+2]],$map[$chars[$i+3]])){ $bytes=''; break; }
+            $bytes.=chr(($map[$chars[$i]]<<6)|($map[$chars[$i+1]]<<4)|($map[$chars[$i+2]]<<2)|$map[$chars[$i+3]]);
+        }
+        if($bytes!==''&&preg_match('/(?:ycloud\.chatlink|hzn\.attr)\.(clk_[A-Za-z0-9_-]{4,120})/',$bytes,$mm)){
+            return ['click_id'=>$mm[1],'decoded'=>$bytes,'token'=>$token];
+        }
+    }
+    return $empty;
 }
 function strip_chatlink_tracking(string $text):string{
     $x=preg_replace('/[\x{200B}\x{200C}\x{200D}\x{FEFF}]{16,}/u','',$text)??$text;
