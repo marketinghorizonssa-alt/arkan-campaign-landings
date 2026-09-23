@@ -62,44 +62,18 @@ header('Content-Type: text/csv; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex, nofollow, noarchive');
 
-$headers=[
-  'Lead ID','Qualified At','Current Stage','Source Platform','Source Confidence',
-  'Campaign ID','Campaign Name','Ad Group ID','Ad ID','Keyword',
-  'GCLID','GBRAID','WBRAID','TTCLID','FBCLID','CTWA CLID','SCCID',
-  'Phone SHA256','Email SHA256',
-  'Google Native Ready','TikTok Native Ready','Meta Native Ready','Snap Native Ready',
-  'Audience Ready','Recommended Use','Conversation ID','Last Seen At'
-];
+$headers=['Event ID','Qualified At','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Original Source'];
 qlp_csv($headers);
 
 $convs=qlp_json($base.'/conversations.json',[]);
 foreach($convs as $convId=>$c){
   if(!is_array($c)||qlp_s($c['client_id']??'')!==$cid)continue;
   [$ever,$qualifiedAt,$stage]=qlp_stage($c);if(!$ever)continue;
-  $src=strtolower(qlp_s($c['traffic_source_key']??'unknown'));
   $phone=qlp_phone(qlp_s($c['customer_number']??''));
   $phoneHash=$phone!==''?hash('sha256',$phone):'';
-  $gclid=qlp_s($c['google_gclid']??qlp_param($c,'gclid'));
-  $gbraid=qlp_s($c['google_gbraid']??qlp_param($c,'gbraid'));
-  $wbraid=qlp_s($c['google_wbraid']??qlp_param($c,'wbraid'));
-  $ttclid=qlp_s($c['tiktok_ttclid']??qlp_param($c,'ttclid'));
-  $fbclid=qlp_s($c['meta_fbclid']??qlp_param($c,'fbclid'));
-  $ctwa=qlp_s($c['ctwa_clid']??'');
-  $sccid=qlp_s($c['snapchat_scclid']??qlp_param($c,'scclid'));
-  $googleReady=$src==='google'&&($gclid!==''||$gbraid!==''||$wbraid!=='');
-  $tiktokReady=$src==='tiktok'&&$ttclid!=='';
-  $metaReady=$src==='meta'&&($ctwa!==''||$fbclid!=='');
-  $snapReady=$src==='snapchat'&&$sccid!=='';
-  $audienceReady=$phoneHash!=='';
-  $recommended='source-native conversion';
-  if($audienceReady)$recommended.=' + cross-platform audience';
-  $row=[
-    (string)$convId,$qualifiedAt,$stage,$src,qlp_s($c['traffic_source_confidence']??''),
-    qlp_param($c,'campaign_id'),qlp_param($c,'utm_campaign'),qlp_param($c,'adgroup_id'),qlp_param($c,'ad_id'),qlp_param($c,'utm_term'),
-    $gclid,$gbraid,$wbraid,$ttclid,$fbclid,$ctwa,$sccid,
-    $phoneHash,'',
-    $googleReady?'TRUE':'FALSE',$tiktokReady?'TRUE':'FALSE',$metaReady?'TRUE':'FALSE',$snapReady?'TRUE':'FALSE',
-    $audienceReady?'TRUE':'FALSE',$recommended,(string)$convId,qlp_s($c['updated_at']??$c['last_seen_at']??'')
-  ];
+  $emailHash='';
+  $source=strtolower(qlp_s($c['traffic_source_key']??'unknown'));
+  $eventId='qlf_'.substr(hash('sha256',$cid.'|'.$convId.'|qualified'),0,32);
+  $row=[$eventId,$qualifiedAt,$phoneHash,$emailHash,1,'SAR',(string)$convId,$source];
   qlp_csv($row);
 }
