@@ -54,7 +54,7 @@ function decode_chatlink_tracking(string $text):array{
         $bytes.=chr($v);
     }
     $click='';
-    if(preg_match('/ycloud\.chatlink\.(clk_[A-Za-z0-9_-]{4,80})/',$bytes,$mm))$click=$mm[1];
+    if(preg_match('/(?:ycloud\.chatlink|hzn\.attr)\.(clk_[A-Za-z0-9_-]{4,80})/',$bytes,$mm))$click=$mm[1];
     return ['click_id'=>$click,'decoded'=>$bytes,'token'=>$m[0]];
 }
 function strip_chatlink_tracking(string $text):string{
@@ -374,8 +374,8 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
                 save_json($chatlinkClicksFile,$clicks);
             }
         }
-    }elseif($isNew&&!$history&&$clientId==='cl_0e6efd258397db'){
-        // P Care only for now: defer the timestamp guess until the complete click window is closed.
+    }elseif($isNew&&!$history&&in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b'],true)){
+        // P Care + Almowahid: defer the timestamp guess until the complete click window is closed.
         $traffic=[
             'key'=>'unknown',
             'label'=>'Unknown',
