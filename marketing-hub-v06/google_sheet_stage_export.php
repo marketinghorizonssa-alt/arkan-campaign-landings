@@ -86,6 +86,11 @@ foreach($events as $e){
   $convId=sx_s($e['conversation_id']??'');if($convId==='')continue;
   $key=$cid.'|'.$convId.'|'.$stage;if(isset($seen[$key]))continue;
   $conv=is_array($convs[$convId]??null)?$convs[$convId]:[];
+  $in=(int)($conv['valid_inbound_count']??$conv['inbound_count']??0);
+  // Never export a Message Started conversion unless the current conversation has
+  // at least one real inbound customer message. Legacy conversation_started events
+  // could also be emitted for incomplete/history-only threads.
+  if($stage==='message_started'&&$in<1)continue;
   $click=sx_click($conv);$a=$cfg['actions'][$stage];$eventId='gcv_'.substr(hash('sha256',$key),0,32);
   $row=[
     'gclid'=>$click['type']==='gclid'?$click['value']:'',
@@ -94,7 +99,7 @@ foreach($events as $e){
     'conversion_time'=>sx_time(sx_s($e['created_at']??'')),
     'conversion_value'=>$a['value'],'currency'=>'SAR','order_id'=>$eventId,
     'conversion_action'=>$a['name'],'import_ready'=>$click['value']!=='',
-    'source'=>sx_s($conv['traffic_source_key']??''),'valid_inbound_count'=>(int)($conv['valid_inbound_count']??$conv['inbound_count']??0),
+    'source'=>sx_s($conv['traffic_source_key']??''),'valid_inbound_count'=>$in,
     'conversation_id'=>$convId,'event_id'=>$eventId,'google_ads_customer_id'=>$cfg['customer_id'],
     'conversion_action_id'=>$a['id'],
     'audit_reason'=>$click['value']!==''?'Google click ID present':'Missing GCLID / GBRAID / WBRAID'
