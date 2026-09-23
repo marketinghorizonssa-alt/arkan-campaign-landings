@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "clients": {
+    "cl_0e6efd258397db": {
+      "name": "Bcare",
+      "business_numbers": [
+        "+966505952042"
+      ],
+      "origins": [
+        "https://pcare.sa",
+        "https://www.pcare.sa"
+      ]
+    },
+    "cl_3ea5ae96e05c6b": {
+      "name": "Almowahid",
+      "business_numbers": [
+        "+966537033347"
+      ],
+      "origins": [
+        "https://almowahid.sa",
+        "https://www.almowahid.sa"
+      ]
+    }
+  }
+}
