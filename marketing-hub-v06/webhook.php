@@ -235,7 +235,7 @@ function funnel_target_client(string $clientId):bool{
     return trim($clientId)!=='';
 }
 function google_conversion_target_client(string $clientId):bool{
-    return in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b'],true);
+    return in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'],true);
 }
 function valid_customer_message_type(string $type):bool{
     return !in_array(strtolower(trim($type)),['','unsupported','reaction','system','unknown','revoke','revoked'],true);
