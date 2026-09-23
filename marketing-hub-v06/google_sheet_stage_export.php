@@ -38,6 +38,15 @@ function sx_cfg(string $cid):?array{
         'converted'=>['id'=>'7789308228','name'=>'ALMOWAHID | WhatsApp Converted | Offline v1','value'=>10],
       ]
     ]
+    'cl_cbb797950cc8d4'=>[
+      'client_name'=>'ETIZAN','customer_id'=>'8433542366',
+      'actions'=>[
+        'message_started'=>['id'=>'7790177464','name'=>'ETIZAN | WhatsApp Message Started | Offline v1','value'=>1],
+        'interested'=>['id'=>'7790177467','name'=>'ETIZAN | WhatsApp Interested | Offline v1','value'=>2],
+        'qualified'=>['id'=>'7790177470','name'=>'ETIZAN | WhatsApp Qualified | Offline v1','value'=>5],
+        'converted'=>['id'=>'7790177473','name'=>'ETIZAN | WhatsApp Converted | Offline v1','value'=>10],
+      ]
+    ],
   ];
   return $all[$cid]??null;
 }
@@ -120,7 +129,7 @@ foreach($convs as $convId=>$conv){
   $seen[$key]=true;
 }
 
-foreach(['cl_0e6efd258397db','cl_3ea5ae96e05c6b'] as $cid){
+foreach(['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'] as $cid){
   $cfg=sx_cfg($cid);
   if(!isset($out['clients'][$cid]))$out['clients'][$cid]=['client_name'=>$cfg['client_name'],'stages'=>[]];
   foreach(['message_started','interested','qualified','converted'] as $stage){
@@ -134,6 +143,7 @@ if($argClient!==''&&$argStage!==''){
   $cid=match($argClient){
     'bcare','pcare','cl_0e6efd258397db'=>'cl_0e6efd258397db',
     'almowahid','mowahid','cl_3ea5ae96e05c6b'=>'cl_3ea5ae96e05c6b',
+    'etizan','cl_cbb797950cc8d4'=>'cl_cbb797950cc8d4',
     default=>$argClient
   };
   $stage=match($argStage){
