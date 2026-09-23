@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "clients": {
     "cl_0e6efd258397db": {
       "name": "Bcare",
@@ -19,6 +19,19 @@
       "origins": [
         "https://almowahid.sa",
         "https://www.almowahid.sa"
+      ]
+    },
+    "cl_cbb797950cc8d4": {
+      "name": "Etizan Law",
+      "business_numbers": [
+        "+966552491110",
+        "+966559451110"
+      ],
+      "origins": [
+        "https://etizan.hositee.com",
+        "https://www.etizan.hositee.com",
+        "https://etizan-law.com",
+        "https://www.etizan-law.com"
       ]
     }
   }
