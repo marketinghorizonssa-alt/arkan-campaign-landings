@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "storage": {
     "scope": "per_client",
     "secure_only": true,
@@ -11,6 +11,7 @@
     "event_id": "client_scoped_hmac_sha256"
   },
   "stages": [
+    "message_received",
     "new",
     "interested",
     "qualified",
@@ -64,7 +65,8 @@
     "interested": "positive",
     "qualified": "positive",
     "converted": "positive",
-    "unqualified": "negative"
+    "unqualified": "negative",
+    "message_received": "neutral"
   },
   "client_defaults": {
     "enabled": true,
@@ -93,6 +95,16 @@
     },
     "cl_3ea5ae96e05c6b": {
       "name": "Almowahid",
+      "quality_profile": "whatsapp_funnel_v1",
+      "quality_calibrated": false,
+      "accept_automation_stage": true,
+      "consent_verified": false,
+      "source_native_delivery": true,
+      "cross_platform_delivery": "queued",
+      "broadcast_qualified_to_all_platforms": true
+    },
+    "cl_cbb797950cc8d4": {
+      "name": "Etizan",
       "quality_profile": "whatsapp_funnel_v1",
       "quality_calibrated": false,
       "accept_automation_stage": true,
