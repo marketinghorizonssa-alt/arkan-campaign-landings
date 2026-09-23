@@ -321,7 +321,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
                 'id'=>$msgId,'direction'=>$direction,'type'=>lr_s($m['type']??'unknown'),'text'=>lr_text($m),
                 'at_utc'=>$ts,'at_local'=>lr_iso_local($ts,$tz),'epoch'=>$epoch,'raw'=>$m
             ];
-            if ($direction==='inbound' && ($threads[$key]['first_inbound_epoch']===null || $epoch<$threads[$key]['first_inbound_epoch'])) {
+            if ($direction==='inbound' && lr_valid_message_type(lr_s($m['type']??'')) && ($threads[$key]['first_inbound_epoch']===null || $epoch<$threads[$key]['first_inbound_epoch'])) {
                 $threads[$key]['first_inbound_epoch']=$epoch;
                 $threads[$key]['first_inbound']=$threads[$key]['messages'][$msgId];
             }
