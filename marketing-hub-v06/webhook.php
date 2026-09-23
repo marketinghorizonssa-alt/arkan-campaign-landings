@@ -200,6 +200,16 @@ function infer_traffic_source(string $text,array $referral,array $prev=[],array 
 
     return ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
 }
+function attribution_is_specific_platform(string $key):bool{
+    return in_array(strtolower(trim($key)),['google','tiktok','meta','snapchat','microsoft_ads','bing','linkedin','x'],true);
+}
+function attribution_is_confirmed_native(array $traffic):bool{
+    $key=strtolower(trim((string)($traffic['key']??'')));
+    $reason=trim((string)($traffic['reason']??''));
+    if(!attribution_is_specific_platform($key))return false;
+    return in_array($reason,['referral','ctwa_clid','ycloud_chatlink_source_url','platform_evidence','ycloud_inbound_source_url','ycloud_inbound_source','ycloud_contact_source'],true);
+}
+
 function is_substantive(string $text,string $type):bool{
     if(in_array($type,['location','contacts','document','image','video','audio','interactive'],true))return true;
     $t=trim(strtolower($text));if($t==='')return false;
@@ -330,44 +340,51 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         $chatClick=is_array($clicks[$chatlink['click_id']]??null)?$clicks[$chatlink['click_id']]:[];
         if($chatClick)$chatClickMatchMethod='hidden_token';
     }
-    if(!$chatClick&&$isNew&&!$history){
-        $sentEpoch=strtotime($sentAt)?:time();
-        $candidates=[];
-        foreach($clicks as $clickId=>$row){
-            if(!is_array($row)||!empty($row['matched_at']))continue;
-            if(normalize_phone((string)($row['business_number']??''))!==normalize_phone($business))continue;
-            $captured=strtotime((string)($row['captured_at']??''));
-            if(!$captured||$captured>$sentEpoch)continue;
-            $age=$sentEpoch-$captured;
-            if($age<0||$age>300)continue;
-            $candidates[$clickId]=['row'=>$row,'age'=>$age];
-        }
-        if(count($candidates)===1){
-            $onlyKey=array_key_first($candidates);
-            $chatClick=$candidates[$onlyKey]['row'];
-            $chatlink['click_id']=$onlyKey;
-            $chatClickMatchMethod='single_recent_unmatched_click';
-        }
-    }
-    if($chatClick&&($chatlink['click_id']??'')!==''){
-        $cid=(string)$chatlink['click_id'];
-        if(isset($clicks[$cid])&&is_array($clicks[$cid])){
+
+    // Strict order: confirmed native platform > hidden encoded click > deferred 5-minute fallback > unknown.
+    $traffic=infer_traffic_source($text,$referral,$prev,$messageSource);
+    $nativeConfirmed=attribution_is_confirmed_native($traffic);
+
+    if($nativeConfirmed){
+        $chatClickMatchMethod='native_confirmed';
+        // A hidden token on the same message is consumed, but never allowed to override native evidence.
+        if(($chatlink['click_id']??'')!==''&&isset($clicks[$chatlink['click_id']])&&is_array($clicks[$chatlink['click_id']])){
+            $cid=(string)$chatlink['click_id'];
             $clicks[$cid]['matched_at']=gmdate('c');
             $clicks[$cid]['matched_customer']=$customer;
             $clicks[$cid]['matched_business']=$business;
-            $clicks[$cid]['match_method']=$chatClickMatchMethod;
+            $clicks[$cid]['match_method']='native_superseded_hidden_token';
             save_json($chatlinkClicksFile,$clicks);
         }
-    }
-    $traffic=infer_traffic_source($text,$referral,$prev,$messageSource);
-    if($chatClick){
+    }elseif($chatClick){
         $traffic=[
             'key'=>(string)($chatClick['traffic_source_key']??'website'),
             'label'=>(string)($chatClick['traffic_source_label']??'Website / YCloud Chat Link'),
-            'confidence'=>$chatClickMatchMethod==='hidden_token'?(string)($chatClick['traffic_source_confidence']??'high'):'medium',
-            'reason'=>$chatClickMatchMethod==='hidden_token'?(string)($chatClick['traffic_source_reason']??'ycloud_chatlink_click_id'):'single_recent_unmatched_click'
+            'confidence'=>(string)($chatClick['traffic_source_confidence']??'high'),
+            'reason'=>(string)($chatClick['traffic_source_reason']??'ycloud_chatlink_click_id')
         ];
+        $chatClickMatchMethod='hidden_token';
+        if(($chatlink['click_id']??'')!==''){
+            $cid=(string)$chatlink['click_id'];
+            if(isset($clicks[$cid])&&is_array($clicks[$cid])){
+                $clicks[$cid]['matched_at']=gmdate('c');
+                $clicks[$cid]['matched_customer']=$customer;
+                $clicks[$cid]['matched_business']=$business;
+                $clicks[$cid]['match_method']='hidden_token';
+                save_json($chatlinkClicksFile,$clicks);
+            }
+        }
+    }elseif($isNew&&!$history&&$clientId==='cl_0e6efd258397db'){
+        // P Care only for now: defer the timestamp guess until the complete click window is closed.
+        $traffic=[
+            'key'=>'unknown',
+            'label'=>'Unknown',
+            'confidence'=>'pending',
+            'reason'=>'awaiting_5m_timestamp_resolution'
+        ];
+        $chatClickMatchMethod='timestamp_pending';
     }
+
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];$recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId]);
     $inbound=(int)($prev['inbound_count']??0)+($history?0:1);$outbound=(int)($prev['outbound_count']??0);
     $conv=array_merge($prev,[
@@ -449,11 +466,12 @@ if($type==='contact.created'&&isset($event['contactCreated'])&&is_array($event['
             $conv['ycloud_contact_source_type']=$parsed['source_type'];
             $conv['ycloud_contact_source_id']=$parsed['source_id'];
             $conv['ycloud_contact_source_url']=$parsed['source_url'];
-            if($parsed['traffic_source_key']!=='unknown'){
+            if(attribution_is_specific_platform((string)$parsed['traffic_source_key'])){
                 $conv['traffic_source_key']=$parsed['traffic_source_key'];
                 $conv['traffic_source_label']=$parsed['traffic_source_label'];
                 $conv['traffic_source_confidence']=$parsed['traffic_source_confidence'];
                 $conv['traffic_source_reason']=$parsed['traffic_source_reason'];
+                $conv['attribution_match_method']='native_contact';
             }
             $conv['updated_at']=gmdate('c');
             $conversations[$cid]=$conv;$conversationUpdated=true;
