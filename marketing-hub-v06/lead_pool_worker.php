@@ -147,8 +147,9 @@ foreach($allLeadIds as $convId){
     $autoTag=strtolower(lp_s($conv['current_tag']??''));
     $autoStage=match($autoTag){'message_received'=>'message_received','purchased','converted'=>'converted','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
     $acceptAutomation=(bool)($cfg['accept_automation_stage']??false);
-    $stage=$manualStage!==''?$manualStage:(($acceptAutomation&&$autoStage!=='')?$autoStage:($calibrated?strtolower(lp_s($e['stage']??'new')):'new'));
-    if(!in_array($stage,$config['stages']??[],true))$stage='new';
+    $stage=$manualStage!==''?$manualStage:(($acceptAutomation&&$autoStage!=='')?$autoStage:($calibrated?strtolower(lp_s($e['stage']??'message_received')):'message_received'));
+    if($stage==='new'||$stage==='')$stage='message_received';
+    if(!in_array($stage,$config['stages']??[],true))$stage='message_received';
 
     $ref=strtoupper(lp_s($id['ref_token']??'')); $attrLead=strtoupper(lp_s($id['attribution_lead_id']??'')); $attr=null; $join='';
     if($ref!==''&&isset($byRef[$ref])){$attr=$byRef[$ref];$join='visit_ref';}
