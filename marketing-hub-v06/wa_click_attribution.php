@@ -6,6 +6,8 @@ $origin=(string)($_SERVER['HTTP_ORIGIN']??'');
 $allowed=[
   'https://pcare.sa',
   'https://www.pcare.sa',
+  'https://almowahid.sa',
+  'https://www.almowahid.sa',
   'https://marketing.hositee.com'
 ];
 if($origin!=='' && in_array($origin,$allowed,true)) header('Access-Control-Allow-Origin: '.$origin);
@@ -99,6 +101,29 @@ if(!is_array($j)){http_response_code(400);echo json_encode(['ok'=>false,'error'=
 $clientId=clean_scalar($j['client_id']??'');
 if(!preg_match('/^cl_[a-z0-9]{8,40}$/',$clientId)){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_client']);exit;}
 
+$knownClients=[
+  'cl_0e6efd258397db'=>[
+    'business_number'=>'+966505952042',
+    'origins'=>['https://pcare.sa','https://www.pcare.sa','https://marketing.hositee.com']
+  ],
+  'cl_3ea5ae96e05c6b'=>[
+    'business_number'=>'+966537033347',
+    'origins'=>['https://almowahid.sa','https://www.almowahid.sa','https://marketing.hositee.com']
+  ]
+];
+$known=$knownClients[$clientId]??null;
+if(is_array($known)&&$origin!==''&&!in_array($origin,(array)$known['origins'],true)){
+  http_response_code(403);echo json_encode(['ok'=>false,'error'=>'client_origin_mismatch']);exit;
+}
+$businessNumber=clean_scalar($j['business_number']??'',64);
+if(is_array($known)){
+  $expected=(string)$known['business_number'];
+  if($businessNumber!==''&&preg_replace('/\D+/','',$businessNumber)!==preg_replace('/\D+/','',$expected)){
+    http_response_code(422);echo json_encode(['ok'=>false,'error'=>'business_number_mismatch']);exit;
+  }
+  $businessNumber=$expected;
+}
+
 $token=clean_scalar($j['click_token']??$j['token']??'',4096);
 $clickId=clean_scalar($j['click_id']??'',160);
 if($clickId==='' && preg_match('/(clk_[A-Za-z0-9_-]{4,120})/',$token,$m))$clickId=$m[1];
@@ -140,7 +165,7 @@ $record=[
  'click_id'=>$clickId,
  'click_token'=>$token,
  'client_id'=>$clientId,
- 'business_number'=>clean_scalar($j['business_number']??($clientId==='cl_0e6efd258397db'?'+966505952042':''),64),
+ 'business_number'=>$businessNumber,
  'interaction_id'=>clean_scalar($j['interaction_id']??'',160),
  'source_url'=>$sourceUrl,
  'page_url'=>$pageUrl,
