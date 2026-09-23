@@ -37,7 +37,7 @@ function sx_cfg(string $cid):?array{
         'qualified'=>['id'=>'7789308225','name'=>'ALMOWAHID | WhatsApp Qualified | Offline v1','value'=>5],
         'converted'=>['id'=>'7789308228','name'=>'ALMOWAHID | WhatsApp Converted | Offline v1','value'=>10],
       ]
-    ]
+    ],
     'cl_cbb797950cc8d4'=>[
       'client_name'=>'ETIZAN','customer_id'=>'8433542366',
       'actions'=>[
