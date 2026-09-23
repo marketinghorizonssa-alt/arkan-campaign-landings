@@ -40,12 +40,24 @@ function jsave(string $f,array $v):bool{
 function norm_phone(string $v):string{
     return preg_replace('/\D+/','',$v)??'';
 }
+function click_epoch(array $row):int{
+    // browser_time is the actual user click time. captured_at can be delayed by the
+    // P Care -> Hub sync and may arrive after the WhatsApp message.
+    foreach(['browser_time','created_at','captured_at'] as $k){
+        $raw=trim((string)($row[$k]??''));
+        if($raw==='')continue;
+        $t=strtotime($raw);
+        if($t)return $t;
+    }
+    return 0;
+}
 function copy_click_attribution(array &$conv,array $click,string $clickId):void{
     $conv['traffic_source_key']=(string)($click['traffic_source_key']??'website');
     $conv['traffic_source_label']=(string)($click['traffic_source_label']??'Website / YCloud Chat Link');
-    $conv['traffic_source_confidence']='medium';
-    $conv['traffic_source_reason']='unique_click_then_message_within_5m';
-    $conv['attribution_match_method']='single_unique_5m_window';
+    $specific=in_array(strtolower((string)($click['traffic_source_key']??'')),['google','tiktok','meta','snapchat','microsoft_ads','linkedin','x'],true);
+    $conv['traffic_source_confidence']=$specific?'high':'medium';
+    $conv['traffic_source_reason']='unique_browser_click_then_message_within_5m';
+    $conv['attribution_match_method']='single_unique_browser_5m_window';
     $conv['ycloud_chatlink_click_id']=$clickId;
     $conv['chatlink_source_url']=(string)($click['source_url']??'');
     $conv['attribution_landing_url']=(string)($click['landing_url']??'');
@@ -120,7 +132,7 @@ foreach($clicks as $clickId=>$row){
     if(!is_array($row)||!empty($row['matched_at']))continue;
     $clickClient=(string)($row['client_id']??'');
     if(!isset($attributionClients[$clickClient]))continue;
-    $t=strtotime((string)($row['captured_at']??''));
+    $t=click_epoch($row);
     if(!$t||$t+300>$now)continue; // wait for full 5-minute window
     $closedClicks[$clickId]=['t'=>$t,'business'=>norm_phone((string)($row['business_number']??'')),'client'=>$clickClient,'row'=>$row];
 }
@@ -153,7 +165,7 @@ foreach($closedClicks as $clickId=>$meta){
             $clicks[$clickId]['matched_at']=gmdate('c');
             $clicks[$clickId]['matched_customer']=(string)($convs[$cid]['customer_number']??'');
             $clicks[$clickId]['matched_business']=(string)($convs[$cid]['business_number']??'');
-            $clicks[$clickId]['match_method']='single_unique_5m_window';
+            $clicks[$clickId]['match_method']='single_unique_browser_5m_window';
             $handledConvs[$cid]=true;$handledClicks[$clickId]=true;
             $resolved++;$clickChanged=true;$convChanged=true;
         }else{
