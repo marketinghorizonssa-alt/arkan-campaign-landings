@@ -230,6 +230,9 @@ function attribution_is_confirmed_native(array $traffic):bool{
     return in_array($reason,['referral','ctwa_clid','ycloud_chatlink_source_url','platform_evidence','ycloud_inbound_source_url','ycloud_inbound_source','ycloud_contact_source'],true);
 }
 
+function funnel_target_client(string $clientId):bool{
+    return in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'],true);
+}
 function google_conversion_target_client(string $clientId):bool{
     return in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b'],true);
 }
@@ -263,7 +266,7 @@ function conversation_has_serious_signal(array $conv):bool{
     $needles=[
         'السعر','التكلفة','موعد','احجز','حجز','التوفر','متاح','المدة','المتطلبات','الأوراق','المستندات',
         'نبدأ','ابدأ','أبدأ','التقسيط','الدفع','تحويل','مساند','زيارة','موقعكم','العنوان',
-        'price','cost','appointment','book','booking','available','availability','requirements','documents','payment'
+        'استشارة','قضية','عقد','أتعاب','الاتعاب','شركة','تركة','تنفيذ','دعوى','توكيل','price','cost','appointment','book','booking','available','availability','requirements','documents','payment'
     ];
     foreach((array)($conv['recent_messages']??[]) as $m){
         if(!is_array($m)||!str_contains((string)($m['direction']??''),'inbound'))continue;
@@ -348,12 +351,12 @@ function default_rules():array{
         'lost'=>['keywords'=>['مش مهتم','غير مهتم','لست مهتم','ما ابغى','ما أبغى','لا اريد','لا أريد','الغاء','إلغاء','الغي','ألغي','وقف التواصل','لا تتواصل','لا تواصلوا','not interested','do not contact','stop messaging','unsubscribe','cancel']]
     ];
 }
-function stage_rank(?string $tag):int{return match($tag){'interested'=>1,'qualified'=>2,'purchased'=>3,'lost'=>90,default=>0};}
+function stage_rank(?string $tag):int{return match($tag){'message_received'=>0,'interested'=>1,'qualified'=>2,'purchased','converted'=>3,'lost'=>90,default=>0};}
 function classify_auto(array $conv,bool $repliedToStaff,string $text,string $type,array $rules):?array{
     if(!($rules['enabled']??true))return null;
     if(!valid_customer_message_type($type))return null;
     $current=(string)($conv['current_tag']??'');
-    if($current==='purchased')return null;
+    if(in_array($current,['purchased','converted'],true))return null;
     $clientId=(string)($conv['client_id']??'');
     $valid=(int)($conv['valid_inbound_count']??$conv['inbound_count']??0);
     $out=(int)($conv['outbound_count']??0);
@@ -362,10 +365,10 @@ function classify_auto(array $conv,bool $repliedToStaff,string $text,string $typ
     $lostKw=(array)($rules['lost']['keywords']??[]);
     if($sub&&contains_any($text,$lostKw))return ['tag'=>'lost','reason'=>'explicit_negative_intent','confidence'=>0.98];
 
-    if(google_conversion_target_client($clientId)){
+    if(funnel_target_client($clientId)){
         // Converted is intentionally strict: explicit completed business outcome + established conversation.
         if($valid>=3&&$out>=1&&conversation_has_explicit_conversion($conv)&&stage_rank($current)<3)
-            return ['tag'=>'purchased','reason'=>'explicit_completed_business_outcome','confidence'=>0.99];
+            return ['tag'=>'converted','reason'=>'explicit_completed_business_outcome','confidence'=>0.99];
 
         // Qualified requires real two-way conversation, >=3 valid customer messages, and a serious next-step signal.
         if($valid>=3&&$out>=1&&conversation_has_reply_after_staff($conv)&&conversation_has_serious_signal($conv)&&stage_rank($current)<2)
@@ -397,7 +400,7 @@ function apply_auto_label(array &$conv,array $decision,string $conversionFile,st
     $tag=(string)($decision['tag']??'');if($tag==='')return false;$current=(string)($conv['current_tag']??'');
     if($current===$tag)return false;
     if($current!=='lost'&&$tag!=='lost'&&stage_rank($tag)<=stage_rank($current))return false;
-    if($current==='purchased')return false;
+    if(in_array($current,['purchased','converted'],true))return false;
     $now=gmdate('c');$conv['current_tag']=$tag;$conv['tagged_at']=$now;$conv['tag_source']='automation';$conv['auto_label_reason']=$decision['reason']??'';$conv['auto_label_confidence']=$decision['confidence']??null;
     $history=is_array($conv['label_history']??null)?$conv['label_history']:[];$history[]=['tag'=>$tag,'source'=>'automation','reason'=>$decision['reason']??'','confidence'=>$decision['confidence']??null,'at'=>$now];if(count($history)>20)$history=array_slice($history,-20);$conv['label_history']=$history;
     $eventId=add_conversion_event($conversionFile,$conv,$tag,$sourceEventId,['source'=>'auto_automation','automation_reason'=>$decision['reason']??'','confidence'=>$decision['confidence']??null]);
@@ -556,7 +559,21 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'utm_marketing_tactic'=>(string)($chatClick['utm_marketing_tactic']??($prev['utm_marketing_tactic']??'')),
         'inbound_count'=>$inbound,'valid_inbound_count'=>$validInbound,'outbound_count'=>$outbound,'recent_messages'=>$recent,'last_customer_reply_to_staff'=>$repliedToStaff,'updated_at'=>gmdate('c')
     ]);
-    if($isNew&&!$history){add_conversion_event($conversionFile,$conv,'conversation_started',$eventId,['origin'=>'whatsapp_inbound','source'=>'automation']);$conversionCreated++;}
+    if($isNew&&!$history){
+        add_conversion_event($conversionFile,$conv,'message_received',$eventId,['origin'=>'whatsapp_inbound','source'=>'automation']);$conversionCreated++;
+    }
+    if(!$history&&$validMessage&&funnel_target_client((string)($conv['client_id']??''))&&empty($conv['current_tag'])){
+        $nowTag=gmdate('c');
+        $conv['current_tag']='message_received';
+        $conv['tagged_at']=$nowTag;
+        $conv['tag_source']='automation';
+        $conv['auto_label_reason']='first_valid_customer_message';
+        $conv['auto_label_confidence']=1.0;
+        $lh=is_array($conv['label_history']??null)?$conv['label_history']:[];
+        $lh[]=['tag'=>'message_received','source'=>'automation','reason'=>'first_valid_customer_message','confidence'=>1.0,'at'=>$nowTag];
+        if(count($lh)>20)$lh=array_slice($lh,-20);
+        $conv['label_history']=$lh;
+    }
     if(!$history&&$validMessage&&google_conversion_target_client((string)($conv['client_id']??''))&&empty($prev['google_message_sent_queued_at'])){
         google_queue_event($googleConversionQueueFile,$conv,'message_sent',$sentAt,$eventId);
         $conv['google_message_sent_queued_at']=gmdate('c');
@@ -566,7 +583,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         $decision=classify_auto($conv,$repliedToStaff,$text,$msgType,$rules);
         if($decision&&apply_auto_label($conv,$decision,$conversionFile,$deliveryFile,$eventId,$ycloudSecureDir,$legacyKeyFile)){
             $conversionCreated++;$autoLabel=$decision;
-            $stageMap=['interested'=>'interested','qualified'=>'qualified','purchased'=>'converted'];
+            $stageMap=['interested'=>'interested','qualified'=>'qualified','purchased'=>'converted','converted'=>'converted'];
             $queueStage=$stageMap[(string)($decision['tag']??'')]??'';
             if($queueStage!=='')google_queue_event($googleConversionQueueFile,$conv,$queueStage,$sentAt,$eventId);
         }
