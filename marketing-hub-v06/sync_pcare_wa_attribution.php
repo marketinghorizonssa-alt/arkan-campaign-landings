@@ -6,6 +6,10 @@ $feed='https://pcare.sa/pcare-wa-attribution-feed.php?token=HZNpcare_7R4mN2qL9xK
 $hub='https://marketing.hositee.com/wa_click_attribution.php';
 $secure=dirname(__DIR__,4).'/.marketing';
 $stateFile=$secure.'/pcare_wa_attr_sync_state.json';
+$attributionClients=[
+    'cl_0e6efd258397db'=>'+966505952042',
+    'cl_3ea5ae96e05c6b'=>'+966537033347',
+];
 if(!is_dir($secure))@mkdir($secure,0700,true);
 
 function req(string $url,string $method='GET',?array $payload=null):array{
@@ -91,7 +95,7 @@ foreach($records as $clickId=>$row){
 }
 jsave($stateFile,$state);
 
-// Resolve only P Care timestamp-pending leads after the complete 5-minute click window closes.
+// Resolve timestamp-pending leads for P Care and Almowahid after the complete 5-minute click window closes.
 $base=__DIR__.'/data';
 $clickFile=$base.'/chatlink_clicks.json';
 $convFile=$base.'/conversations.json';
@@ -103,20 +107,22 @@ $resolved=0;$ambiguous=0;$expiredUnknown=0;$clickChanged=false;$convChanged=fals
 $pending=[];
 foreach($convs as $cid=>$conv){
     if(!is_array($conv))continue;
-    if((string)($conv['client_id']??'')!=='cl_0e6efd258397db')continue;
+    $convClient=(string)($conv['client_id']??'');
+    if(!isset($attributionClients[$convClient]))continue;
     if((string)($conv['attribution_match_method']??'')!=='timestamp_pending')continue;
     $first=strtotime((string)($conv['first_seen_at']??''));
     if(!$first)continue;
-    $pending[$cid]=['first'=>$first,'business'=>norm_phone((string)($conv['business_number']??''))];
+    $pending[$cid]=['first'=>$first,'business'=>norm_phone((string)($conv['business_number']??'')),'client'=>$convClient];
 }
 
 $closedClicks=[];
 foreach($clicks as $clickId=>$row){
     if(!is_array($row)||!empty($row['matched_at']))continue;
-    if((string)($row['client_id']??'')!=='cl_0e6efd258397db')continue;
+    $clickClient=(string)($row['client_id']??'');
+    if(!isset($attributionClients[$clickClient]))continue;
     $t=strtotime((string)($row['captured_at']??''));
     if(!$t||$t+300>$now)continue; // wait for full 5-minute window
-    $closedClicks[$clickId]=['t'=>$t,'business'=>norm_phone((string)($row['business_number']??'')),'row'=>$row];
+    $closedClicks[$clickId]=['t'=>$t,'business'=>norm_phone((string)($row['business_number']??'')),'client'=>$clickClient,'row'=>$row];
 }
 
 $handledConvs=[];$handledClicks=[];
@@ -125,6 +131,7 @@ foreach($closedClicks as $clickId=>$meta){
     $candidates=[];
     foreach($pending as $cid=>$p){
         if(isset($handledConvs[$cid]))continue;
+        if(($p['client']??'')!==($meta['client']??''))continue;
         if($p['first']<$meta['t']||$p['first']>$meta['t']+300)continue;
         if($meta['business']!==''&&$p['business']!==''&&$meta['business']!==$p['business'])continue;
         $candidates[]=$cid;
@@ -136,6 +143,7 @@ foreach($closedClicks as $clickId=>$meta){
         $candidateClicks=[];
         foreach($closedClicks as $otherId=>$other){
             if(isset($handledClicks[$otherId]))continue;
+            if(($other['client']??'')!==($pending[$cid]['client']??''))continue;
             if($other['t']>$pending[$cid]['first']||$other['t']<$pending[$cid]['first']-300)continue;
             if($other['business']!==''&&$pending[$cid]['business']!==''&&$other['business']!==$pending[$cid]['business'])continue;
             $candidateClicks[]=$otherId;
@@ -178,7 +186,7 @@ foreach($pending as $cid=>$p){
     if($p['first']+300>$now)continue;
     $hasAny=false;
     foreach($clicks as $row){
-        if(!is_array($row)||(string)($row['client_id']??'')!=='cl_0e6efd258397db')continue;
+        if(!is_array($row)||(string)($row['client_id']??'')!==($p['client']??''))continue;
         $t=strtotime((string)($row['captured_at']??''));
         if(!$t||$t>$p['first']||$t<$p['first']-300)continue;
         $b=norm_phone((string)($row['business_number']??''));
@@ -195,5 +203,5 @@ if($convChanged)jsave($convFile,$convs);
 
 echo json_encode([
     'ok'=>$failed===0,'records'=>count($records),'sent'=>$sent,'skipped'=>$skipped,'failed'=>$failed,
-    'resolved_5m'=>$resolved,'ambiguous_5m'=>$ambiguous,'unknown_no_click'=>$expiredUnknown,'details'=>$details
+    'resolver_clients'=>array_keys($attributionClients),'resolved_5m'=>$resolved,'ambiguous_5m'=>$ambiguous,'unknown_no_click'=>$expiredUnknown,'details'=>$details
 ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
