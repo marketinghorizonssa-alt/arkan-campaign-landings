@@ -6,10 +6,13 @@ $feed='https://pcare.sa/pcare-wa-attribution-feed.php?token=HZNpcare_7R4mN2qL9xK
 $hub='https://marketing.hositee.com/wa_click_attribution.php';
 $secure=dirname(__DIR__,4).'/.marketing';
 $stateFile=$secure.'/pcare_wa_attr_sync_state.json';
-$attributionClients=[
-    'cl_0e6efd258397db'=>'+966505952042',
-    'cl_3ea5ae96e05c6b'=>'+966537033347',
-];
+$attributionClients=[];
+$cfgRaw=@file_get_contents(__DIR__.'/wa_attribution_clients.json');
+$cfgJson=is_string($cfgRaw)?json_decode($cfgRaw,true):null;
+foreach((array)($cfgJson['clients']??[]) as $cid=>$row){
+    $nums=is_array($row['business_numbers']??null)?$row['business_numbers']:[];
+    if($cid!==''&&$nums)$attributionClients[(string)$cid]=(string)$nums[0];
+}
 if(!is_dir($secure))@mkdir($secure,0700,true);
 
 function req(string $url,string $method='GET',?array $payload=null):array{
@@ -53,7 +56,7 @@ function click_epoch(array $row):int{
 }
 function copy_click_attribution(array &$conv,array $click,string $clickId):void{
     $conv['traffic_source_key']=(string)($click['traffic_source_key']??'website');
-    $conv['traffic_source_label']=(string)($click['traffic_source_label']??'Website / YCloud Chat Link');
+    $conv['traffic_source_label']=(string)($click['traffic_source_label']??'Website / HORIZONS Attribution');
     $specific=in_array(strtolower((string)($click['traffic_source_key']??'')),['google','tiktok','meta','snapchat','microsoft_ads','linkedin','x'],true);
     $conv['traffic_source_confidence']=$specific?'high':'medium';
     $conv['traffic_source_reason']='unique_browser_click_then_message_within_5m';
