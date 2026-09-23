@@ -78,8 +78,9 @@ function detect_source(array $maps,string $sourceUrl,string $referrer):array{
   foreach(array_reverse($maps) as $m)if(is_array($m))$merged=array_replace($merged,$m);
   $u=strtolower($sourceUrl.' '.$referrer.' '.json_encode($merged,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
   $utm=strtolower((string)($merged['utm_source']??''));
-  if(!empty($merged['gclid'])||!empty($merged['gbraid'])||!empty($merged['wbraid'])||!empty($merged['dclid'])||str_contains($utm,'google')||str_contains($u,'gclid=')||str_contains($u,'gbraid=')||str_contains($u,'wbraid=')||str_contains($u,'dclid=')||str_contains($u,'utm_source=google')||str_contains($u,'googleads'))
-    return ['key'=>'google','label'=>'Google Ads','reason'=>'click_id_or_utm','confidence'=>'high'];
+  $utmPlatform=strtolower((string)($merged['utm_source_platform']??''));
+  if(!empty($merged['gclid'])||!empty($merged['gbraid'])||!empty($merged['wbraid'])||!empty($merged['dclid'])||str_contains($utm,'google')||str_contains($utmPlatform,'google')||str_contains($u,'gclid=')||str_contains($u,'gbraid=')||str_contains($u,'wbraid=')||str_contains($u,'dclid=')||str_contains($u,'utm_source=google')||str_contains($u,'utm_source_platform=google')||str_contains($u,'googleads'))
+    return ['key'=>'google','label'=>'Google Ads','reason'=>$utmPlatform!==''?'utm_source_platform':'click_id_or_utm','confidence'=>'high'];
   if(!empty($merged['ttclid'])||str_contains($utm,'tiktok')||str_contains($u,'ttclid=')||str_contains($u,'utm_source=tiktok')||str_contains($u,'tiktok'))
     return ['key'=>'tiktok','label'=>'TikTok Ads','reason'=>'click_id_or_utm','confidence'=>'high'];
   if(!empty($merged['fbclid'])||str_contains($utm,'facebook')||str_contains($utm,'instagram')||str_contains($utm,'meta')||str_contains($u,'fbclid=')||str_contains($u,'utm_source=facebook')||str_contains($u,'utm_source=instagram')||str_contains($u,'facebook.com')||str_contains($u,'instagram.com'))
