@@ -83,6 +83,16 @@ $clients=[
         ],
         'values'=>['message_sent'=>1.0,'interested'=>2.0,'qualified'=>5.0,'converted'=>10.0]
     ],
+    'cl_cbb797950cc8d4'=>[
+        'name'=>'Etizan','customer_id'=>'8433542366',
+        'actions'=>[
+            'message_sent'=>'customers/8433542366/conversionActions/7790177464',
+            'interested'=>'customers/8433542366/conversionActions/7790177467',
+            'qualified'=>'customers/8433542366/conversionActions/7790177470',
+            'converted'=>'customers/8433542366/conversionActions/7790177473',
+        ],
+        'values'=>['message_sent'=>1.0,'interested'=>2.0,'qualified'=>5.0,'converted'=>10.0]
+    ],
 ];
 
 if($method==='POST'){
