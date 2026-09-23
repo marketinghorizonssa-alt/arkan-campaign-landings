@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "storage": {
     "scope": "per_client",
     "secure_only": true,
@@ -49,14 +49,15 @@
     "cross_platform": {
       "enabled": true,
       "route_type": "first_party_offline",
-      "exclude_origin_platform": true,
+      "exclude_origin_platform": false,
       "identifiers": [
         "phone_sha256",
         "email_sha256",
         "contact_id"
       ],
-      "requires_consent_verified": true,
-      "default_delivery": "queue_only"
+      "requires_consent_verified": false,
+      "default_delivery": "queued",
+      "event_semantics": "real_crm_outcome_broadcast_to_all_platforms_for_platform_side_matching"
     }
   },
   "stage_polarity": {
@@ -68,7 +69,7 @@
   "client_defaults": {
     "enabled": true,
     "consent_verified": false,
-    "cross_platform_delivery": "queue_only",
+    "cross_platform_delivery": "queued",
     "uncalibrated_quality_delivery": "queue_only"
   },
   "clients": {
@@ -87,7 +88,8 @@
       "accept_automation_stage": true,
       "consent_verified": false,
       "source_native_delivery": true,
-      "cross_platform_delivery": "queue_only_until_consent_verified"
+      "cross_platform_delivery": "queued",
+      "broadcast_qualified_to_all_platforms": true
     },
     "cl_3ea5ae96e05c6b": {
       "name": "Almowahid",
@@ -96,7 +98,8 @@
       "accept_automation_stage": true,
       "consent_verified": false,
       "source_native_delivery": true,
-      "cross_platform_delivery": "queue_only_until_consent_verified"
+      "cross_platform_delivery": "queued",
+      "broadcast_qualified_to_all_platforms": true
     }
   }
 }
