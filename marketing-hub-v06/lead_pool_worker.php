@@ -145,7 +145,7 @@ foreach($allLeadIds as $convId){
     $calibrated=(bool)($cfg['quality_calibrated']??false);
     $conv=is_array($conversationStore[$convId]??null)?$conversationStore[$convId]:[];
     $autoTag=strtolower(lp_s($conv['current_tag']??''));
-    $autoStage=match($autoTag){'purchased','converted'=>'converted','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
+    $autoStage=match($autoTag){'message_received'=>'message_received','purchased','converted'=>'converted','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
     $acceptAutomation=(bool)($cfg['accept_automation_stage']??false);
     $stage=$manualStage!==''?$manualStage:(($acceptAutomation&&$autoStage!=='')?$autoStage:($calibrated?strtolower(lp_s($e['stage']??'new')):'new'));
     if(!in_array($stage,$config['stages']??[],true))$stage='new';
