@@ -62,7 +62,7 @@ header('Content-Type: text/csv; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex, nofollow, noarchive');
 
-$headers=['Event ID','Qualified At','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Original Source'];
+$headers=['Event ID','Qualified At','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID'];
 qlp_csv($headers);
 
 $convs=qlp_json($base.'/conversations.json',[]);
@@ -72,8 +72,7 @@ foreach($convs as $convId=>$c){
   $phone=qlp_phone(qlp_s($c['customer_number']??''));
   $phoneHash=$phone!==''?hash('sha256',$phone):'';
   $emailHash='';
-  $source=strtolower(qlp_s($c['traffic_source_key']??'unknown'));
   $eventId='qlf_'.substr(hash('sha256',$cid.'|'.$convId.'|qualified'),0,32);
-  $row=[$eventId,$qualifiedAt,$phoneHash,$emailHash,1,'SAR',(string)$convId,$source];
+  $row=[$eventId,$qualifiedAt,$phoneHash,$emailHash,1,'SAR',(string)$convId];
   qlp_csv($row);
 }
