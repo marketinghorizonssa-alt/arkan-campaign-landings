@@ -231,7 +231,8 @@ function attribution_is_confirmed_native(array $traffic):bool{
 }
 
 function funnel_target_client(string $clientId):bool{
-    return in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'],true);
+    // One canonical WhatsApp funnel for every client resolved by the Hub.
+    return trim($clientId)!=='';
 }
 function google_conversion_target_client(string $clientId):bool{
     return in_array($clientId,['cl_0e6efd258397db','cl_3ea5ae96e05c6b'],true);
