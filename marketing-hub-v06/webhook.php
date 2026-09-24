@@ -300,8 +300,28 @@ function is_substantive(string $text,string $type):bool{
     foreach($ack as $a)if($t===$a)return false;
     return text_len($plain)>=2;
 }
-function recent_push(array $recent,array $item,int $limit=12):array{
+function recent_push(array $recent,array $item,int $limit=100):array{
+    $id=(string)($item['wamid']??$item['message_id']??$item['source_event_id']??'');
+    if($id!==''){
+        foreach($recent as $old){
+            if(!is_array($old))continue;
+            $oid=(string)($old['wamid']??$old['message_id']??$old['source_event_id']??'');
+            if($oid!==''&&$oid===$id)return array_values($recent);
+        }
+    }
     $recent[]=$item;if(count($recent)>$limit)$recent=array_slice($recent,-$limit);return array_values($recent);
+}
+function recent_valid_inbound_count(array $recent):int{
+    $n=0;$seen=[];
+    foreach($recent as $m){
+        if(!is_array($m)||!str_contains((string)($m['direction']??''),'inbound'))continue;
+        $t=strtolower(trim((string)($m['type']??'')));
+        if(!valid_customer_message_type($t))continue;
+        $id=(string)($m['wamid']??$m['message_id']??$m['source_event_id']??'');
+        if($id!==''&&isset($seen[$id]))continue;
+        if($id!=='')$seen[$id]=true;$n++;
+    }
+    return $n;
 }
 function contact_source_key(string $connectionId,string $phone):string{
     return $connectionId.'|'.preg_replace('/\D+/','',$phone);
@@ -359,7 +379,7 @@ function classify_auto(array $conv,bool $repliedToStaff,string $text,string $typ
     $current=(string)($conv['current_tag']??'');
     if(in_array($current,['purchased','converted'],true))return null;
     $clientId=(string)($conv['client_id']??'');
-    $valid=(int)($conv['valid_inbound_count']??$conv['inbound_count']??0);
+    $valid=max((int)($conv['valid_inbound_count']??0),(int)($conv['inbound_count']??0),recent_valid_inbound_count((array)($conv['recent_messages']??[])));
     $out=(int)($conv['outbound_count']??0);
     $sub=is_substantive($text,$type);
 
