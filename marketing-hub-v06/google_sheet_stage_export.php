@@ -3,6 +3,7 @@ declare(strict_types=1);
 $base=__DIR__.'/data';
 $secure=dirname(__DIR__,4).'/.marketing';
 $tokenFile=$secure.'/qualified_pool_tokens.json';
+$poolRoot=$secure.'/lead_pools';
 
 $convFile=$base.'/conversations.json';
 $clickFile=$base.'/chatlink_clicks.json';
@@ -63,7 +64,23 @@ function sx_rank(string $tag):int{
 function sx_stage_rank(string $stage):int{
   return match($stage){'message_started'=>0,'interested'=>1,'qualified'=>2,'converted'=>3,default=>99};
 }
-function sx_click(array $c,array $clicks):array{
+function sx_url_click(string $url):array{
+  if($url==='')return['type'=>'','value'=>''];
+  $q=(string)(parse_url($url,PHP_URL_QUERY)??''); if($q==='')return['type'=>'','value'=>''];
+  parse_str($q,$p); if(!is_array($p))return['type'=>'','value'=>''];
+  foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
+    $v=sx_s($p[$k]??''); if($v!=='')return['type'=>$t,'value'=>$v];
+  }
+  return['type'=>'','value'=>''];
+}
+function sx_pool_by_conversation(string $poolRoot,string $cid):array{
+  $j=sx_json($poolRoot.'/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid).'/current.json',[]);
+  $out=[]; foreach((array)($j['records']??[]) as $r){
+    if(!is_array($r))continue; $conv=sx_s($r['conversation_id']??''); if($conv!=='')$out[$conv]=$r;
+  }
+  return$out;
+}
+function sx_click(array $c,array $clicks,array $poolRec=[]):array{
   foreach([['google_gclid','gclid'],['google_gbraid','gbraid'],['google_wbraid','wbraid']] as [$k,$t]){
     $v=sx_s($c[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
   }
@@ -71,10 +88,20 @@ function sx_click(array $c,array $clicks):array{
   foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
     $v=sx_s($p[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
   }
+  foreach(['chatlink_source_url','attribution_source_url','attribution_landing_url','source_url','landing_url','referrer'] as $uk){
+    $x=sx_url_click(sx_s($c[$uk]??'')); if($x['value']!=='')return$x;
+  }
   $clickId=sx_s($c['horizons_wa_click_id']??$c['ycloud_chatlink_click_id']??'');
   $cl=is_array($clicks[$clickId]??null)?$clicks[$clickId]:[];
   foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
     $v=sx_s($cl[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
+  }
+  foreach(['source_url','landing_url','page_url','referrer','original_href'] as $uk){
+    $x=sx_url_click(sx_s($cl[$uk]??'')); if($x['value']!=='')return$x;
+  }
+  $native=is_array($poolRec['native_ids']??null)?$poolRec['native_ids']:[];
+  foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
+    $v=sx_s($native[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
   }
   return['type'=>'','value'=>''];
 }
@@ -94,6 +121,7 @@ function sx_stage_time(array $c,string $stage):string{
 
 $convs=sx_json($convFile,[]);
 $clicks=sx_json($clickFile,[]);
+$poolMaps=[];foreach(['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'] as $pcid)$poolMaps[$pcid]=sx_pool_by_conversation($poolRoot,$pcid);
 $out=['generated_at'=>gmdate('c'),'clients'=>[]];
 
 foreach($convs as $convId=>$conv){
@@ -103,10 +131,13 @@ foreach($convs as $convId=>$conv){
 
   // Google Ads stage tabs are click-conversion feeds only.
   // Organic/other-platform leads belong in Lead Pool, not these tabs.
-  if(strtolower(sx_s($conv['traffic_source_key']??''))!=='google')continue;
-  $click=sx_click($conv,$clicks);
+  $poolRec=is_array($poolMaps[$cid][(string)$convId]??null)?$poolMaps[$cid][(string)$convId]:[];
+  $src=strtolower(sx_s($conv['traffic_source_key']??($poolRec['source']??'')));
+  if($src!=='google')continue;
+  $click=sx_click($conv,$clicks,$poolRec);
+  if($click['value']==='')continue;
 
-  $rank=sx_rank(sx_s($conv['current_tag']??''));
+  $rank=max(sx_rank(sx_s($conv['current_tag']??'')),sx_rank(sx_s($poolRec['stage']??'')));
   if($rank<0)$rank=0;
   if($in>=2)$rank=max($rank,1);
   foreach(['message_started','interested','qualified','converted'] as $stage){
@@ -120,7 +151,7 @@ foreach($convs as $convId=>$conv){
       'wbraid'=>$click['type']==='wbraid'?$click['value']:'',
       'conversion_time'=>sx_stage_time($conv,$stage),
       'conversion_value'=>$a['value'],'currency'=>'SAR','order_id'=>$eventId,
-      'conversion_action'=>$a['name'],'import_ready'=>true,
+      'conversion_action'=>$a['name'],'import_ready'=>($click['value']!==''),
       'source'=>'google','valid_inbound_count'=>$in,
       'conversation_id'=>(string)$convId,'event_id'=>$eventId,'google_ads_customer_id'=>$cfg['customer_id'],
       'conversion_action_id'=>$a['id'],
