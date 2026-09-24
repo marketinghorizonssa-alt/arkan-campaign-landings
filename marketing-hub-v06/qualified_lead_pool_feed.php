@@ -45,7 +45,10 @@ if(PHP_SAPI==='cli'){
       $rows[]=[$eventId,lp_s($c['first_seen_at']??$c['created_at']??''),$phoneHash,'',1,'SAR',(string)$convId,lp_status($c)];
     }
     usort($rows,function($a,$b){if(($a[0]??'')==='Event ID')return-1;if(($b[0]??'')==='Event ID')return 1;return strcmp((string)($a[1]??''),(string)($b[1]??''));});
-    echo json_encode($rows,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n";exit;
+    $header=array_shift($rows);
+    $offset=max(0,(int)($argv[3]??0));$limit=max(1,min(100,(int)($argv[4]??100)));
+    $slice=array_slice($rows,$offset,$limit);
+    echo json_encode(['header'=>$header,'offset'=>$offset,'limit'=>$limit,'total'=>count($rows),'rows'=>$slice],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n";exit;
   }
   http_response_code(404);exit;
 }
