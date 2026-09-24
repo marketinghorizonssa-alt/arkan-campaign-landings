@@ -1,8 +1,9 @@
 <?php
 declare(strict_types=1);
-if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
-
 $base=__DIR__.'/data';
+$secure=dirname(__DIR__,4).'/.marketing';
+$tokenFile=$secure.'/qualified_pool_tokens.json';
+
 $convFile=$base.'/conversations.json';
 $clickFile=$base.'/chatlink_clicks.json';
 
@@ -126,21 +127,48 @@ foreach(['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'] as $cid){
   }
 }
 
-$argClient=strtolower(trim((string)($argv[1]??'')));
-$argStage=strtolower(trim((string)($argv[2]??'')));
-if($argClient!==''&&$argStage!==''){
-  $cid=match($argClient){
+function sx_csv(array $row):void{$fh=fopen('php://output','wb');fputcsv($fh,$row);fclose($fh);}
+function sx_client_alias(string $v):string{
+  $v=strtolower(trim($v));
+  return match($v){
     'bcare','pcare','cl_0e6efd258397db'=>'cl_0e6efd258397db',
     'almowahid','mowahid','cl_3ea5ae96e05c6b'=>'cl_3ea5ae96e05c6b',
     'etizan','cl_cbb797950cc8d4'=>'cl_cbb797950cc8d4',
-    default=>$argClient
+    default=>$v
   };
-  $stage=match($argStage){
+}
+function sx_stage_alias(string $v):string{
+  $v=strtolower(trim($v));
+  return match($v){
     'message','message_started','started'=>'message_started',
     'interested'=>'interested','qualified'=>'qualified',
     'converted','purchased'=>'converted',
-    default=>$argStage
+    default=>$v
   };
+}
+
+if(PHP_SAPI!=='cli'){
+  $cid=sx_client_alias((string)($_GET['client']??''));
+  $stage=sx_stage_alias((string)($_GET['stage']??''));
+  $token=sx_s($_GET['token']??'');$tokens=sx_json($tokenFile,[]);
+  if(!$cid||!isset($tokens[$cid])||$token===''||!hash_equals((string)$tokens[$cid],$token)){
+    http_response_code(403);header('Content-Type:text/plain');echo"forbidden\n";exit;
+  }
+  if(!in_array($stage,['message_started','interested','qualified','converted'],true)){
+    http_response_code(422);header('Content-Type:text/plain');echo"bad_stage\n";exit;
+  }
+  header('Content-Type:text/csv; charset=utf-8');header('Cache-Control:no-store');header('X-Robots-Tag:noindex, nofollow, noarchive');
+  sx_csv(['GCLID','GBRAID','WBRAID','Conversion Time','Conversion Value','Conversion Currency','Order ID','Conversion Action','Import Ready','Source','Valid Inbound Messages','Conversation ID','Event ID','Google Ads Customer ID','Conversion Action ID','Audit Reason']);
+  foreach($out['clients'][$cid]['stages'][$stage]??[] as $r){
+    sx_csv([$r['gclid'],$r['gbraid'],$r['wbraid'],$r['conversion_time'],$r['conversion_value'],$r['currency'],$r['order_id'],$r['conversion_action'],$r['import_ready']?'TRUE':'FALSE',$r['source'],$r['valid_inbound_count'],$r['conversation_id'],$r['event_id'],$r['google_ads_customer_id'],$r['conversion_action_id'],$r['audit_reason']]);
+  }
+  exit;
+}
+
+$argClient=strtolower(trim((string)($argv[1]??'')));
+$argStage=strtolower(trim((string)($argv[2]??'')));
+if($argClient!==''&&$argStage!==''){
+  $cid=sx_client_alias($argClient);$stage=sx_stage_alias($argStage);
   echo json_encode($out['clients'][$cid]['stages'][$stage]??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n";exit;
 }
 echo json_encode($out,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)."\n";
