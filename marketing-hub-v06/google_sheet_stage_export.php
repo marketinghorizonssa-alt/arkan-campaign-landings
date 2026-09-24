@@ -92,7 +92,7 @@ foreach($convs as $convId=>$conv){
   // Google Ads stage tabs are click-conversion feeds only.
   // Organic/other-platform leads belong in Lead Pool, not these tabs.
   if(strtolower(sx_s($conv['traffic_source_key']??''))!=='google')continue;
-  $click=sx_click($conv,$clicks);if($click['value']==='')continue;
+  $click=sx_click($conv,$clicks);
 
   $rank=sx_rank(sx_s($conv['current_tag']??''));
   if($rank<0)$rank=$in>=2?1:0;
