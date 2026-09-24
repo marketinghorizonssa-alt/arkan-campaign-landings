@@ -17,7 +17,24 @@ function lp_json(string $f,array $d=[]):array{
   return is_array($v)?$v:$d;
 }
 function lp_s(mixed $v):string{return is_scalar($v)?trim((string)$v):'';}
-function lp_phone(string $v):string{return preg_replace('/\D+/','',$v)??'';}
+function lp_phone(string $v):string{
+  $d=preg_replace('/\D+/','',$v)??'';
+  if(str_starts_with($d,'00'))$d=substr($d,2);
+  return $d;
+}
+function lp_e164(string $v):string{
+  $d=lp_phone($v);
+  return $d!==''?'+'.$d:'';
+}
+function lp_jsonl_map(string $f,string $key='lead_id'):array{
+  $out=[]; if(!is_file($f))return$out;
+  $h=fopen($f,'rb'); if(!$h)return$out;
+  while(($line=fgets($h))!==false){
+    $r=json_decode($line,true); if(!is_array($r))continue;
+    $k=lp_s($r[$key]??''); if($k!=='')$out[$k]=$r;
+  }
+  fclose($h); return$out;
+}
 function lp_value_for_stage(string $s):float{return match($s){'interested'=>2.0,'qualified'=>5.0,'converted'=>10.0,'lost'=>0.0,default=>1.0};}
 function lp_status(array $c):string{
   $s=strtolower(lp_s($c['current_tag']??'message_received'));
@@ -45,15 +62,20 @@ if(PHP_SAPI==='cli'){
   if(($argv[1]??'')==='export'&&isset($argv[2])){
     $cid=(string)$argv[2];
     if(!isset($clients[$cid])){fwrite(STDERR,"unknown_client\n");exit(2);}
-    $headers=['Event ID','Lead Created At','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Current Status'];
-    $pool=lp_json($poolRoot.'/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid).'/current.json',[]);
+    $headers=['Event ID','Lead Created At','Phone Number','Email','Conversion Value','Currency','Lead ID','Current Status'];
+    $dir=$poolRoot.'/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid);
+    $pool=lp_json($dir.'/current.json',[]);
+    $identity=lp_jsonl_map($dir.'/identity_map.jsonl','lead_id');
     $rows=[];
     foreach((array)($pool['records']??[]) as $leadId=>$r){
       if(!is_array($r))continue;
       $status=lp_status(['current_tag'=>$r['stage']??'message_received']);
-      $fp=is_array($r['first_party']??null)?$r['first_party']:[];
-      $eventId='lead_'.substr(hash('sha256',$cid.'|'.(string)$leadId.'|lead'),0,32);
-      $rows[]=[$eventId,lp_s($r['first_seen_at']??''),lp_s($fp['phone_sha256']??''),lp_s($fp['email_sha256']??''),lp_value_for_stage($status),'SAR',(string)$leadId,$status];
+      if(!in_array($status,['qualified','converted'],true))continue;
+      $id=is_array($identity[(string)$leadId]??null)?$identity[(string)$leadId]:[];
+      $phone=lp_e164(lp_s($id['phone']??''));
+      $email=lp_s($r['attributes']['email']??$r['email']??'');
+      $eventId='lead_'.substr(hash('sha256',$cid.'|'.(string)$leadId.'|'.$status),0,32);
+      $rows[]=[$eventId,lp_s($r['first_seen_at']??''),$phone,$email,lp_value_for_stage($status),'SAR',(string)$leadId,$status];
     }
     usort($rows,fn($a,$b)=>strcmp((string)($a[1]??''),(string)($b[1]??'')));
     $offset=max(0,(int)($argv[3]??0));$limit=max(1,min(200,(int)($argv[4]??200)));
@@ -69,16 +91,21 @@ if(!isset($clients[$cid])||$token===''||empty($tokens[$cid])||!hash_equals((stri
 }
 header('Content-Type:text/csv; charset=utf-8');header('Cache-Control:no-store');header('X-Robots-Tag:noindex, nofollow, noarchive');
 
-$headers=['Event ID','Lead Created At','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Current Status'];
+$headers=['Event ID','Lead Created At','Phone Number','Email','Conversion Value','Currency','Lead ID','Current Status'];
 lp_csv($headers);
-$pool=lp_json($poolRoot.'/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid).'/current.json',[]);
+$dir=$poolRoot.'/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid);
+$pool=lp_json($dir.'/current.json',[]);
+$identity=lp_jsonl_map($dir.'/identity_map.jsonl','lead_id');
 $rows=[];
 foreach((array)($pool['records']??[]) as $leadId=>$r){
   if(!is_array($r))continue;
   $status=lp_status(['current_tag'=>$r['stage']??'message_received']);
-  $fp=is_array($r['first_party']??null)?$r['first_party']:[];
-  $eventId='lead_'.substr(hash('sha256',$cid.'|'.(string)$leadId.'|lead'),0,32);
-  $rows[]=[$eventId,lp_s($r['first_seen_at']??''),lp_s($fp['phone_sha256']??''),lp_s($fp['email_sha256']??''),lp_value_for_stage($status),'SAR',(string)$leadId,$status];
+  if(!in_array($status,['qualified','converted'],true))continue;
+  $id=is_array($identity[(string)$leadId]??null)?$identity[(string)$leadId]:[];
+  $phone=lp_e164(lp_s($id['phone']??''));
+  $email=lp_s($r['attributes']['email']??$r['email']??'');
+  $eventId='lead_'.substr(hash('sha256',$cid.'|'.(string)$leadId.'|'.$status),0,32);
+  $rows[]=[$eventId,lp_s($r['first_seen_at']??''),$phone,$email,lp_value_for_stage($status),'SAR',(string)$leadId,$status];
 }
 usort($rows,fn($a,$b)=>strcmp((string)$a[1],(string)$b[1]));
 foreach($rows as $row)lp_csv($row);
