@@ -95,7 +95,8 @@ foreach($convs as $convId=>$conv){
   $click=sx_click($conv,$clicks);
 
   $rank=sx_rank(sx_s($conv['current_tag']??''));
-  if($rank<0)$rank=$in>=2?1:0;
+  if($rank<0)$rank=0;
+  if($in>=2)$rank=max($rank,1);
   foreach(['message_started','interested','qualified','converted'] as $stage){
     if($rank<sx_stage_rank($stage))continue;
     $a=$cfg['actions'][$stage];
