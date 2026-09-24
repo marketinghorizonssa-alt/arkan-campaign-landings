@@ -533,9 +533,11 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
 
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];
     $recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId,'message_id'=>(string)($m['id']??''),'wamid'=>(string)($m['wamid']??'')]);
-    $inbound=(int)($prev['inbound_count']??0)+($history?0:1);$outbound=(int)($prev['outbound_count']??0);
     $validMessage=valid_customer_message_type($msgType);
-    $validInbound=(int)($prev['valid_inbound_count']??0)+((!$history&&$validMessage)?1:0);
+    $recentValid=recent_valid_inbound_count($recent);
+    $inbound=max((int)($prev['inbound_count']??0)+($history?0:1),$recentValid);
+    $outbound=(int)($prev['outbound_count']??0);
+    $validInbound=max((int)($prev['valid_inbound_count']??0)+((!$history&&$validMessage)?1:0),$recentValid);
     $conv=array_merge($prev,[
         'id'=>$id,'client_id'=>$clientId!==''?$clientId:(string)($prev['client_id']??''),'number_id'=>$numberId,'ycloud_connection_id'=>$connectionId!==''?$connectionId:(string)($prev['ycloud_connection_id']??''),
         'waba_id'=>$waba,'business_number'=>$business,'customer_number'=>$customer,'contact_name'=>(string)($profile['name']??($prev['contact_name']??$customer)),'contact_username'=>(string)($profile['username']??($prev['contact_username']??'')),
