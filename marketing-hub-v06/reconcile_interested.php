@@ -9,7 +9,7 @@ $changed=0;
 foreach($c as $id=>$v){
   if(!is_array($v))continue;
   $recent=is_array($v['recent_messages']??null)?$v['recent_messages']:[];
-  $seen=[];$valid=0;
+  $seen=[];$valid=0;$validTimes=[];
   foreach($recent as $m){
     if(!is_array($m)||!str_contains((string)($m['direction']??''),'inbound'))continue;
     $t=strtolower(trim((string)($m['type']??'')));
@@ -17,7 +17,7 @@ foreach($c as $id=>$v){
     $k=(string)($m['wamid']??$m['message_id']??$m['source_event_id']??'');
     if($k!==''&&isset($seen[$k]))continue;
     if($k!=='')$seen[$k]=true;
-    $valid++;
+    $valid++;$validTimes[]=(string)($m['at']??'');
   }
   $old=(int)($v['valid_inbound_count']??0);
   if($valid>$old){$v['valid_inbound_count']=$valid;$changed++;}
@@ -26,7 +26,9 @@ foreach($c as $id=>$v){
     $v['current_tag']='interested';
     $v['tag_source']='automation';
     $v['auto_label_reason']='two_valid_customer_messages';
-    $v['tagged_at']=gmdate('c');
+    $when=(string)($validTimes[1]??'');if($when==='')$when=gmdate('c');
+    $v['tagged_at']=$when;
+    $st=is_array($v['stage_times']??null)?$v['stage_times']:[];if(empty($st['message_started']))$st['message_started']=(string)($v['first_seen_at']??$when);if(empty($st['interested']))$st['interested']=$when;$v['stage_times']=$st;
     $changed++;
   }
   $c[$id]=$v;
