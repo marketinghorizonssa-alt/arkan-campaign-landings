@@ -4,6 +4,7 @@ declare(strict_types=1);
 $base=__DIR__.'/data';
 $secure=dirname(__DIR__,4).'/.marketing';
 $tokenFile=$secure.'/qualified_pool_tokens.json';
+$poolRoot=$secure.'/lead_pools';
 $clients=[
   'cl_0e6efd258397db'=>['name'=>'BCARE'],
   'cl_3ea5ae96e05c6b'=>['name'=>'ALMOWAHID'],
