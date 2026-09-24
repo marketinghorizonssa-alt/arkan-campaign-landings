@@ -173,62 +173,53 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
     // No ad/site evidence means the person contacted WhatsApp directly.
     return ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
 }
-function lr_stage(array $ai): array {
+function lr_stage_rank(string $s): int {
+    return match($s){'message_received'=>0,'interested'=>1,'qualified'=>2,'converted'=>3,'lost'=>90,default=>-1};
+}
+function lr_observed_stage(array $messages): array {
+    $valid=0;$out=false;$replyAfterOut=false;$serious=false;$converted=false;
+    $seriousWords=['السعر','سعر','التكلفة','تكلفة','موعد','احجز','حجز','التوفر','متاح','المدة','المتطلبات','الأوراق','المستندات','نبدأ','ابدأ','أبدأ','الدفع','تحويل','زيارة','موقعكم','العنوان','استشارة','قضية','عقد','أتعاب','الاتعاب','شركة','تركة','تنفيذ','دعوى','توكيل','عرض','تفاصيل','price','cost','appointment','book','booking','available','requirements','documents','payment','contract','quote'];
+    $convertedWords=['تم الدفع','دفعت','تم التحويل','حولت','حوّلت','تم الحجز','حجزت الموعد','تم تأكيد الحجز','تم التعاقد','وقعت العقد','وقّعت العقد','تم توقيع العقد','تم إصدار العقد','تم اصدار العقد','تم قبول الطلب','تم الشراء','اشتريت','paid','payment done','payment completed','booking confirmed','contract signed','order confirmed','purchased'];
+    foreach($messages as $m){
+        if(!is_array($m))continue;
+        $dir=lr_s($m['direction']??'');$type=lr_s($m['type']??'');$text=lr_s($m['text']??'');
+        if($dir==='outbound'){$out=true;continue;}
+        if($dir!=='inbound'||!lr_valid_message_type($type))continue;
+        $valid++;
+        if($out)$replyAfterOut=true;
+        if(in_array(strtolower($type),['document','image','location','contacts'],true)||lr_contains($text,$seriousWords))$serious=true;
+        if(lr_contains($text,$convertedWords))$converted=true;
+    }
+    $stage='message_received';$reason='first_valid_customer_message';
+    if($valid>=2){$stage='interested';$reason='two_valid_customer_messages';}
+    if($valid>=3&&$out&&$replyAfterOut&&$serious){$stage='qualified';$reason='three_plus_messages_two_way_serious_intent';}
+    if($converted){$stage='converted';$reason='explicit_completed_business_outcome';}
+    return ['stage'=>$stage,'reason'=>$reason,'valid_inbound'=>$valid];
+}
+function lr_stage(array $ai,array $messages=[]): array {
     $tag = lr_lower(lr_s($ai['current_tag'] ?? ''));
-    $map = [
-        'message_received'=>'message_received',
-        'interested'=>'interested',
-        'qualified'=>'qualified',
-        'purchased'=>'converted',
-        'converted'=>'converted',
-        'lost'=>'lost'
-    ];
-    if ($tag !== '' && isset($map[$tag])) {
-        $key=$map[$tag];
-        return [
-            'key'=>$key,
-            'label'=>match($key){
-                'message_received'=>'Message Received',
-                'interested'=>'Interested',
-                'qualified'=>'Qualified',
-                'converted'=>'Converted',
-                'lost'=>'Lost',
-                default=>'Message Received'
-            },
-            'score'=>(int)($ai['ai_quality_score'] ?? 0),
-            'summary'=>lr_s($ai['ai_summary'] ?? '') ?: lr_s($ai['auto_label_reason'] ?? ''),
-            'reason'=>lr_s($ai['auto_label_reason'] ?? $ai['ai_reason'] ?? ''),
-            'method'=>lr_s($ai['tag_source'] ?? '') ?: 'hub_status'
-        ];
-    }
+    if($tag==='purchased')$tag='converted';
+    $observed=lr_observed_stage($messages);
+    $observedStage=$observed['stage'];
 
-    // Report invariant: an actual inbound referral can never be "not evaluated".
-    $valid=(int)($ai['valid_inbound_count'] ?? $ai['inbound_count'] ?? 0);
-    if($valid>=1){
-        return [
-            'key'=>'message_received','label'=>'Message Received',
-            'score'=>(int)($ai['ai_quality_score'] ?? 0),
-            'summary'=>'First valid customer message received',
-            'reason'=>'first_valid_customer_message',
-            'method'=>'report_fallback'
-        ];
-    }
+    if(!in_array($tag,['message_received','interested','qualified','converted','lost'],true))$tag='';
+    $key=$tag!==''?$tag:$observedStage;
+    if($key!=='lost'&&lr_stage_rank($observedStage)>lr_stage_rank($key))$key=$observedStage;
 
-    $stage = lr_lower(lr_s($ai['ai_stage'] ?? ''));
-    $fallback=match($stage){
-        'interested'=>'interested','qualified'=>'qualified','converted'=>'converted','unqualified'=>'lost',
-        default=>'message_received'
-    };
     return [
-        'key'=>$fallback,
-        'label'=>match($fallback){
-            'interested'=>'Interested','qualified'=>'Qualified','converted'=>'Converted','lost'=>'Lost',
+        'key'=>$key,
+        'label'=>match($key){
+            'message_received'=>'Message Received',
+            'interested'=>'Interested',
+            'qualified'=>'Qualified',
+            'converted'=>'Converted',
+            'lost'=>'Lost',
             default=>'Message Received'
         },
         'score'=>(int)($ai['ai_quality_score'] ?? 0),
-        'summary'=>lr_s($ai['ai_summary'] ?? ''),
-        'reason'=>lr_s($ai['ai_reason'] ?? ''),
-        'method'=>$stage!==''?'ai_fallback':'report_fallback'
+        'summary'=>lr_s($ai['ai_summary'] ?? '') ?: ($key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason']??'')),
+        'reason'=>$key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason'] ?? $ai['ai_reason'] ?? ''),
+        'method'=>$tag!==''?'hub_status_plus_message_reconciliation':'message_reconciliation'
     ];
 }
 function lr_client_id(array $m, string $direction, array $byPhone, array $byWaba): string {
@@ -348,7 +339,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         usort($messages,fn($a,$b)=>($a['epoch']<=>$b['epoch']));
         $messages=array_values(array_filter($messages,fn($m)=>$m['epoch']>=$firstEpoch && $m['epoch']<=$end));
         $src=lr_source($t['first_inbound'],$messages,$contactSourceByKey[$key]??[],$aiByKey[$key]??[]);
-        $quality=lr_stage($aiByKey[$key]??[]);
+        $quality=lr_stage($aiByKey[$key]??[],$messages);
         $messageRows=[];
         foreach($messages as $m) {
             $messageRows[]=['direction'=>$m['direction'],'type'=>$m['type'],'text'=>$m['text'],'at'=>$m['at_local']];
