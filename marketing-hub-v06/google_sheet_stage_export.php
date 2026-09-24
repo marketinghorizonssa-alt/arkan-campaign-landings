@@ -4,18 +4,12 @@ if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 
 $base=__DIR__.'/data';
 $convFile=$base.'/conversations.json';
-$eventsFile=$base.'/conversion_events.jsonl';
+$clickFile=$base.'/chatlink_clicks.json';
 
 function sx_json(string $f,array $d=[]):array{
   if(!is_file($f))return$d;
   $v=json_decode((string)@file_get_contents($f),true);
   return is_array($v)?$v:$d;
-}
-function sx_rows(string $f):array{
-  $out=[]; if(!is_file($f))return$out;
-  $fh=@fopen($f,'rb'); if(!$fh)return$out;
-  while(($line=fgets($fh))!==false){$r=json_decode($line,true);if(is_array($r))$out[]=$r;}
-  fclose($fh);return$out;
 }
 function sx_s(mixed $v):string{return is_scalar($v)?trim((string)$v):'';}
 function sx_cfg(string $cid):?array{
@@ -50,13 +44,24 @@ function sx_cfg(string $cid):?array{
   ];
   return $all[$cid]??null;
 }
-function sx_click(array $c):array{
+function sx_rank(string $tag):int{
+  return match(strtolower(trim($tag))){'message_received'=>0,'interested'=>1,'qualified'=>2,'purchased','converted'=>3,default=>-1};
+}
+function sx_stage_rank(string $stage):int{
+  return match($stage){'message_started'=>0,'interested'=>1,'qualified'=>2,'converted'=>3,default=>99};
+}
+function sx_click(array $c,array $clicks):array{
   foreach([['google_gclid','gclid'],['google_gbraid','gbraid'],['google_wbraid','wbraid']] as [$k,$t]){
     $v=sx_s($c[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
   }
   $p=is_array($c['attribution_params']??null)?$c['attribution_params']:[];
   foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
     $v=sx_s($p[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
+  }
+  $clickId=sx_s($c['horizons_wa_click_id']??$c['ycloud_chatlink_click_id']??'');
+  $cl=is_array($clicks[$clickId]??null)?$clicks[$clickId]:[];
+  foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
+    $v=sx_s($cl[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
   }
   return['type'=>'','value'=>''];
 }
@@ -65,73 +70,51 @@ function sx_time(string $raw):string{
   catch(Throwable){$d=new DateTimeImmutable('now',new DateTimeZone('UTC'));}
   return $d->setTimezone(new DateTimeZone('Asia/Riyadh'))->format('Y-m-d H:i:sP');
 }
-function sx_event_stage(string $e):string{
-  $e=strtolower(trim($e));
-  return match($e){
-    'conversation_started','message_received'=>'message_started',
-    'interested'=>'interested',
-    'qualified'=>'qualified',
-    'purchased','converted'=>'converted',
-    default=>''
-  };
+function sx_stage_time(array $c,string $stage):string{
+  $st=is_array($c['stage_times']??null)?$c['stage_times']:[];
+  $key=$stage==='message_started'?'message_started':$stage;
+  $v=sx_s($st[$key]??'');
+  if($v!=='')return sx_time($v);
+  if($stage==='message_started')return sx_time(sx_s($c['first_seen_at']??$c['created_at']??''));
+  return sx_time(sx_s($c['tagged_at']??$c['updated_at']??$c['last_message_at']??''));
 }
 
 $convs=sx_json($convFile,[]);
-$events=sx_rows($eventsFile);
-$seen=[];$out=['generated_at'=>gmdate('c'),'clients'=>[]];
+$clicks=sx_json($clickFile,[]);
+$out=['generated_at'=>gmdate('c'),'clients'=>[]];
 
-foreach($events as $e){
-  $cid=sx_s($e['client_id']??'');$cfg=sx_cfg($cid);if(!$cfg)continue;
-  $stage=sx_event_stage(sx_s($e['event']??''));if($stage==='')continue;
-  $convId=sx_s($e['conversation_id']??'');if($convId==='')continue;
-  $key=$cid.'|'.$convId.'|'.$stage;if(isset($seen[$key]))continue;
-  $conv=is_array($convs[$convId]??null)?$convs[$convId]:[];
-  $in=(int)($conv['valid_inbound_count']??$conv['inbound_count']??0);
-  // Never export a Message Started conversion unless the current conversation has
-  // at least one real inbound customer message. Legacy conversation_started events
-  // could also be emitted for incomplete/history-only threads.
-  if($stage==='message_started'&&$in<1)continue;
-  $click=sx_click($conv);$a=$cfg['actions'][$stage];$eventId='gcv_'.substr(hash('sha256',$key),0,32);
-  $row=[
-    'gclid'=>$click['type']==='gclid'?$click['value']:'',
-    'gbraid'=>$click['type']==='gbraid'?$click['value']:'',
-    'wbraid'=>$click['type']==='wbraid'?$click['value']:'',
-    'conversion_time'=>sx_time(sx_s($e['created_at']??'')),
-    'conversion_value'=>$a['value'],'currency'=>'SAR','order_id'=>$eventId,
-    'conversion_action'=>$a['name'],'import_ready'=>$click['value']!=='',
-    'source'=>sx_s($conv['traffic_source_key']??''),'valid_inbound_count'=>$in,
-    'conversation_id'=>$convId,'event_id'=>$eventId,'google_ads_customer_id'=>$cfg['customer_id'],
-    'conversion_action_id'=>$a['id'],
-    'audit_reason'=>$click['value']!==''?'Google click ID present':'Missing GCLID / GBRAID / WBRAID'
-  ];
-  $out['clients'][$cid]['client_name']=$cfg['client_name'];
-  $out['clients'][$cid]['stages'][$stage][]=$row;
-  $seen[$key]=true;
-}
-
-// Guarantee a message_started row for any current conversation with at least one inbound,
-// even if an older conversation_started event predates the event log.
 foreach($convs as $convId=>$conv){
   if(!is_array($conv))continue;
   $cid=sx_s($conv['client_id']??'');$cfg=sx_cfg($cid);if(!$cfg)continue;
   $in=(int)($conv['valid_inbound_count']??$conv['inbound_count']??0);if($in<1)continue;
-  $stage='message_started';$key=$cid.'|'.$convId.'|'.$stage;if(isset($seen[$key]))continue;
-  $click=sx_click($conv);$a=$cfg['actions'][$stage];$eventId='gcv_'.substr(hash('sha256',$key),0,32);
-  $row=[
-    'gclid'=>$click['type']==='gclid'?$click['value']:'',
-    'gbraid'=>$click['type']==='gbraid'?$click['value']:'',
-    'wbraid'=>$click['type']==='wbraid'?$click['value']:'',
-    'conversion_time'=>sx_time(sx_s($conv['first_seen_at']??$conv['created_at']??'')),
-    'conversion_value'=>$a['value'],'currency'=>'SAR','order_id'=>$eventId,
-    'conversion_action'=>$a['name'],'import_ready'=>$click['value']!=='',
-    'source'=>sx_s($conv['traffic_source_key']??''),'valid_inbound_count'=>$in,
-    'conversation_id'=>(string)$convId,'event_id'=>$eventId,'google_ads_customer_id'=>$cfg['customer_id'],
-    'conversion_action_id'=>$a['id'],
-    'audit_reason'=>$click['value']!==''?'Google click ID present':'Missing GCLID / GBRAID / WBRAID'
-  ];
-  $out['clients'][$cid]['client_name']=$cfg['client_name'];
-  $out['clients'][$cid]['stages'][$stage][]=$row;
-  $seen[$key]=true;
+
+  // Google Ads stage tabs are click-conversion feeds only.
+  // Organic/other-platform leads belong in Lead Pool, not these tabs.
+  if(strtolower(sx_s($conv['traffic_source_key']??''))!=='google')continue;
+  $click=sx_click($conv,$clicks);if($click['value']==='')continue;
+
+  $rank=sx_rank(sx_s($conv['current_tag']??''));
+  if($rank<0)$rank=$in>=2?1:0;
+  foreach(['message_started','interested','qualified','converted'] as $stage){
+    if($rank<sx_stage_rank($stage))continue;
+    $a=$cfg['actions'][$stage];
+    $key=$cid.'|'.$convId.'|'.$stage;
+    $eventId='gcv_'.substr(hash('sha256',$key),0,32);
+    $row=[
+      'gclid'=>$click['type']==='gclid'?$click['value']:'',
+      'gbraid'=>$click['type']==='gbraid'?$click['value']:'',
+      'wbraid'=>$click['type']==='wbraid'?$click['value']:'',
+      'conversion_time'=>sx_stage_time($conv,$stage),
+      'conversion_value'=>$a['value'],'currency'=>'SAR','order_id'=>$eventId,
+      'conversion_action'=>$a['name'],'import_ready'=>true,
+      'source'=>'google','valid_inbound_count'=>$in,
+      'conversation_id'=>(string)$convId,'event_id'=>$eventId,'google_ads_customer_id'=>$cfg['customer_id'],
+      'conversion_action_id'=>$a['id'],
+      'audit_reason'=>'Google Ads source confirmed + click ID present'
+    ];
+    $out['clients'][$cid]['client_name']=$cfg['client_name'];
+    $out['clients'][$cid]['stages'][$stage][]=$row;
+  }
 }
 
 foreach(['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'] as $cid){
@@ -142,6 +125,7 @@ foreach(['cl_0e6efd258397db','cl_3ea5ae96e05c6b','cl_cbb797950cc8d4'] as $cid){
     usort($out['clients'][$cid]['stages'][$stage],fn($x,$y)=>strcmp((string)$x['conversion_time'],(string)$y['conversion_time']));
   }
 }
+
 $argClient=strtolower(trim((string)($argv[1]??'')));
 $argStage=strtolower(trim((string)($argv[2]??'')));
 if($argClient!==''&&$argStage!==''){
@@ -157,7 +141,6 @@ if($argClient!==''&&$argStage!==''){
     'converted','purchased'=>'converted',
     default=>$argStage
   };
-  echo json_encode($out['clients'][$cid]['stages'][$stage]??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n";
-  exit;
+  echo json_encode($out['clients'][$cid]['stages'][$stage]??[],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)."\n";exit;
 }
 echo json_encode($out,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)."\n";
