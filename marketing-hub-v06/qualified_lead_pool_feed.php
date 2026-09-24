@@ -32,6 +32,14 @@ if(PHP_SAPI==='cli'){
     @file_put_contents($tokenFile,json_encode($t,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n",LOCK_EX);@chmod($tokenFile,0600);
     echo json_encode($t,JSON_UNESCAPED_SLASHES)."\n";exit;
   }
+  if(($argv[1]??'')==='set-token'&&isset($argv[2],$argv[3])){
+    $cid=(string)$argv[2];$tok=(string)$argv[3];
+    if(!isset($clients[$cid])||!preg_match('/^[A-Za-z0-9_-]{32,128}$/',$tok)){fwrite(STDERR,"bad_token\n");exit(2);}
+    if(!is_dir($secure))@mkdir($secure,0700,true);
+    $t=lp_json($tokenFile,[]);$t[$cid]=$tok;
+    @file_put_contents($tokenFile,json_encode($t,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n",LOCK_EX);@chmod($tokenFile,0600);
+    echo "ok\n";exit;
+  }
   if(($argv[1]??'')==='export'&&isset($argv[2])){
     $cid=(string)$argv[2];
     if(!isset($clients[$cid])){fwrite(STDERR,"unknown_client\n");exit(2);}
