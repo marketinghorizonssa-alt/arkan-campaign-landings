@@ -32,6 +32,10 @@ function lr_json(string $file, array $default=[]): array {
     return is_array($v) ? $v : $default;
 }
 function lr_s(mixed $v): string { return is_scalar($v) ? trim((string)$v) : ''; }
+function lr_valid_message_type(string $type): bool {
+    $type = lr_lower(trim($type));
+    return !in_array($type, ['', 'unsupported', 'reaction', 'system', 'unknown', 'revoke', 'revoked'], true);
+}
 function lr_phone(mixed $v): string { return preg_replace('/\D+/', '', lr_s($v)) ?? ''; }
 function lr_clean(string $v): string {
     $v = preg_replace('/[\p{Cf}\p{Cc}\p{Cs}]+/u', '', $v) ?? $v;
