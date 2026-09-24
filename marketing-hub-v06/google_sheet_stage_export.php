@@ -13,6 +13,18 @@ function sx_json(string $f,array $d=[]):array{
   return is_array($v)?$v:$d;
 }
 function sx_s(mixed $v):string{return is_scalar($v)?trim((string)$v):'';}
+function sx_recent_valid(array $c):int{
+  $n=0;$seen=[];
+  foreach((array)($c['recent_messages']??[]) as $m){
+    if(!is_array($m)||!str_contains((string)($m['direction']??''),'inbound'))continue;
+    $t=strtolower(sx_s($m['type']??''));
+    if(in_array($t,['','unsupported','reaction','system','unknown','revoke','revoked'],true))continue;
+    $id=sx_s($m['wamid']??$m['message_id']??$m['source_event_id']??'');
+    if($id!==''&&isset($seen[$id]))continue;
+    if($id!=='')$seen[$id]=true;$n++;
+  }
+  return $n;
+}
 function sx_cfg(string $cid):?array{
   $all=[
     'cl_0e6efd258397db'=>[
@@ -87,7 +99,7 @@ $out=['generated_at'=>gmdate('c'),'clients'=>[]];
 foreach($convs as $convId=>$conv){
   if(!is_array($conv))continue;
   $cid=sx_s($conv['client_id']??'');$cfg=sx_cfg($cid);if(!$cfg)continue;
-  $in=(int)($conv['valid_inbound_count']??$conv['inbound_count']??0);if($in<1)continue;
+  $in=max((int)($conv['valid_inbound_count']??0),(int)($conv['inbound_count']??0),sx_recent_valid($conv));if($in<1)continue;
 
   // Google Ads stage tabs are click-conversion feeds only.
   // Organic/other-platform leads belong in Lead Pool, not these tabs.
