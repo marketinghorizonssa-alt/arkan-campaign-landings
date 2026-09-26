@@ -102,7 +102,7 @@ function ns_bootstrap_chatlink_attribution(string $secureDir): void {
 ns_bootstrap_chatlink_attribution($secureDir);
 
 function ns_bootstrap_google_sheet_export(string $secureDir): void {
-    $marker=$secureDir.'/.google_sheet_stage_export_v2_deployed';
+    $marker=$secureDir.'/.google_sheet_stage_export_v3_deployed';
     if(is_file($marker))return;
     $url='https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/marketing-deploy/marketing-hub-v06/google_sheet_stage_export.php';
     $ch=curl_init($url);
