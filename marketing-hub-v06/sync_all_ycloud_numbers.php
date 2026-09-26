@@ -101,6 +101,23 @@ function ns_bootstrap_chatlink_attribution(string $secureDir): void {
 }
 ns_bootstrap_chatlink_attribution($secureDir);
 
+function ns_bootstrap_google_sheet_export(string $secureDir): void {
+    $marker=$secureDir.'/.google_sheet_stage_export_v2_deployed';
+    if(is_file($marker))return;
+    $url='https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/marketing-deploy/marketing-hub-v06/google_sheet_stage_export.php';
+    $ch=curl_init($url);
+    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>25,CURLOPT_FOLLOWLOCATION=>false]);
+    $body=curl_exec($ch);$errno=curl_errno($ch);$status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
+    if($errno!==0||$status<200||$status>=300||!is_string($body)||strlen($body)<500)return;
+    $target=__DIR__.'/google_sheet_stage_export.php';$tmp=$target.'.deploy.tmp';
+    if(@file_put_contents($tmp,$body,LOCK_EX)===false)return;
+    $ok=trim((string)@shell_exec('php -l '.escapeshellarg($tmp).' 2>&1'));
+    if(!str_contains($ok,'No syntax errors detected')){@unlink($tmp);return;}
+    if(!@rename($tmp,$target)){@unlink($tmp);return;}
+    @file_put_contents($marker,gmdate('c')."\n",LOCK_EX);
+}
+ns_bootstrap_google_sheet_export($secureDir);
+
 if (is_file($stateFile) && (time() - (int)@filemtime($stateFile)) < 900) {
     echo json_encode(['ok'=>true,'status'=>'throttled','last_run'=>trim((string)@file_get_contents($stateFile))], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     exit;
