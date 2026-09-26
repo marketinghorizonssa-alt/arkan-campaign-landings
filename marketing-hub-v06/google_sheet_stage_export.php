@@ -153,6 +153,8 @@ foreach($convs as $convId=>$conv){
       'gclid'=>$click['type']==='gclid'?$click['value']:'',
       'gbraid'=>$click['type']==='gbraid'?$click['value']:'',
       'wbraid'=>$click['type']==='wbraid'?$click['value']:'',
+      'phone_sha256'=>sx_s($poolRec['first_party']['phone_sha256']??''),
+      'email_sha256'=>sx_s($poolRec['first_party']['email_sha256']??''),
       'conversion_time'=>sx_stage_time($conv,$stage),
       'conversion_value'=>$a['value'],'currency'=>'SAR','order_id'=>$eventId,
       'conversion_action'=>$a['name'],'import_ready'=>($click['value']!==''),
@@ -206,9 +208,9 @@ if(PHP_SAPI!=='cli'){
     http_response_code(422);header('Content-Type:text/plain');echo"bad_stage\n";exit;
   }
   header('Content-Type:text/csv; charset=utf-8');header('Cache-Control:no-store');header('X-Robots-Tag:noindex, nofollow, noarchive');
-  sx_csv(['GCLID','GBRAID','WBRAID','Conversion Time','Conversion Value','Conversion Currency','Order ID','Conversion Action','Import Ready','Source','Valid Inbound Messages','Conversation ID','Event ID','Google Ads Customer ID','Conversion Action ID','Audit Reason']);
+  sx_csv(['GCLID','GBRAID','WBRAID','Phone SHA256','Email SHA256','Conversion Time','Conversion Value','Conversion Currency','Order ID','Conversion Action','Import Ready','Source','Valid Inbound Messages','Conversation ID','Event ID','Google Ads Customer ID','Conversion Action ID','Audit Reason']);
   foreach($out['clients'][$cid]['stages'][$stage]??[] as $r){
-    sx_csv([$r['gclid'],$r['gbraid'],$r['wbraid'],$r['conversion_time'],$r['conversion_value'],$r['currency'],$r['order_id'],$r['conversion_action'],$r['import_ready']?'TRUE':'FALSE',$r['source'],$r['valid_inbound_count'],$r['conversation_id'],$r['event_id'],$r['google_ads_customer_id'],$r['conversion_action_id'],$r['audit_reason']]);
+    sx_csv([$r['gclid'],$r['gbraid'],$r['wbraid'],$r['phone_sha256'],$r['email_sha256'],$r['conversion_time'],$r['conversion_value'],$r['currency'],$r['order_id'],$r['conversion_action'],$r['import_ready']?'TRUE':'FALSE',$r['source'],$r['valid_inbound_count'],$r['conversation_id'],$r['event_id'],$r['google_ads_customer_id'],$r['conversion_action_id'],$r['audit_reason']]);
   }
   exit;
 }
