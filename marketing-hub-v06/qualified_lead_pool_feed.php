@@ -68,7 +68,7 @@ if(PHP_SAPI==='cli'){
   if(($argv[1]??'')==='export'&&isset($argv[2])){
     $cid=(string)$argv[2];
     if(!isset($clients[$cid])){fwrite(STDERR,"unknown_client\n");exit(2);}
-    $headers=['Event ID','Lead Created At','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Current Status'];
+    $headers=['Event ID','Lead Created At','Phone Number','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Current Status'];
     $dir=$poolRoot.'/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid);
     $pool=lp_json($dir.'/current.json',[]);
     $identity=lp_jsonl_map($dir.'/identity_map.jsonl','lead_id');
@@ -81,7 +81,8 @@ if(PHP_SAPI==='cli'){
       $emailRaw=lp_s($r['attributes']['email']??$r['email']??'');
       $emailHash=lp_s($r['first_party']['email_sha256']??''); if($emailHash===''&&$emailRaw!=='')$emailHash=lp_hash_email($emailRaw);
       $eventId='lead_'.substr(hash('sha256',$cid.'|'.(string)$leadId),0,32);
-      $rows[]=[$eventId,lp_s($r['first_seen_at']??''),$phoneHash,$emailHash,lp_value_for_stage($status),'SAR',(string)$leadId,$status];
+      $phoneRaw=lp_e164(lp_s($id['phone']??''));
+      $rows[]=[$eventId,lp_s($r['first_seen_at']??''),$phoneRaw,$phoneHash,$emailHash,lp_value_for_stage($status),'SAR',(string)$leadId,$status];
     }
     usort($rows,fn($a,$b)=>strcmp((string)($a[1]??''),(string)($b[1]??'')));
     $offset=max(0,(int)($argv[3]??0));$limit=max(1,min(1000,(int)($argv[4]??1000)));
@@ -97,7 +98,7 @@ if(!isset($clients[$cid])||$token===''||empty($tokens[$cid])||!hash_equals((stri
 }
 header('Content-Type:text/csv; charset=utf-8');header('Cache-Control:no-store');header('X-Robots-Tag:noindex, nofollow, noarchive');
 
-$headers=['Event ID','Lead Created At','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Current Status'];
+$headers=['Event ID','Lead Created At','Phone Number','Phone SHA256','Email SHA256','Conversion Value','Currency','Lead ID','Current Status'];
 lp_csv($headers);
 $dir=$poolRoot.'/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid);
 $pool=lp_json($dir.'/current.json',[]);
@@ -111,7 +112,8 @@ foreach((array)($pool['records']??[]) as $leadId=>$r){
   $emailRaw=lp_s($r['attributes']['email']??$r['email']??'');
   $emailHash=lp_s($r['first_party']['email_sha256']??''); if($emailHash===''&&$emailRaw!=='')$emailHash=lp_hash_email($emailRaw);
   $eventId='lead_'.substr(hash('sha256',$cid.'|'.(string)$leadId),0,32);
-  $rows[]=[$eventId,lp_s($r['first_seen_at']??''),$phoneHash,$emailHash,lp_value_for_stage($status),'SAR',(string)$leadId,$status];
+  $phoneRaw=lp_e164(lp_s($id['phone']??''));
+  $rows[]=[$eventId,lp_s($r['first_seen_at']??''),$phoneRaw,$phoneHash,$emailHash,lp_value_for_stage($status),'SAR',(string)$leadId,$status];
 }
 usort($rows,fn($a,$b)=>strcmp((string)$a[1],(string)$b[1]));
 foreach($rows as $row)lp_csv($row);
