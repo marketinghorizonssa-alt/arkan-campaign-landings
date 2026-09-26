@@ -6,10 +6,10 @@ header('X-Robots-Tag: noindex, nofollow, noarchive');
 $secure=dirname(__DIR__,4).'/.marketing';
 $tokenFile=$secure.'/tmp_identity_export_token';
 $expected=is_file($tokenFile)?trim((string)file_get_contents($tokenFile)):'';
-$given=is_scalar($_GET['token']??null)?trim((string)$_GET['token']):'';
+$given=PHP_SAPI==='cli'?trim((string)($argv[1]??'')):(is_scalar($_GET['token']??null)?trim((string)$_GET['token']):'');
 if($expected===''||$given===''||!hash_equals($expected,$given)){http_response_code(403);echo json_encode(['ok'=>false,'error'=>'forbidden']);exit;}
 $allowed=['cl_0e6efd258397db'=>true,'cl_3ea5ae96e05c6b'=>true,'cl_cbb797950cc8d4'=>true];
-$cid=is_scalar($_GET['client']??null)?trim((string)$_GET['client']):'';
+$cid=PHP_SAPI==='cli'?trim((string)($argv[2]??'')):(is_scalar($_GET['client']??null)?trim((string)$_GET['client']):'');
 if(!isset($allowed[$cid])){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'bad_client']);exit;}
 $file=$secure.'/lead_pools/'.preg_replace('/[^A-Za-z0-9_.-]/','_',$cid).'/identity_map.jsonl';
 $out=[];
