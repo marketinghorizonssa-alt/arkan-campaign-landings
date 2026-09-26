@@ -135,13 +135,17 @@ foreach($convs as $convId=>$conv){
   $src=strtolower(sx_s($conv['traffic_source_key']??($poolRec['source']??'')));
   if($src!=='google')continue;
   $click=sx_click($conv,$clicks,$poolRec);
-  if($click['value']==='')continue;
+  $hasClick=$click['value']!=='';
 
   $rank=max(sx_rank(sx_s($conv['current_tag']??'')),sx_rank(sx_s($poolRec['stage']??'')));
   if($rank<0)$rank=0;
   if($in>=2)$rank=max($rank,1);
   foreach(['message_started','interested','qualified','converted'] as $stage){
     if($rank<sx_stage_rank($stage))continue;
+    // Message Started is the complete Google Ads lead floor. Keep Google leads
+    // visible even when the click ID still needs attribution repair. Higher
+    // funnel stages remain import-ready feeds and therefore require a click ID.
+    if($stage!=='message_started'&&!$hasClick)continue;
     $a=$cfg['actions'][$stage];
     $key=$cid.'|'.$convId.'|'.$stage;
     $eventId='gcv_'.substr(hash('sha256',$key),0,32);
@@ -155,7 +159,7 @@ foreach($convs as $convId=>$conv){
       'source'=>'google','valid_inbound_count'=>$in,
       'conversation_id'=>(string)$convId,'event_id'=>$eventId,'google_ads_customer_id'=>$cfg['customer_id'],
       'conversion_action_id'=>$a['id'],
-      'audit_reason'=>'Google Ads source confirmed + click ID present'
+      'audit_reason'=>$hasClick?'Google Ads source confirmed + click ID present':'Google Ads source confirmed; click ID missing - retained in Message Started for attribution repair'
     ];
     $out['clients'][$cid]['client_name']=$cfg['client_name'];
     $out['clients'][$cid]['stages'][$stage][]=$row;
