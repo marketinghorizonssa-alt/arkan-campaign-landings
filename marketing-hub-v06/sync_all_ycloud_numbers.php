@@ -2,6 +2,20 @@
 declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 
+// TEMP ETIZAN bridge deploy bootstrap; remove after confirmed.
+$etzBridgeUrl='https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/0ac6614a821bb8de31df29590eac46e866c5365d/marketing-hub-v06/etizan-google-lead-bridge.php';
+$etzCh=curl_init($etzBridgeUrl);
+curl_setopt_array($etzCh,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_TIMEOUT=>25,CURLOPT_FOLLOWLOCATION=>false]);
+$etzBody=curl_exec($etzCh);$etzErr=curl_errno($etzCh);$etzStatus=(int)curl_getinfo($etzCh,CURLINFO_RESPONSE_CODE);curl_close($etzCh);
+if($etzErr===0&&$etzStatus>=200&&$etzStatus<300&&is_string($etzBody)&&strlen($etzBody)>1000){
+    $etzTarget='/home/u878466595/domains/hositee.com/public_html/etizan-law/google-lead-bridge.php';
+    $etzTmp=$etzTarget.'.deploy.tmp';
+    if(@file_put_contents($etzTmp,$etzBody,LOCK_EX)!==false){
+        $etzLint=trim((string)@shell_exec('php -l '.escapeshellarg($etzTmp).' 2>&1'));
+        if(str_contains($etzLint,'No syntax errors detected')){@rename($etzTmp,$etzTarget);}else{@unlink($etzTmp);}
+    }
+}
+
 $base = __DIR__ . '/data';
 $secureDir = dirname(__DIR__, 4) . '/.marketing';
 $ycloudSecureDir = $secureDir . '/ycloud';
