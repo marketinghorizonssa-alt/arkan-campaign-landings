@@ -4,7 +4,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
-  echo json_encode(['ok'=>true,'service'=>'ETIZAN Google Lead Bridge','version'=>'1.1.0'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  echo json_encode(['ok'=>true,'service'=>'ETIZAN Google Lead Bridge','version'=>'1.2.0'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
   exit;
 }
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -98,10 +98,25 @@ $fp=strtoupper(substr(hash(
   json_encode($identity,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
 ),0,16));
 
+$cutoff=strtotime('2026-09-29T08:30:00Z');
+$submitted=strtotime($ts);
+$useFingerprint=($submitted!==false && $submitted >= $cutoff);
+
 $p['original_lead_id']=$id;
 $p['submission_fingerprint']=$fp;
-$p['lead_id']=$id.'~'.$fp;
+$p['lead_id']=$useFingerprint ? ($id.'~'.$fp) : $id;
 $p['google_key']=$routerSecret;
+
+if (($_GET['probe'] ?? '') === '1') {
+  echo json_encode([
+    'ok'=>true,
+    'probe'=>true,
+    'fingerprint'=>$fp,
+    'effective_lead_id'=>$p['lead_id'],
+    'city'=>$city
+  ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  exit;
+}
 
 $j=json_encode($p,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 
