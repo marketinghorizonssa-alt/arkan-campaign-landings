@@ -4,7 +4,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
-  echo json_encode(['ok'=>true,'service'=>'ETIZAN Google Lead Bridge','version'=>'1.2.0'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  echo json_encode(['ok'=>true,'service'=>'ETIZAN Google Lead Bridge','version'=>'1.3.0'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
   exit;
 }
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -15,26 +15,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 require_once __DIR__ . '/app/config.php';
 
-$bridgeToken = trim((string)@file_get_contents('/home/u878466595/.etizan_gbt'));
-$receivedToken = trim((string)($_GET['k'] ?? ''));
-if ($bridgeToken === '' || $receivedToken === '' || !hash_equals($bridgeToken, $receivedToken)) {
-  http_response_code(403);
-  echo json_encode(['ok'=>false,'error'=>'forbidden']);
-  exit;
-}
-
-$routerSecret = trim((string)@file_get_contents('/home/u878466595/.etizan_grs'));
-if ($routerSecret === '') {
-  http_response_code(500);
-  echo json_encode(['ok'=>false,'error'=>'router_secret_missing']);
-  exit;
-}
-
 $raw=file_get_contents('php://input') ?: '';
 $p=json_decode($raw,true);
 if(!is_array($p)){
   http_response_code(400);
   echo json_encode(['ok'=>false,'error'=>'invalid_json']);
+  exit;
+}
+if(trim((string)($p['google_key']??''))===''){
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'missing_google_key']);
   exit;
 }
 
@@ -105,7 +95,6 @@ $useFingerprint=($submitted!==false && $submitted >= $cutoff);
 $p['original_lead_id']=$id;
 $p['submission_fingerprint']=$fp;
 $p['lead_id']=$useFingerprint ? ($id.'~'.$fp) : $id;
-$p['google_key']=$routerSecret;
 
 if (($_GET['probe'] ?? '') === '1') {
   echo json_encode([
