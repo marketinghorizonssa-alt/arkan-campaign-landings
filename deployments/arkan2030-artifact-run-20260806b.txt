@@ -1,0 +1,3 @@
+target=arkan2030.com
+requested_at=2026-08-06T13:35:00+03:00
+purpose=trigger PR artifact workflow for production package
