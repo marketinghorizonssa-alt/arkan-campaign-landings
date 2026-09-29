@@ -15,7 +15,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 require_once __DIR__ . '/app/config.php';
 
-$bridgeToken = trim((string)@file_get_contents(__DIR__ . '/.gbt'));
+$bridgeToken = trim((string)@file_get_contents('/home/u878466595/.etizan_gbt'));
 $receivedToken = trim((string)($_GET['k'] ?? ''));
 if ($bridgeToken === '' || $receivedToken === '' || !hash_equals($bridgeToken, $receivedToken)) {
   http_response_code(403);
@@ -23,7 +23,7 @@ if ($bridgeToken === '' || $receivedToken === '' || !hash_equals($bridgeToken, $
   exit;
 }
 
-$routerSecret = trim((string)@file_get_contents(__DIR__ . '/.grs'));
+$routerSecret = trim((string)@file_get_contents('/home/u878466595/.etizan_grs'));
 if ($routerSecret === '') {
   http_response_code(500);
   echo json_encode(['ok'=>false,'error'=>'router_secret_missing']);
