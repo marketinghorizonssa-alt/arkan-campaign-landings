@@ -85,7 +85,7 @@ if ($secret === '') throw new RuntimeException('lead_pool_secret_unavailable');
 $config = lp_json($configFile, []);
 if (!$config) throw new RuntimeException('lead_pool_config_unavailable');
 
-$baseQuality = lp_capture(__DIR__ . '/lead_quality.php', ['limit'=>'500']);
+$baseQuality = lp_capture(__DIR__ . '/lead_quality.php', ['limit'=>'5000']);
 putenv('Q2_QUERY=limit=5000');
 $contextQuality = lp_capture(__DIR__ . '/local_quality_v2.php');
 putenv('Q2_QUERY');
@@ -137,7 +137,8 @@ foreach($allLeadIds as $convId){
     $phone=lp_phone(lp_s($id['phone']??''));
     $contactId='ct_' . substr(lp_hmac($secret,$clientId,'contact',$phone!==''?$phone:$convId),0,32);
     $leadId='ld_' . substr(lp_hmac($secret,$clientId,'lead',$convId),0,32);
-    $manualTag=strtolower(lp_s($b['crm_status']??'')); $tagSource=strtolower(lp_s($b['tag_source']??''));
+    $conv=is_array($conversationStore[$convId]??null)?$conversationStore[$convId]:[];
+    $manualTag=strtolower(lp_s($conv['current_tag']??$b['crm_status']??''));$tagSource=strtolower(lp_s($conv['tag_source']??$b['tag_source']??''));
     $manual=false; $manualStage='';
     if($manualTag!=='' && $tagSource==='manual'){
         $manual=true; $manualStage=match($manualTag){'purchased','converted'=>'converted','message_received'=>'message_received','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};

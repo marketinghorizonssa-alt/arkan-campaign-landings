@@ -141,7 +141,7 @@ $clients=lq_json($clientsFile,[]);
 $conversations=lq_json($convFile,[]);
 $clientId=lq_str($_GET['client_id'] ?? '');
 $sourceFilter=strtolower(lq_str($_GET['source'] ?? ''));
-$limit=max(1,min(500,(int)($_GET['limit'] ?? 200)));
+$limit=max(1,min(PHP_SAPI==='cli'?5000:500,(int)($_GET['limit'] ?? 200)));
 $since=lq_ts(lq_str($_GET['since'] ?? ''));
 $untilRaw=lq_str($_GET['until'] ?? '');
 $until=lq_ts($untilRaw);
