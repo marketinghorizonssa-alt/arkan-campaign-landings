@@ -115,7 +115,7 @@ function sx_stage_time(array $c,string $stage):string{
   $key=$stage==='message_started'?'message_started':$stage;
   $v=sx_s($st[$key]??'');
   if($v!=='')return sx_time($v);
-  if($stage==='message_started')return sx_time(sx_s($c['first_seen_at']??$c['created_at']??''));
+  if($stage==='message_started')return sx_time(sx_s($c['first_customer_message_at']??$c['first_seen_at']??$c['created_at']??''));
   return sx_time(sx_s($c['tagged_at']??$c['updated_at']??$c['last_message_at']??''));
 }
 
@@ -137,9 +137,10 @@ foreach($convs as $convId=>$conv){
   if($src!=='google')continue;
   $hasClick=$click['value']!=='';
 
-  $rank=max(sx_rank(sx_s($conv['current_tag']??'')),sx_rank(sx_s($poolRec['stage']??'')));
+  $manual=($conv['tag_source']??'')==='manual'||!empty($conv['manual_override']);
+  $rank=$manual?sx_rank(sx_s($conv['current_tag']??'')):max(sx_rank(sx_s($conv['current_tag']??'')),sx_rank(sx_s($poolRec['stage']??'')));
   if($rank<0)$rank=0;
-  if($in>=2)$rank=max($rank,1);
+  if(!$manual&&$in>=2)$rank=max($rank,1);
   foreach(['message_started','interested','qualified','converted'] as $stage){
     if($rank<sx_stage_rank($stage))continue;
     // Message Started is the complete Google Ads lead floor. Keep Google leads

@@ -202,9 +202,9 @@ function lr_stage(array $ai,array $messages=[]): array {
     $observed=lr_observed_stage($messages);
     $observedStage=$observed['stage'];
 
-    if(!in_array($tag,['message_received','interested','qualified','converted','lost'],true))$tag='';
-    $key=$tag!==''?$tag:$observedStage;
-    if($key!=='lost'&&lr_stage_rank($observedStage)>lr_stage_rank($key))$key=$observedStage;
+    if(!in_array($tag,['message_received','interested','qualified','converted','unqualified','lost'],true))$tag='';
+    $manual=($ai['tag_source']??'')==='manual'||!empty($ai['manual_override']);$key=$tag!==''?$tag:$observedStage;
+    if(!$manual&&!in_array($key,['lost','unqualified'],true)&&lr_stage_rank($observedStage)>lr_stage_rank($key))$key=$observedStage;
 
     return [
         'key'=>$key,
@@ -213,13 +213,14 @@ function lr_stage(array $ai,array $messages=[]): array {
             'interested'=>'Interested',
             'qualified'=>'Qualified',
             'converted'=>'Converted',
+            'unqualified'=>'Unqualified',
             'lost'=>'Lost',
             default=>'Message Received'
         },
         'score'=>(int)($ai['ai_quality_score'] ?? 0),
-        'summary'=>lr_s($ai['ai_summary'] ?? '') ?: ($key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason']??'')),
+        'summary'=>$manual?'تقييم يدوي محفوظ':(lr_s($ai['ai_summary'] ?? '') ?: ($key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason']??''))),
         'reason'=>$key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason'] ?? $ai['ai_reason'] ?? ''),
-        'method'=>$tag!==''?'hub_status_plus_message_reconciliation':'message_reconciliation'
+        'manual_override'=>$manual,'method'=>$manual?'manual_override':($tag!==''?'hub_status_plus_message_reconciliation':'message_reconciliation')
     ];
 }
 function lr_client_id(array $m, string $direction, array $byPhone, array $byWaba): string {
@@ -270,7 +271,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
     }
 
     $aiByKey=[];
-    foreach ($conversationsRaw as $c) {
+    foreach ($conversationsRaw as $storedConversationId=>$c) {
         if (!is_array($c)) continue;
         $business=lr_phone($c['business_number'] ?? '');
         $waba=lr_s($c['waba_id'] ?? '');
@@ -280,7 +281,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         $key=$cid.'|'.$customer;
         $stamp=lr_s($c['ai_evaluated_at'] ?? $c['last_message_at'] ?? '');
         if (!isset($aiByKey[$key]) || strcmp($stamp, lr_s($aiByKey[$key]['_stamp'] ?? '')) >= 0) {
-            $c['_stamp']=$stamp; $aiByKey[$key]=$c;
+            $c['id']=$c['id']??(string)$storedConversationId;$c['_stamp']=$stamp; $aiByKey[$key]=$c;
         }
     }
 
@@ -373,6 +374,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         ];
         $leads[]=[
             'lead_id'=>$leadId,
+            'conversation_id'=>lr_s($convMeta['id']??''),
             'client_id'=>$t['client_id'],
             'client_name'=>$clientNames[$t['client_id']]??$t['client_id'],
             'customer_phone'=>$t['customer_phone'],

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 
-$feed='https://pcare.sa/pcare-wa-attribution-feed.php?token=HZNpcare_7R4mN2qL9xK6vT3sD8pF5wC1aG0yB4uJ';
+$feedConfig=jload(dirname(__DIR__,4).'/.marketing/pcare_click_feed.json');$feed=(string)($feedConfig['feed_url']??'');
 $hub='https://marketing.hositee.com/wa_click_attribution.php';
 $secure=dirname(__DIR__,4).'/.marketing';
 $stateFile=$secure.'/pcare_wa_attr_sync_state.json';
@@ -54,6 +54,23 @@ function click_epoch(array $row):int{
     }
     return 0;
 }
+function first_customer_epoch(array $conv):int{
+    foreach(['first_customer_message_at'] as $key){$t=strtotime((string)($conv[$key]??''));if($t)return$t;}
+    $t=strtotime((string)($conv['stage_times']['message_started']??''));if($t)return$t;
+    $times=[];foreach((array)($conv['recent_messages']??[]) as $m){
+        if(!is_array($m)||!str_contains((string)($m['direction']??''),'inbound'))continue;
+        if(in_array(strtolower((string)($m['type']??'')),['','unsupported','reaction','system','unknown','revoke','revoked'],true))continue;
+        $mt=strtotime((string)($m['at']??''));if($mt)$times[]=$mt;
+    }
+    // A truncated preview cannot establish the first-ever message time reliably.
+    if($times&&max((int)($conv['valid_inbound_count']??0),(int)($conv['inbound_count']??0))<=count($times))return min($times);
+    return strtotime((string)($conv['first_seen_at']??''))?:0;
+}
+function has_customer_message(array $conv):bool{
+    if(max((int)($conv['valid_inbound_count']??0),(int)($conv['inbound_count']??0))>0)return true;
+    foreach((array)($conv['recent_messages']??[]) as $m){if(is_array($m)&&str_contains((string)($m['direction']??''),'inbound')&&!in_array(strtolower((string)($m['type']??'')),['','unsupported','reaction','system','unknown','revoke','revoked'],true))return true;}
+    return !empty($conv['first_customer_message_at'])||!empty($conv['stage_times']['message_started']);
+}
 function copy_click_attribution(array &$conv,array $click,string $clickId):void{
     $conv['traffic_source_key']=(string)($click['traffic_source_key']??'website');
     $conv['traffic_source_label']=(string)($click['traffic_source_label']??'Website / HORIZONS Attribution');
@@ -77,6 +94,7 @@ function copy_click_attribution(array &$conv,array $click,string $clickId):void{
     foreach((array)($click['utm']??[]) as $uk=>$uv){
         if(str_starts_with((string)$uk,'utm_'))$conv[(string)$uk]=(string)$uv;
     }
+    $conv['attribution_click_at']=gmdate('c',click_epoch($click));$conv['attribution_message_at']=gmdate('c',first_customer_epoch($conv));$conv['attribution_delay_seconds']=first_customer_epoch($conv)-click_epoch($click);
     $conv['attribution_resolved_at']=gmdate('c');
     $conv['updated_at']=gmdate('c');
 }
@@ -127,8 +145,9 @@ foreach($convs as $cid=>$conv){
     $method=(string)($conv['attribution_match_method']??'');
     $retryLate=$method==='timestamp_unknown'&&(string)($conv['traffic_source_reason']??'')==='no_click_within_5m';
     if($method!=='timestamp_pending'&&!$retryLate)continue;
-    if(max((int)($conv['valid_inbound_count']??0),(int)($conv['inbound_count']??0))<1)continue;
-    $first=strtotime((string)($conv['first_seen_at']??''));
+    if(in_array(strtolower((string)($conv['traffic_source_key']??'')),['tiktok','meta','snapchat','microsoft_ads','linkedin','x'],true))continue;
+    $first=first_customer_epoch($conv);
+    if(!has_customer_message($conv))continue;
     if(!$first)continue;
     $pending[$cid]=['first'=>$first,'business'=>norm_phone((string)($conv['business_number']??'')),'client'=>$convClient];
 }
@@ -162,8 +181,8 @@ foreach($closedClicks as $clickId=>$meta){
         foreach($convs as $otherId=>$otherConv){
             if((string)$otherId===(string)$candidateId||!is_array($otherConv))continue;
             if((string)($otherConv['client_id']??'')!==($meta['client']??''))continue;
-            if(max((int)($otherConv['valid_inbound_count']??0),(int)($otherConv['inbound_count']??0))<1)continue;
-            $otherFirst=strtotime((string)($otherConv['first_seen_at']??''));
+            if(!has_customer_message($otherConv))continue;
+            $otherFirst=first_customer_epoch($otherConv);
             $otherBusiness=norm_phone((string)($otherConv['business_number']??''));
             if($meta['business']!==''&&$otherBusiness!==''&&$meta['business']!==$otherBusiness)continue;
             if($otherFirst&&$otherFirst>=$meta['t']&&$otherFirst<=$meta['t']+300){$otherSender=true;break;}

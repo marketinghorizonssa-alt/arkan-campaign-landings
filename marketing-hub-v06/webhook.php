@@ -591,6 +591,11 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'utm_marketing_tactic'=>(string)($chatClick['utm_marketing_tactic']??($prev['utm_marketing_tactic']??'')),
         'inbound_count'=>$inbound,'valid_inbound_count'=>$validInbound,'outbound_count'=>$outbound,'recent_messages'=>$recent,'last_customer_reply_to_staff'=>$repliedToStaff,'updated_at'=>gmdate('c')
     ]);
+    if(!$history&&$validMessage&&empty($conv['first_customer_message_at'])){
+        $conv['first_customer_message_at']=$prev['stage_times']['message_started']??((int)($prev['valid_inbound_count']??0)===0?$sentAt:($prev['first_seen_at']??$sentAt));
+        $conv['stage_times']=is_array($conv['stage_times']??null)?$conv['stage_times']:[];
+        if(empty($conv['stage_times']['message_started']))$conv['stage_times']['message_started']=$conv['first_customer_message_at'];
+    }
     if($isNew&&!$history){
         add_conversion_event($conversionFile,$conv,'message_received',$eventId,['origin'=>'whatsapp_inbound','source'=>'automation']);$conversionCreated++;
     }
@@ -610,7 +615,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         google_queue_event($googleConversionQueueFile,$conv,'message_sent',$sentAt,$eventId);
         $conv['google_message_sent_queued_at']=gmdate('c');
     }
-    if(!$history){
+    if(!$history&&($conv['tag_source']??'')!=='manual'&&empty($conv['manual_override'])){
         $rules=automation_rules($automationRulesFile,(string)($conv['client_id']??''));if(!$rules)$rules=default_rules();
         $decision=classify_auto($conv,$repliedToStaff,$text,$msgType,$rules);
         if($decision&&apply_auto_label($conv,$decision,$conversionFile,$deliveryFile,$eventId,$ycloudSecureDir,$legacyKeyFile)){

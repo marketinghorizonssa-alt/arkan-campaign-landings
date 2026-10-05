@@ -114,7 +114,7 @@ function r_apply_click(array &$c,array $click,string $clickId,string $method):vo
   $sc=r_s($click['scclid']??$click['ScCid']??'');if($sc!=='')$c['snapchat_scclid']=$sc;
   foreach((array)($click['utm']??[])as$k=>$v)if(str_starts_with((string)$k,'utm_'))$c[(string)$k]=r_s($v);
 }
-function r_rank(string $s):int{return match(strtolower($s)){'message_received'=>0,'interested'=>1,'qualified'=>2,'purchased','converted'=>3,'lost'=>90,default=>-1};}
+function r_rank(string $s):int{return match(strtolower($s)){'message_received'=>0,'interested'=>1,'qualified'=>2,'purchased','converted'=>3,'lost','unqualified'=>-1,default=>-1};}
 function r_event_keys(string $f):array{
   $out=[];if(!is_file($f))return$out;$h=fopen($f,'rb');
   while(($line=fgets($h))!==false){$r=json_decode($line,true);if(!is_array($r))continue;$id=r_s($r['conversation_id']??'');$e=r_s($r['event']??'');if($id!==''&&$e!=='')$out[$id.'|'.$e]=true;}
@@ -195,7 +195,7 @@ foreach($state as $convId=>$s){
   $prev=is_array($old[$convId]??null)?$old[$convId]:[];$c=$prev;
   $c['id']=$convId;$c['client_id']=$s['client_id'];$c['ycloud_connection_id']=$s['connection'];$c['waba_id']=$s['waba'];
   $c['business_number']=$s['business'];$c['customer_number']=$s['customer'];$c['contact_name']=$s['name']!==''?$s['name']:r_s($prev['contact_name']??$s['customer']);
-  $c['first_seen_at']=r_iso($s['first_in']);$c['last_message_at']=r_iso($s['last']);$last=end($s['messages']);
+  $c['first_seen_at']=r_iso($s['first_in']);$c['first_customer_message_at']=r_iso($s['first_in']);$c['last_message_at']=r_iso($s['last']);$last=end($s['messages']);
   $c['last_message_text']=$last['text'];$c['last_message_type']=$last['type'];$c['last_direction']=$last['direction']==='inbound'?'inbound':'outbound_app';
   $c['inbound_count']=$s['inbound'];$c['valid_inbound_count']=$s['valid_inbound'];$c['outbound_count']=$s['outbound'];
   $recent=array_slice($s['messages'],-80);
@@ -238,8 +238,8 @@ foreach($state as $convId=>$s){
   $manual=strtolower(r_s($prev['tag_source']??''))==='manual';
   $current=$manual?r_s($prev['current_tag']??$autoStage):$autoStage;
   if($current==='purchased')$current='converted';
-  if($manual&&r_rank($current)<r_rank($autoStage))$current=$autoStage;
-  $c['current_tag']=$current;$c['tag_source']=$manual?'manual':'automation';$c['stage_times']=$stageTimes;$c['tagged_at']=$stageTimes[$current]??r_iso($s['last']);
+  // Manual corrections are authoritative, including downward changes and Unqualified.
+  $c['current_tag']=$current;$c['tag_source']=$manual?'manual':'automation';$c['stage_times']=$manual?array_replace($stageTimes,(array)($prev['stage_times']??[])):$stageTimes;$c['tagged_at']=$stageTimes[$current]??r_iso($s['last']);
   $c['auto_label_reason']=match($current){'message_received'=>'first_valid_customer_message','interested'=>'two_valid_customer_messages','qualified'=>'three_plus_messages_two_way_serious_intent','converted'=>'explicit_completed_business_outcome',default=>r_s($prev['auto_label_reason']??'')};
   $c['auto_label_confidence']=match($current){'message_received'=>1.0,'interested'=>0.96,'qualified'=>0.93,'converted'=>0.99,default=>(float)($prev['auto_label_confidence']??0.8)};
   $c['updated_at']=gmdate('c');

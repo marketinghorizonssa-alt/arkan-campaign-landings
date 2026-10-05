@@ -143,7 +143,7 @@ if(is_array($known)){
   $numbers=is_array($known['business_numbers']??null)?$known['business_numbers']:[];
   if($businessNumber===''&&count($numbers)===1)$businessNumber=(string)$numbers[0];
   if($numbers){
-    $ok=false;foreach($numbers as $n){if(normalize_digits((string)$n)===normalize_digits($businessNumber)){$ok=true;break;}}
+    $ok=false;foreach($numbers as $n){if(normalize_digits((string)$n)===normalize_digits($businessNumber)){$businessNumber=(string)$n;$ok=true;break;}}
     if(!$ok){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'business_number_mismatch']);exit;}
   }
 }else{
@@ -161,7 +161,7 @@ $clickId=clean_scalar($j['click_id']??'',160);
 $mint=!empty($j['mint_horizons_token']);
 if($clickId==='' && preg_match('/(clk_[A-Za-z0-9_-]{4,120})/',$token,$m))$clickId=$m[1];
 if($mint){
-  $clickId='clk_'.bin2hex(random_bytes(12));
+  $interactionId=clean_scalar($j['interaction_id']??'',160);$clickId=$interactionId!==''?'clk_'.substr(hash('sha256',$clientId.'|'.$businessNumber.'|'.$interactionId),0,24):'clk_'.bin2hex(random_bytes(12));
   $token=hzn_token(hzn_secret($tokenSecretFile),$clientId,$clickId,$businessNumber);
 }elseif($clickId===''||!preg_match('/^clk_[A-Za-z0-9_-]{4,120}$/',$clickId)){
   http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_click_id']);exit;
@@ -179,7 +179,10 @@ if(!$current)$current=['params'=>$query];
 $currentParams=flatten_params($current);
 $lastParams=flatten_params($last);
 $firstParams=flatten_params($first);
-$maps=[$currentParams,$lastParams,$firstParams,$query];
+// Choose one recent campaign touch, preserving its identifiers together.
+$maps=[$currentParams,$query,$lastParams,$firstParams];$selected=[];
+foreach($maps as $map){$has=false;foreach($map as $key=>$value){if($value!==''&&preg_match('/^(utm_|gclid$|gbraid$|wbraid$|dclid$|fbclid$|ttclid$|scclid$|ScCid$|msclkid$|li_fat_id$|twclid$|gad_source$|gad_campaignid$)/',(string)$key)){$has=true;break;}}if($has){$selected=$map;break;}}
+$maps=[$selected];
 
 $sourceUrl=clean_scalar($j['source_url']??$current['url']??$j['page_url']??'',8192);
 $pageUrl=clean_scalar($j['page_url']??$current['url']??$sourceUrl,8192);
@@ -197,7 +200,7 @@ $flat=[];
 foreach($known as $k){$v=first_nonempty($maps,$k);if($v!=='')$flat[$k]=$v;}
 
 $utm=[];
-$allMaps=array_merge($firstParams,$lastParams,$currentParams,$query);
+$allMaps=$selected;
 foreach($allMaps as $k=>$v){
   if(str_starts_with(strtolower((string)$k),'utm_'))$utm[(string)$k]=clean_scalar($v,2048);
 }
@@ -235,12 +238,13 @@ $record=[
 $record=array_merge($record,$flat);
 foreach($utm as $k=>$v)$record[$k]=$v;
 
+$mapLock=fopen($secure.'/wa_click_map.lock','c');if(!$mapLock||!flock($mapLock,LOCK_EX)){http_response_code(503);echo json_encode(['ok'=>false,'error'=>'click_map_busy']);exit;}
 $all=load_json_file($mapFile);
 $prev=is_array($all[$clickId]??null)?$all[$clickId]:[];
-$record['created_at']=$prev['created_at']??$record['captured_at'];
+$record['created_at']=$prev['created_at']??$record['captured_at'];if(!empty($prev['browser_time']))$record['browser_time']=$prev['browser_time'];
 $all[$clickId]=array_replace_recursive($prev,$record);
 if(!save_json_file($mapFile,$all)){http_response_code(500);echo json_encode(['ok'=>false,'error'=>'write_failed']);exit;}
-append_jsonl_file($logFile,$record);
+flock($mapLock,LOCK_UN);fclose($mapLock);append_jsonl_file($logFile,$record);
 
 // Event ordering is not guaranteed: if the WhatsApp webhook arrived milliseconds before
 // this browser attribution request, backfill the already-created conversation now.

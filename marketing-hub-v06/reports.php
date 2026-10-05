@@ -66,7 +66,7 @@
 <script>
 const $=id=>document.getElementById(id);let R=null;
 const sourceClass=k=>({meta:'meta',tiktok:'tiktok',google:'google',snapchat:'snapchat',organic:'organic'}[k]||'');
-const stageClass=k=>({message_received:'message_received',qualified:'qualified',interested:'interested',converted:'converted',lost:'lost',new:'new'}[k]||'new');
+const stageClass=k=>({message_received:'message_received',qualified:'qualified',interested:'interested',converted:'converted',unqualified:'lost',lost:'lost',new:'new'}[k]||'new');
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function iso(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),x=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+x}
 function preset(k){const n=new Date(),a=new Date(n);if(k==='yesterday'){a.setDate(n.getDate()-1);$('from').value=$('to').value=iso(a)}else if(k==='two'){a.setDate(n.getDate()-1);$('from').value=iso(a);$('to').value=iso(n)}else{$('from').value=$('to').value=iso(n)}}
@@ -86,13 +86,19 @@ function attributionHtml(l){
  if((a.touch_history||[]).length)add('Journey touches',(a.touch_history||[]).map(x=>({url:x.url,at:x.at,params:x.params})));
  return rows.length?'<div class="attrbox"><b>Attribution / UTM Journey</b><div class="attrgrid" style="margin-top:9px">'+rows.join('')+'</div></div>':'';
 }
+function evaluationHtml(l,i){
+ if(!l.conversation_id)return '<div class="notice">التقييم اليدوي يظهر بعد ربط المحادثة بالسجل.</div>';
+ const options=[['message_received','Message Received'],['interested','Interested'],['qualified','Qualified'],['unqualified','Unqualified'],['converted','Converted'],['lost','Lost'],['auto','التقييم التلقائي']];
+ return '<div class="attrbox"><b>تغيير التقييم يدويًا</b><div class="toolbar" style="margin-top:10px"><select class="select" id="evaluation_'+i+'">'+options.map(([key,label])=>'<option value="'+key+'" '+(key===l.quality.key?'selected':'')+'>'+label+'</option>').join('')+'</select><button class="btn primary" onclick="saveEvaluation('+i+')">حفظ التقييم</button></div><div class="status" style="margin-top:8px">'+(l.quality.manual_override?'اختيارك اليدوي محفوظ.':'اختيارك اليدوي له الأولوية على التقييم التلقائي.')+'</div></div>';
+}
+async function saveEvaluation(i){const lead=R?.leads?.[i];if(!lead?.conversation_id)return;const select=$('evaluation_'+i);select.disabled=true;try{await j('api.php?action=tag',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id:lead.conversation_id,tag:select.value})});await runReport();toggleDetail(i);toast('تم حفظ التقييم')}catch(e){toast('تعذر حفظ التقييم: '+e.message)}finally{select.disabled=false}}
 function render(){const s=R.summary||{},q=s.quality||{};$('mNew').textContent=s.new_customers??0;$('mPaid').textContent=s.paid_ads??0;$('mOrganic').textContent=s.organic??0;$('mMessageReceived').textContent=q.message_received??0;$('mInterested').textContent=q.interested??0;$('mQualified').textContent=q.qualified??0;$('mConverted').textContent=q.converted??0;$('generated').textContent='آخر تحديث: '+(R.generated_at||'');$('definition').textContent=R.definition||'';
 const labels={meta:'Meta Ads',tiktok:'TikTok Ads',google:'Google Ads',snapchat:'Snapchat Ads',microsoft_ads:'Microsoft Ads',linkedin:'LinkedIn Ads',x:'X Ads',referral:'Referral',organic:'Organic / Direct'};
 $('sources').innerHTML=Object.entries(s.sources||{}).map(([k,v])=>'<span class="badge '+sourceClass(k)+'">'+esc(labels[k]||k)+' '+v+'</span>').join('')||'<span class="muted">لا توجد إحالات</span>';
 if(!(R.leads||[]).length){$('tableWrap').innerHTML='<div class="empty">مفيش عملاء جدد لأول مرة في الفترة دي.</div>';return}
 let h='<div style="overflow:auto"><table><thead><tr><th>#</th><th>الرقم</th><th>أول تواصل</th><th>المصدر</th><th>الحالة</th><th>Score</th><th>الرسائل</th><th>ملخص</th></tr></thead><tbody>';
 R.leads.forEach((l,i)=>{h+='<tr class="leadrow" onclick="toggleDetail('+i+')"><td>'+(i+1)+'</td><td class="phone">'+esc(l.customer_phone)+'</td><td>'+esc(l.first_contact_at)+'</td><td><span class="badge '+sourceClass(l.source.key)+'">'+esc(l.source.label)+'</span><div class="muted" style="font-size:11px">'+esc(l.source.confidence)+'</div></td><td><span class="badge '+stageClass(l.quality.key)+'">'+esc(l.quality.label)+'</span></td><td>'+esc(l.quality.score)+'</td><td>'+esc(l.message_count)+'</td><td>'+esc(l.quality.summary||l.quality.reason||'—')+'</td></tr>';
-h+='<tr class="details" id="d'+i+'"><td colspan="8">'+attributionHtml(l)+'<div class="conv">'+(l.messages||[]).map(m=>'<div class="msg '+esc(m.direction)+'"><div>'+esc(m.text||('['+m.type+']'))+'</div><div class="msgmeta">'+esc(m.at)+' • '+esc(m.direction)+' • '+esc(m.type)+'</div></div>').join('')+'</div></td></tr>'});
+h+='<tr class="details" id="d'+i+'"><td colspan="8">'+evaluationHtml(l,i)+attributionHtml(l)+'<div class="conv">'+(l.messages||[]).map(m=>'<div class="msg '+esc(m.direction)+'"><div>'+esc(m.text||('['+m.type+']'))+'</div><div class="msgmeta">'+esc(m.at)+' • '+esc(m.direction)+' • '+esc(m.type)+'</div></div>').join('')+'</div></td></tr>'});
 h+='</tbody></table></div>';$('tableWrap').innerHTML=h}
 function toggleDetail(i){const x=$('d'+i);if(x)x.classList.toggle('open')}
 function downloadCsv(){if(!R){toast('شغّل التقرير الأول');return}const c=$('client').value,f=$('from').value,t=$('to').value;location.href='lead_report_api.php?action=csv&client_id='+encodeURIComponent(c)+'&from='+encodeURIComponent(f)+'&to='+encodeURIComponent(t)}

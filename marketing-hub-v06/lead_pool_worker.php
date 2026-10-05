@@ -139,8 +139,8 @@ foreach($allLeadIds as $convId){
     $leadId='ld_' . substr(lp_hmac($secret,$clientId,'lead',$convId),0,32);
     $manualTag=strtolower(lp_s($b['crm_status']??'')); $tagSource=strtolower(lp_s($b['tag_source']??''));
     $manual=false; $manualStage='';
-    if($manualTag!=='' && $tagSource!=='automation'){
-        $manual=true; $manualStage=match($manualTag){'purchased'=>'converted','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
+    if($manualTag!=='' && $tagSource==='manual'){
+        $manual=true; $manualStage=match($manualTag){'purchased','converted'=>'converted','message_received'=>'message_received','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
     }
     $calibrated=(bool)($cfg['quality_calibrated']??false);
     $conv=is_array($conversationStore[$convId]??null)?$conversationStore[$convId]:[];
@@ -189,8 +189,12 @@ foreach($clients as $clientId=>$bundle){
     foreach($records as $leadId=>$r){
         $stage=$r['stage'];$source=$r['source'];$stageSource[$stage][$source][]=$r;
         $prev=is_array($previous[$leadId]??null)?$previous[$leadId]:[]; $prevStage=lp_s($prev['stage']??'');
-        if(!$firstRun && $prevStage!=='' && $prevStage!==$stage && in_array($stage,$exportStages,true)){
-            $eventId='ev_' . substr(lp_hmac($secret,$clientId,$leadId,$prevStage,$stage,lp_s($r['last_seen_at'])),0,32);
+        $effectivePrev=$prevStage!==''?$prevStage:'new';
+        $sentStages=is_array($prev['sent_stages']??null)?array_values(array_unique(array_map('strval',$prev['sent_stages']))):[];
+        if($prevStage!=='' && !array_key_exists('sent_stages',$prev) && in_array($prevStage,$exportStages,true)) $sentStages[]=$prevStage;
+        $shouldRoute=!$firstRun && $effectivePrev!==$stage && in_array($stage,$exportStages,true) && !in_array($stage,$sentStages,true);
+        if($shouldRoute){
+            $eventId='ev_' . substr(lp_hmac($secret,$clientId,$leadId,$effectivePrev,$stage,lp_s($r['last_seen_at'])),0,32);
             $polarity=lp_s($config['stage_polarity'][$stage]??'neutral'); $origin=$source;
             $broadcastAll=(bool)($cfg['broadcast_qualified_to_all_platforms']??false);
             if($broadcastAll && in_array($stage,['qualified','converted'],true)){
@@ -221,8 +225,10 @@ foreach($clients as $clientId=>$bundle){
                     lp_append_jsonl($dir.'/routing_outbox.jsonl',$route); if($status==='queued')$result['routes_queued']++;else$result['routes_blocked_consent']++;
                 }
             }
+            $sentStages[]=$stage;$sentStages=array_values(array_unique($sentStages));
         }
-        $nextState[$leadId]=['stage'=>$stage,'source'=>$source,'last_seen_at'=>$r['last_seen_at'],'updated_at'=>gmdate('c')];
+        if($firstRun && in_array($stage,$exportStages,true) && !in_array($stage,$sentStages,true))$sentStages[]=$stage;
+        $nextState[$leadId]=['stage'=>$stage,'source'=>$source,'last_seen_at'=>$r['last_seen_at'],'sent_stages'=>array_values(array_unique($sentStages)),'updated_at'=>gmdate('c')];
     }
     foreach(($config['stages']??[]) as $stage)foreach(($config['sources']??[]) as $source)lp_write_jsonl($dir.'/stages/'.$stage.'/'.$source.'.jsonl',$stageSource[$stage][$source]??[]);
     lp_atomic_json($dir.'/current.json',['client_id'=>$clientId,'generated_at'=>gmdate('c'),'records'=>$records]);
