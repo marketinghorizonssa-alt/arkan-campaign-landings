@@ -520,7 +520,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
                 save_json($chatlinkClicksFile,$clicks);
             }
         }
-    }elseif($isNew&&!$history&&$clientId!==''){
+    }elseif(!$history&&$clientId!==''&&valid_customer_message_type($msgType)&&(int)($prev['valid_inbound_count']??0)===0&&recent_valid_inbound_count((array)($prev['recent_messages']??[]))===0){
         // Any configured client: defer timestamp attribution until the complete click window is closed.
         $traffic=[
             'key'=>'unknown',
@@ -592,7 +592,11 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'inbound_count'=>$inbound,'valid_inbound_count'=>$validInbound,'outbound_count'=>$outbound,'recent_messages'=>$recent,'last_customer_reply_to_staff'=>$repliedToStaff,'updated_at'=>gmdate('c')
     ]);
     if(!$history&&$validMessage&&empty($conv['first_customer_message_at'])){
-        $conv['first_customer_message_at']=$prev['stage_times']['message_started']??((int)($prev['valid_inbound_count']??0)===0?$sentAt:($prev['first_seen_at']??$sentAt));
+        $firstAt=(string)($prev['stage_times']['message_started']??'');
+        $firstTimes=[];foreach((array)($prev['recent_messages']??[]) as $oldMessage){if(is_array($oldMessage)&&str_contains((string)($oldMessage['direction']??''),'inbound')&&valid_customer_message_type((string)($oldMessage['type']??''))){$oldTime=strtotime((string)($oldMessage['at']??''));if($oldTime)$firstTimes[]=$oldTime;}}
+        if($firstAt===''&&$firstTimes&&(int)($prev['valid_inbound_count']??0)<=count($firstTimes))$firstAt=gmdate('c',min($firstTimes));
+        if($firstAt==='')$firstAt=(int)($prev['valid_inbound_count']??0)===0?$sentAt:(string)($prev['first_seen_at']??$sentAt);
+        $conv['first_customer_message_at']=$firstAt;
         $conv['stage_times']=is_array($conv['stage_times']??null)?$conv['stage_times']:[];
         if(empty($conv['stage_times']['message_started']))$conv['stage_times']['message_started']=$conv['first_customer_message_at'];
     }
