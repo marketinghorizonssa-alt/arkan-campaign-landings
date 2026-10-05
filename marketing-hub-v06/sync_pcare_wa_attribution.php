@@ -124,7 +124,10 @@ foreach($convs as $cid=>$conv){
     if(!is_array($conv))continue;
     $convClient=(string)($conv['client_id']??'');
     if(!isset($attributionClients[$convClient]))continue;
-    if((string)($conv['attribution_match_method']??'')!=='timestamp_pending')continue;
+    $method=(string)($conv['attribution_match_method']??'');
+    $retryLate=$method==='timestamp_unknown'&&(string)($conv['traffic_source_reason']??'')==='no_click_within_5m';
+    if($method!=='timestamp_pending'&&!$retryLate)continue;
+    if(max((int)($conv['valid_inbound_count']??0),(int)($conv['inbound_count']??0))<1)continue;
     $first=strtotime((string)($conv['first_seen_at']??''));
     if(!$first)continue;
     $pending[$cid]=['first'=>$first,'business'=>norm_phone((string)($conv['business_number']??'')),'client'=>$convClient];
@@ -132,7 +135,8 @@ foreach($convs as $cid=>$conv){
 
 $closedClicks=[];
 foreach($clicks as $clickId=>$row){
-    if(!is_array($row)||!empty($row['matched_at']))continue;
+    if(!is_array($row))continue;
+    if(!empty($row['matched_at'])&&(string)($row['match_method']??'')!=='expired_no_message')continue;
     $clickClient=(string)($row['client_id']??'');
     if(!isset($attributionClients[$clickClient]))continue;
     $t=click_epoch($row);
@@ -153,6 +157,18 @@ foreach($closedClicks as $clickId=>$meta){
     }
 
     if(count($candidates)===1){
+        // A late record must not borrow a click that could belong to another sender.
+        $candidateId=$candidates[0];$otherSender=false;
+        foreach($convs as $otherId=>$otherConv){
+            if((string)$otherId===(string)$candidateId||!is_array($otherConv))continue;
+            if((string)($otherConv['client_id']??'')!==($meta['client']??''))continue;
+            if(max((int)($otherConv['valid_inbound_count']??0),(int)($otherConv['inbound_count']??0))<1)continue;
+            $otherFirst=strtotime((string)($otherConv['first_seen_at']??''));
+            $otherBusiness=norm_phone((string)($otherConv['business_number']??''));
+            if($meta['business']!==''&&$otherBusiness!==''&&$meta['business']!==$otherBusiness)continue;
+            if($otherFirst&&$otherFirst>=$meta['t']&&$otherFirst<=$meta['t']+300){$otherSender=true;break;}
+        }
+        if($otherSender)continue;
         $cid=$candidates[0];
         // A conversation must itself have exactly one closed click in the prior 5 minutes.
         $candidateClicks=[];
@@ -202,7 +218,7 @@ foreach($pending as $cid=>$p){
     $hasAny=false;
     foreach($clicks as $row){
         if(!is_array($row)||(string)($row['client_id']??'')!==($p['client']??''))continue;
-        $t=strtotime((string)($row['captured_at']??''));
+        $t=click_epoch($row);
         if(!$t||$t>$p['first']||$t<$p['first']-300)continue;
         $b=norm_phone((string)($row['business_number']??''));
         if($b!==''&&$p['business']!==''&&$b!==$p['business'])continue;

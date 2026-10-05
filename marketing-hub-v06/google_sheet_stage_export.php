@@ -88,10 +88,10 @@ function sx_click(array $c,array $clicks,array $poolRec=[]):array{
   foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
     $v=sx_s($p[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
   }
-  foreach(['chatlink_source_url','attribution_source_url','attribution_landing_url','source_url','landing_url','referrer'] as $uk){
+  foreach(['ycloud_inbound_source_url','ycloud_contact_source_url','ycloud_message_source_url','chatlink_source_url','attribution_source_url','attribution_landing_url','source_url','landing_url','referrer'] as $uk){
     $x=sx_url_click(sx_s($c[$uk]??'')); if($x['value']!=='')return$x;
   }
-  $clickId=sx_s($c['horizons_wa_click_id']??$c['ycloud_chatlink_click_id']??'');
+  $clickId=sx_s($c['horizons_wa_click_id']??'');if($clickId==='')$clickId=sx_s($c['ycloud_chatlink_click_id']??'');
   $cl=is_array($clicks[$clickId]??null)?$clicks[$clickId]:[];
   foreach([['gclid','gclid'],['gbraid','gbraid'],['wbraid','wbraid']] as [$k,$t]){
     $v=sx_s($cl[$k]??'');if($v!=='')return['type'=>$t,'value'=>$v];
@@ -133,8 +133,8 @@ foreach($convs as $convId=>$conv){
   // Organic/other-platform leads belong in Lead Pool, not these tabs.
   $poolRec=is_array($poolMaps[$cid][(string)$convId]??null)?$poolMaps[$cid][(string)$convId]:[];
   $src=strtolower(sx_s($conv['traffic_source_key']??($poolRec['source']??'')));
-  if($src!=='google')continue;
   $click=sx_click($conv,$clicks,$poolRec);
+  if($src!=='google')continue;
   $hasClick=$click['value']!=='';
 
   $rank=max(sx_rank(sx_s($conv['current_tag']??'')),sx_rank(sx_s($poolRec['stage']??'')));
