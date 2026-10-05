@@ -191,7 +191,7 @@ window.HORIZONS_WA_ATTR={clientId:"cl_3ea5ae96e05c6b",businessNumber:"+966537033
       const originalHref=a.href||'';
       const isWhatsapp=rawName==='click_whatsapp';
 
-      if(isWhatsapp&&!window.__HORIZONS_WA_ATTR_V1__){
+      if(isWhatsapp&&!(window.__HORIZONS_WA_ATTR_V1__&&e.defaultPrevented)){
         e.preventDefault();
         let win=null;
         try{win=window.open('about:blank','_blank');if(win)win.opener=null;}catch(_){}

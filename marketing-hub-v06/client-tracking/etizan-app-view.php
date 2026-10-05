@@ -112,6 +112,7 @@ function etizan_render(string $path):never{
 <div class="floating" aria-label="تواصل سريع"><a class="float-wa track-wa" href="https://wa.me/<?=eh($x['wa'])?>?text=<?=$wt?>" aria-label="واتساب فرع <?=eh($x['city'])?>" title="واتساب"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.7 13.7L3 21l4.4-1.2A9 9 0 1 0 12 3Z"/><path d="M8.2 7.6c.4 3.9 3.3 6.8 7.2 7.2l1.3-1.8-2.6-1.2-.8 1c-1.5-.6-2.7-1.8-3.3-3.3l1-1-1.2-2.5-1.6 1.6Z"/></svg></a><a class="float-call track-call" href="tel:+<?=eh($x['phone'])?>" aria-label="اتصال بفرع <?=eh($x['city'])?>" title="اتصال"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.7 15.7 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.8 21 3 13.2 3 3.7c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.2 1.1l-2.3 2.2Z"/></svg></a></div><script>
 window.HORIZONS_WA_ATTR={
   clientId:"cl_cbb797950cc8d4",
+  businessNumbers:["+966552491110","+966559451110"],
   businessNumber:"+<?=eh($x['wa'])?>",
   endpoint:"https://marketing.hositee.com/wa_click_attribution.php",
   timeoutMs:2500
