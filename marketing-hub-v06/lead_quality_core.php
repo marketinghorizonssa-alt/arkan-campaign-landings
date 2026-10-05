@@ -88,6 +88,8 @@ function lq_extract_ids(string $haystack, array $params=[]): array {
 }
 function lq_ascii_compact(string $s): string { return strtolower(preg_replace('/[^a-z0-9]+/i', '', $s) ?? ''); }
 function lq_source(array $lead): array {
+    $stored=lq_str($lead['stored_source']??'');$confidence=lq_str($lead['stored_source_confidence']??'');
+    if(in_array($stored,['google','meta','tiktok','snapchat','microsoft_ads','linkedin','x'],true)&&in_array($confidence,['high','medium'],true))return ['source'=>$stored,'confidence'=>$confidence,'reason'=>lq_str($lead['stored_source_reason']??'crm_attribution')];
     $r = $lead['referral'] ?? [];
     $url = strtolower(lq_str($r['source_url'] ?? ''));
     $head = strtolower(lq_clean_text(lq_str(($r['headline'] ?? '') . ' ' . ($r['body'] ?? '')), 500));
@@ -172,7 +174,8 @@ foreach ($conversations as $k=>$c) {
         'first_message_raw'=>'','first_inbound_ts'=>null,'first_outbound_ts'=>null,'first_response_seconds'=>null,
         'seen_outbound'=>false,'raw_replied_after_staff'=>false,
         'referral'=>['source_url'=>'','source_id'=>'','source_type'=>'','headline'=>'','body'=>'','media_type'=>'','image_url'=>'','ctwa_clid'=>lq_str($c['ctwa_clid'] ?? '')],
-        'tracking'=>[], 'raw_inbound_count'=>0,'raw_outbound_count'=>0
+        'stored_source'=>lq_str($c['traffic_source_key']??''),'stored_source_confidence'=>lq_str($c['traffic_source_confidence']??''),'stored_source_reason'=>lq_str($c['traffic_source_reason']??''),
+        'tracking'=>array_filter(array_merge((array)($c['attribution_params']??[]),(array)($c['attribution_utm']??[]),['gclid'=>lq_str($c['google_gclid']??''),'gbraid'=>lq_str($c['google_gbraid']??''),'wbraid'=>lq_str($c['google_wbraid']??''),'ttclid'=>lq_str($c['tiktok_ttclid']??''),'fbclid'=>lq_str($c['meta_fbclid']??''),'scclid'=>lq_str($c['snapchat_scclid']??'')]),static fn($v)=>$v!==''&&$v!==null), 'raw_inbound_count'=>0,'raw_outbound_count'=>0
     ];
 }
 

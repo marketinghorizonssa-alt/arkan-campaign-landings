@@ -187,7 +187,9 @@ $maps=[$selected];
 $sourceUrl=clean_scalar($j['source_url']??$current['url']??$j['page_url']??'',8192);
 $pageUrl=clean_scalar($j['page_url']??$current['url']??$sourceUrl,8192);
 $referrer=clean_scalar($j['referrer']??$current['referrer']??$first['referrer']??'',8192);
-$src=detect_source($maps,$sourceUrl,$referrer);
+// Explicit recent campaign identifiers take precedence over historical referrer URLs.
+$explicitPlatform=false;foreach(['gclid','gbraid','wbraid','dclid','fbclid','ttclid','scclid','ScCid','msclkid','li_fat_id','twclid','utm_source','utm_source_platform'] as $key){if(!empty($selected[$key])){$explicitPlatform=true;break;}}
+$src=detect_source($maps,$sourceUrl,$explicitPlatform?'':$referrer);
 
 $known=[
  'gclid','gbraid','wbraid','dclid','gad_source','gad_campaignid',

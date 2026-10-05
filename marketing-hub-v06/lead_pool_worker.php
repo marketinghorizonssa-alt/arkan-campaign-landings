@@ -156,8 +156,11 @@ foreach($allLeadIds as $convId){
     elseif($attrLead!==''&&isset($byAttrLead[$attrLead])){$attr=$byAttrLead[$attrLead];$join='lead_id';}
     $tracking=is_array($attr['tracking']??null)?$attr['tracking']:[];
     $source=$attr?lp_source(lp_s($attr['source']??'')):lp_source(lp_s(($e['source']['source']??null)?:($b['source']??($conv['traffic_source_key']??''))));
-    $sourceConfidence=$attr?'high':lp_s(($e['source']['confidence']??null)?:($b['source_confidence']??'low'));
-    $sourceReason=$attr?('server_attribution_'.$join):lp_s(($e['source']['reason']??null)?:($b['source_reason']??'no_evidence'));
+    $confirmedSource=strtolower(lp_s($conv['traffic_source_key']??''));$confirmedConfidence=lp_s($conv['traffic_source_confidence']??'');
+    $useConfirmed=in_array($confirmedSource,['google','meta','tiktok','snapchat','microsoft_ads','linkedin','x'],true)&&in_array($confirmedConfidence,['high','medium'],true);
+    if($useConfirmed)$source=$confirmedSource;
+    $sourceConfidence=$useConfirmed?$confirmedConfidence:($attr?'high':lp_s(($e['source']['confidence']??null)?:($b['source_confidence']??'low')));
+    $sourceReason=$useConfirmed?lp_s($conv['traffic_source_reason']??'crm_attribution'):($attr?('server_attribution_'.$join):lp_s(($e['source']['reason']??null)?:($b['source_reason']??'no_evidence')));
     $native=[
         'gclid'=>lp_s($tracking['gclid']??($conv['google_gclid']??'')),
         'wbraid'=>lp_s($tracking['wbraid']??($conv['google_wbraid']??'')),
