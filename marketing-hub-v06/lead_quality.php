@@ -23,10 +23,10 @@ function lq_boot_fetch(string $url, string $dest, string $kind): bool {
 $core = $bootDir . '/lead_quality_core.php';
 $required = ['lead_pool_worker.php','lead_pool_dispatcher.php','lead_pool_patch_v2.php','lead_pool_cutover.php','lead_pool_config.json','platform_stage_config.json','quality_rules_v2.json'];
 $missing = false; foreach ($required as $f) if (!is_file($bootDir.'/'.$f)) $missing = true;
-$needsBootstrap = !is_file($marker) || !is_file($core) || $missing;
+$needsBootstrap = !is_file($core) || $missing;
 if ($needsBootstrap) {
     $rawBase = 'https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/marketing-deploy/marketing-hub-v06';
-    $coreUrl = 'https://raw.githubusercontent.com/marketinghorizonssa-alt/arkan-campaign-landings/6b4f07bb1765128aac513d130624201f4cae9cef/marketing-hub-v06/lead_quality.php';
+    $coreUrl = $rawBase.'/lead_quality_core.php';
     $files = [
         [$coreUrl, $core, 'php'],
         [$rawBase.'/local_quality_v2.php', $bootDir.'/local_quality_v2.php', 'php'],
@@ -40,7 +40,7 @@ if ($needsBootstrap) {
         [$rawBase.'/quality_rules_v2.json', $bootDir.'/quality_rules_v2.json', 'json']
     ];
     $ok = true;
-    foreach ($files as [$url,$dest,$kind]) if (!lq_boot_fetch($url,$dest,$kind)) $ok = false;
+    foreach ($files as [$url,$dest,$kind]) if (!is_file($dest) && !lq_boot_fetch($url,$dest,$kind)) $ok = false;
     if ($ok && PHP_SAPI === 'cli') {
         try {
             ob_start(); include $bootDir.'/lead_pool_patch_v2.php'; ob_end_clean();
