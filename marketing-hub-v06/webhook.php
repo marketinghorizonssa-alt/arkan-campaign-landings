@@ -531,6 +531,15 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         $chatClickMatchMethod='timestamp_pending';
     }
 
+    // Keep native URL click identifiers even when the message has no hidden token.
+    if(($traffic['key']??'')==='google'){
+        foreach([$inboundSourceUrl,(string)($messageSource['source_url']??''),(string)($referral['source_url']??'')] as $nativeUrl){
+            $nativeParams=[];parse_str((string)(parse_url($nativeUrl,PHP_URL_QUERY)??''),$nativeParams);
+            foreach(['gclid','gbraid','wbraid'] as $nativeKey){
+                if(empty($chatClick[$nativeKey])&&is_string($nativeParams[$nativeKey]??null)&&trim($nativeParams[$nativeKey])!=='')$chatClick[$nativeKey]=trim($nativeParams[$nativeKey]);
+            }
+        }
+    }
     $recent=is_array($prev['recent_messages']??null)?$prev['recent_messages']:[];
     $recent=recent_push($recent,['direction'=>$history?'history_inbound':'inbound','text'=>$text,'type'=>$msgType,'at'=>$sentAt,'source_event_id'=>$eventId,'message_id'=>(string)($m['id']??''),'wamid'=>(string)($m['wamid']??'')]);
     $validMessage=valid_customer_message_type($msgType);
@@ -546,11 +555,11 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
         'ycloud_inbound_source_url'=>$inboundSourceUrl!==''?$inboundSourceUrl:(string)($prev['ycloud_inbound_source_url']??''),
         'traffic_source_key'=>$traffic['key'],'traffic_source_label'=>$traffic['label'],'traffic_source_confidence'=>$traffic['confidence'],'traffic_source_reason'=>$traffic['reason'],
         'ycloud_message_source_type'=>$messageSource['source_type']??'','ycloud_message_source_id'=>$messageSource['source_id']??'','ycloud_message_source_url'=>$messageSource['source_url']??'',
-        'ycloud_chatlink_click_id'=>$chatlink['click_id']??'',
+        'ycloud_chatlink_click_id'=>(string)(($chatlink['click_id']??'')!==''?$chatlink['click_id']:($prev['ycloud_chatlink_click_id']??'')),
         'ycloud_chatlink_decoded'=>(string)($chatlink['decoded']??''),
-        'horizons_wa_click_id'=>(string)($chatlink['click_id']??($prev['horizons_wa_click_id']??'')),
-        'horizons_wa_token_format'=>(string)($chatlink['format']??($prev['horizons_wa_token_format']??'')),
-        'horizons_wa_token_decoded'=>(string)($chatlink['decoded_token']??($prev['horizons_wa_token_decoded']??'')),
+        'horizons_wa_click_id'=>(string)(($chatlink['click_id']??'')!==''?$chatlink['click_id']:($prev['horizons_wa_click_id']??'')),
+        'horizons_wa_token_format'=>(string)(($chatlink['format']??'')!==''?$chatlink['format']:($prev['horizons_wa_token_format']??'')),
+        'horizons_wa_token_decoded'=>(string)(($chatlink['decoded_token']??'')!==''?$chatlink['decoded_token']:($prev['horizons_wa_token_decoded']??'')),
         'attribution_match_method'=>$chatClickMatchMethod!==''?$chatClickMatchMethod:(string)($prev['attribution_match_method']??''),
         'chatlink_source_url'=>(string)($chatClick['source_url']??($prev['chatlink_source_url']??'')),
         'attribution_landing_url'=>(string)($chatClick['landing_url']??($prev['attribution_landing_url']??'')),
