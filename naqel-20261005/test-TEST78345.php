@@ -1,0 +1,7 @@
+<?php
+if(PHP_SAPI!=='cli')exit;
+$secure='/home/u878466595/.marketing/naqel';if(!is_file($secure.'/deployed-v1.json'))throw new RuntimeException('deploy_not_ready');
+$path=$secure.'/test-TEST78345.json';if(is_file($path)){echo file_get_contents($path);exit;}
+$token=trim((string)file_get_contents($secure.'/web_access_token'));
+$p=['event_source'=>'web','event_source_id'=>'DAUC8ERC77UD1K9H1N70','test_event_code'=>'TEST78345','data'=>[['event'=>'Contact','event_time'=>time(),'event_id'=>'nqm_test_TEST78345','user'=>['external_id'=>hash('sha256','nqm_synthetic_test_TEST78345')],'page'=>['url'=>'https://naqelmadmoon.hositee.com/'],'properties'=>['status'=>'interested']]]];
+$ch=curl_init('https://business-api.tiktok.com/open_api/v1.3/event/track/');curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Access-Token: '.$token,'Content-Type: application/json'],CURLOPT_POSTFIELDS=>json_encode($p),CURLOPT_TIMEOUT=>15]);$body=curl_exec($ch);$http=curl_getinfo($ch,CURLINFO_RESPONSE_CODE);$errno=curl_errno($ch);curl_close($ch);$j=json_decode((string)$body,true);$r=['ok'=>$errno===0&&$http===200&&($j['code']??-1)===0,'http'=>$http,'api_code'=>$j['code']??-1,'message'=>$j['message']??'transport_error','event'=>'Contact','status'=>'interested','test_only'=>true,'test_code'=>'TEST78345','at'=>gmdate('c')];if($r['ok']){file_put_contents($path,json_encode($r));chmod($path,0600);}echo json_encode($r);
