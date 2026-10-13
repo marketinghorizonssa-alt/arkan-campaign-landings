@@ -22,7 +22,7 @@ jobs:
           set -euo pipefail
           ROOT="$GITHUB_WORKSPACE/package"
           SOURCE_ORIGIN="https://arkan-realestate-solutions.hositee.com"
-          mkdir -p "$ROOT/app" "$ROOT/assets"
+          mkdir -p "$ROOT/app" "$ROOT/assets/fonts"
 
           cp public/index.php "$ROOT/index.php"
           cp public/.htaccess "$ROOT/.htaccess"
@@ -33,6 +33,10 @@ jobs:
           cp public/app/helpers.php "$ROOT/app/helpers.php"
           cp public/app/leads.php "$ROOT/app/leads.php"
           cp public/app/views.php "$ROOT/app/views.php"
+          cp public/app/campaign-pages.php "$ROOT/app/campaign-pages.php"
+          cp public/app/clicks.php "$ROOT/app/clicks.php"
+          cp public/assets/fonts/beiruti-arabic.woff2 "$ROOT/assets/fonts/beiruti-arabic.woff2"
+          cp public/assets/fonts/OFL.txt "$ROOT/assets/fonts/OFL.txt"
           cp public/assets/site.css "$ROOT/assets/site.css"
           cp public/assets/site.js "$ROOT/assets/site.js"
           cp public/assets/thank-you.js "$ROOT/assets/thank-you.js"
@@ -56,7 +60,7 @@ jobs:
           php -l "$ROOT/app/helpers.php"
           php -l "$ROOT/app/leads.php"
           php -l "$ROOT/app/views.php"
-          php -r '$xml = simplexml_load_file($argv[1]); if ($xml === false || count($xml->url) !== 6) { fwrite(STDERR, "Invalid sitemap\n"); exit(1); }' "$ROOT/sitemap.xml"
+          php -r '$xml = simplexml_load_file($argv[1]); if ($xml === false || count($xml->url) !== 11) { fwrite(STDERR, "Invalid sitemap\n"); exit(1); }' "$ROOT/sitemap.xml"
           grep -q 'https://arkan2030.com/' "$ROOT/sitemap.xml"
           grep -q 'Sitemap: https://arkan2030.com/sitemap.xml' "$ROOT/robots.txt"
           printf 'commit=%s\ndomain=arkan2030.com\nbuilt_at=%s\nlead_mode=relay-to-existing-crm\n' "$GITHUB_SHA" "$(date -Iseconds)" > "$ROOT/.deployment"

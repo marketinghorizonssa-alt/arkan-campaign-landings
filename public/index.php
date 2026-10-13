@@ -5,6 +5,7 @@ require __DIR__ . '/app/config.php';
 require __DIR__ . '/app/helpers.php';
 require __DIR__ . '/app/leads.php';
 require __DIR__ . '/app/views.php';
+require __DIR__ . '/app/clicks.php';
 
 date_default_timezone_set('Asia/Riyadh');
 header('X-Content-Type-Options: nosniff');
@@ -45,18 +46,15 @@ function releaseHeadMarkup(): string {
         . '@media(prefers-reduced-motion:reduce){.mobile-menu,.mobile-menu-backdrop,.mobile-menu-toggle span{transition:none!important}}'
         . '</style>';
     $mobileMenuJs = '<script>document.addEventListener("DOMContentLoaded",function(){var t=document.querySelector(".mobile-menu-toggle"),m=document.getElementById("mobileMenu"),b=document.querySelector(".mobile-menu-backdrop");if(!t||!m||!b)return;var c=m.querySelector(".mobile-menu-close"),last=null;function setOpen(open,restore){document.body.classList.toggle("mobile-menu-open",open);t.setAttribute("aria-expanded",open?"true":"false");t.setAttribute("aria-label",open?"إغلاق القائمة":"فتح القائمة");m.setAttribute("aria-hidden",open?"false":"true");b.setAttribute("aria-hidden",open?"false":"true");if(open){last=document.activeElement;window.setTimeout(function(){if(c)c.focus()},20)}else if(restore!==false&&last&&typeof last.focus==="function"){last.focus()}}t.addEventListener("click",function(){setOpen(!document.body.classList.contains("mobile-menu-open"))});document.querySelectorAll("[data-mobile-menu-close]").forEach(function(el){el.addEventListener("click",function(){setOpen(false)})});m.addEventListener("click",function(e){if(e.target.closest("a"))setOpen(false,false)});document.addEventListener("keydown",function(e){if(e.key==="Escape"&&document.body.classList.contains("mobile-menu-open"))setOpen(false)});var mq=window.matchMedia("(min-width:1051px)");function desktopClose(e){if(e.matches)setOpen(false,false)}if(mq.addEventListener)mq.addEventListener("change",desktopClose);else if(mq.addListener)mq.addListener(desktopClose)});</script>';
-    $gtmId = json_encode(GTM_PUBLIC_ID, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    $gtm = '<script>window.dataLayer=window.dataLayer||[];(function(w,d,i){var loaded=false;function loadGtm(){if(loaded)return;loaded=true;w.dataLayer.push({"gtm.start":Date.now(),event:"gtm.js"});var f=d.getElementsByTagName("script")[0],j=d.createElement("script");j.async=true;j.src="https://www.googletagmanager.com/gtm.js?id="+encodeURIComponent(i);f.parentNode.insertBefore(j,f)}w.__loadArkanGtm=loadGtm;loadGtm()})(window,document,' . $gtmId . ');</script>';
-    return $verification . $brandIcons . $mobileMenuCss . $mobileMenuJs . $gtm;
+    $googleTag = '<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18351042794"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date());gtag("config","AW-18351042794");</script>';
+    return $verification . $brandIcons . $mobileMenuCss . $mobileMenuJs . $googleTag;
 }
 
-function releaseBodyMarkup(): string {
-    return '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=' . e(GTM_PUBLIC_ID) . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
-}
+function releaseBodyMarkup(): string { return ''; }
 
 function renderHtml(string $html): string {
     foreach (['4','5','6','7','8'] as $version) {
-        $html = str_replace('/assets/site.js?v=' . $version, '/assets/site.js?v=9', $html);
+        $html = str_replace('/assets/site.js?v=' . $version, '/assets/site.js?v=20261013', $html);
     }
     $html = str_replace('/assets/logo.webp', '/assets/logo-360.webp', $html);
     $html = preg_replace_callback(
@@ -74,7 +72,11 @@ function renderHtml(string $html): string {
     return preg_replace('/<body([^>]*)>/', '<body$1>' . releaseBodyMarkup(), $html, 1) ?: $html;
 }
 
+$campaignPages = __DIR__ . '/app/campaign-pages.php';
+if (is_file($campaignPages)) $pages = array_replace($pages, require $campaignPages);
 $path = requestedPath();
+if ($path === '/api/click') handleClickSubmit();
+if ($path === '/click-feed.csv') handleClickFeed();
 if ($path === '/api/lead') handleLeadSubmit();
 if ($path === '/lead-feed.csv') handleLeadFeed();
 if (isset($legacy[$path])) sendRedirect($legacy[$path]);
