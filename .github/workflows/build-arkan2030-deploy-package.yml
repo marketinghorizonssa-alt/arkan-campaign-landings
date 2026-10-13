@@ -36,6 +36,7 @@ jobs:
           cp public/app/campaign-pages.php "$ROOT/app/campaign-pages.php"
           cp public/app/clicks.php "$ROOT/app/clicks.php"
           cp public/assets/fonts/beiruti-arabic.woff2 "$ROOT/assets/fonts/beiruti-arabic.woff2"
+          cp public/assets/fonts/OFL.txt "$ROOT/assets/fonts/OFL.txt"
           cp public/assets/site.css "$ROOT/assets/site.css"
           cp public/assets/site.js "$ROOT/assets/site.js"
           cp public/assets/thank-you.js "$ROOT/assets/thank-you.js"
