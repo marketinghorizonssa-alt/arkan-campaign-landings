@@ -1,0 +1,71 @@
+{
+  "routes": [
+    {
+      "id": "P0",
+      "service": "حلول مالية وعقارية متكاملة",
+      "public_url": "https://arkan2030.com/",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/"
+    },
+    {
+      "id": "P1",
+      "service": "حلول التمويل العقاري",
+      "public_url": "https://arkan2030.com/حلول-التمويل-العقاري/",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/حلول-التمويل-العقاري/"
+    },
+    {
+      "id": "P2",
+      "service": "رفض التمويل والقدرة",
+      "public_url": "https://arkan2030.com/رفض-التمويل-العقاري/",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/رفض-التمويل-العقاري/"
+    },
+    {
+      "id": "P3",
+      "service": "القرض الشخصي والالتزامات",
+      "public_url": "https://arkan2030.com/تمويل-عقاري-مع-التزامات/",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/تمويل-عقاري-مع-التزامات/"
+    },
+    {
+      "id": "P4",
+      "service": "المديونية وإعادة التمويل",
+      "public_url": "https://arkan2030.com/شراء-مديونية-عقارية/",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/شراء-مديونية-عقارية/"
+    },
+    {
+      "id": "P5",
+      "service": "اختيار العقار والمسار",
+      "public_url": "https://arkan2030.com/شراء-عقار-بالتمويل/",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/شراء-عقار-بالتمويل/"
+    },
+    {
+      "id": "P6",
+      "service": "تسهيل إجراءات التمويل الشخصي للتملك",
+      "public_url": "https://arkan2030.com/حلول-التمويل-العقاري/?lp=P6",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/تسهيلات-التمويل-الشخصي-للعقار/"
+    },
+    {
+      "id": "P7",
+      "service": "حلول التعثر والمديونية العقارية",
+      "public_url": "https://arkan2030.com/شراء-مديونية-عقارية/?lp=P7",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/حلول-التعثر-والمديونية-العقارية/"
+    },
+    {
+      "id": "P8",
+      "service": "شقق تمليك جدة",
+      "public_url": "https://arkan2030.com/شراء-عقار-بالتمويل/?lp=P8",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/شقق-تمليك-جدة/"
+    },
+    {
+      "id": "P9",
+      "service": "فلل للبيع جدة",
+      "public_url": "https://arkan2030.com/شراء-عقار-بالتمويل/?lp=P9",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/فلل-للبيع-جدة/"
+    },
+    {
+      "id": "P10",
+      "service": "أراضٍ للبيع جدة",
+      "public_url": "https://arkan2030.com/شراء-عقار-بالتمويل/?lp=P10",
+      "source_url": "https://arkan-realestate-solutions.hositee.com/أراضي-للبيع-جدة/"
+    }
+  ],
+  "publication_note": "Official domain is enhanced through shared assets. Five new services use query URLs on existing pages; publishing clean paths and the updated static SEO package on the official domain still needs direct file access."
+}
