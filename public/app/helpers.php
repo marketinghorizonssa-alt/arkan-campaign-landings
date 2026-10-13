@@ -76,11 +76,11 @@ function headHtml(string $title, string $description, string $path, string $hero
         . '<meta property="og:url" content="' . e($url) . '"><meta property="og:image" content="' . ORIGIN . e($heroWebp) . '">'
         . '<meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#071434">'
         . '<link rel="preload" href="' . e($heroWebp) . '" imagesrcset="' . e($heroMobile) . ' 768w, ' . e($heroWebp) . ' 1280w" imagesizes="100vw" as="image" type="image/webp" fetchpriority="high">'
-        . '<style>' . siteCss() . '</style>'
+        . '<link rel="stylesheet" href="/assets/site.css?v=20261013">'
         . '<script type="application/ld+json">' . json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script></head>';
 }
 function navHtml(): string {
-    return '<a href="/حلول-التمويل-العقاري/">الحلول</a><a href="/رفض-التمويل-العقاري/">رفض التمويل</a><a href="/تمويل-عقاري-مع-التزامات/">الالتزامات</a><a href="/شراء-مديونية-عقارية/">المديونية</a><a href="/شراء-عقار-بالتمويل/">شراء العقار</a>';
+    return '<a href="/شراء-عقار-بالتمويل/">عقار حسب ميزانيتك</a><a href="/حلول-التمويل-العقاري/">تسهيلات التمويل</a><a href="/شراء-مديونية-عقارية/">المديونية</a><a href="/رفض-التمويل-العقاري/">رفض التمويل</a>';
 }
 function headerHtml(): string {
     return '<header class="header"><div class="container nav"><a class="brand" href="/" aria-label="أركان التنفيذية">' . logoHtml() . '</a><nav class="navlinks" aria-label="التنقل الرئيسي">' . navHtml() . '</nav><div class="nav-actions"><a class="btn btn-ghost track-call" href="tel:' . PHONE_E164 . '">' . icon('phone') . '<span>' . phoneHtml() . '</span></a><a class="btn btn-primary" href="#form">ابدأ التقييم</a></div></div></header>';
@@ -96,5 +96,5 @@ function floatingButtons(string $wa): string {
 }
 function scriptsHtml(string $leadEndpoint): string {
     $config = json_encode(['review' => false, 'endpoint' => $leadEndpoint, 'thankYou' => '/تم-استلام-الطلب/', 'whatsapp' => WHATSAPP_NUMBER, 'privacyVersion' => PRIVACY_VERSION], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=10" defer></script>';
+    return '<script>window.ARKAN_CONFIG=' . $config . ';</script><script src="/assets/site.js?v=20261013" defer></script>';
 }

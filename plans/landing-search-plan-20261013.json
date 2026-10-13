@@ -1,0 +1,44 @@
+{
+  "budget_split": {
+    "property_selection": 0.5,
+    "financing_assistance": 0.5,
+    "method": "two independent campaign budgets; not implemented in this landing-only task"
+  },
+  "preferred_intents": [
+    "عقارات تناسب ميزانيتك",
+    "شقق تمليك جدة",
+    "فلل للبيع جدة",
+    "أراضي للبيع جدة",
+    "وسيط تمويل عقاري",
+    "حلول التمويل العقاري",
+    "شراء ونقل المديونية العقارية",
+    "إعادة التمويل العقاري",
+    "مراجعة رفض التمويل",
+    "حلول التعثر العقاري"
+  ],
+  "negative_categories": {
+    "jobs": [
+      "وظائف",
+      "وظيفة",
+      "توظيف",
+      "سيرة ذاتية",
+      "رواتب الموظفين"
+    ],
+    "free": [
+      "مجانا",
+      "مجاني",
+      "بدون رسوم"
+    ],
+    "direct_cash_loans": [
+      "قرض كاش فوري",
+      "قرض بدون بنك",
+      "تمويل مباشر بدون بنك",
+      "تمويل بدون تحقق"
+    ],
+    "competitor_exact_review": [
+      "دار التمليك جدة",
+      "المستشار العقاري سكني"
+    ]
+  },
+  "note": "Bank names are reviewed by exact query context; do not exclude the generic word بنك or راتب because relevant financing-assistance queries use them."
+}
