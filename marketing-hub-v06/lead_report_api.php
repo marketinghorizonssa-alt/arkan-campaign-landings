@@ -273,7 +273,8 @@ function lr_stage(array $ai,array $messages=[],string $clientId=''): array {
         'summary'=>$manual?'تقييم يدوي محفوظ':(lr_s($ai['ai_summary'] ?? '') ?: ($key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason']??''))),
         'reason'=>$key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason'] ?? $ai['ai_reason'] ?? ''),
         'manual_override'=>$manual,
-        'requires_review'=>$isArkan&&in_array($key,['qualified','converted'],true),
+        'requires_review'=>$isArkan&&in_array($key,['qualified','converted'],true)&&(!$manual || ($key==='converted'&&lr_s($ai['conversion_evidence_reference']??'')==='')),
+        'manual_verified'=>$manual&&($key==='qualified'||($key==='converted'&&lr_s($ai['conversion_evidence_reference']??'')!=='')),
         'postback_verified'=>false,
         'method'=>$manual?'manual_override':($tag!==''?'hub_status_plus_message_reconciliation':'message_reconciliation')
     ];
