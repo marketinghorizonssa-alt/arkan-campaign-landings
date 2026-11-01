@@ -25,7 +25,7 @@ function arc_review_signature(array $r,string $key): string {
 }
 function arc_assistant_review(array $c,?string $key=null): array {
  if(($c['tag_source']??'')!=='assistant_review'||empty($c['manual_override']))return [];
- $r=$c['assistant_review']??[];if(!is_array($r)||($r['actor']??'')!=='assistant_conversation_review'||($r['criteria_version']??'')!=='arkan-evidence-v2'||($r['contact_key']??'')!==arc_review_contact_key($c))return [];
+ $r=$c['assistant_review']??[];if(!is_array($r)||($r['actor']??'')!=='assistant_conversation_review'||($r['criteria_version']??'')!=='arkan-evidence-v2'||($r['contact_key']??'')!==arc_review_contact_key($c)||($r['stage']??'')!==arc_stage(arc_s($c['current_tag']??'')))return [];
  if($key===null){static $secret=null;if($secret===null)$secret=trim((string)@file_get_contents(dirname(__DIR__,4).'/.marketing/arkan-review-20261101/review-key'));$key=$secret;}
  if($key===''||!hash_equals(arc_review_signature($r,$key),arc_s($r['signature']??'')))return [];
  return $r;

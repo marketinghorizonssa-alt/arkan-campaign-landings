@@ -235,11 +235,12 @@ foreach($state as $convId=>$s){
   if($valid>=2)$autoStage='interested';
   if(isset($stageTimes['qualified']))$autoStage='qualified';
   if($converted)$autoStage='converted';
-  $manual=strtolower(r_s($prev['tag_source']??''))==='manual';
+  $arkReview=$s['client_id']==='cl_76c4e019afc588'&&!empty($prev['manual_override']);
+  $manual=strtolower(r_s($prev['tag_source']??''))==='manual'||$arkReview;
   $current=$manual?r_s($prev['current_tag']??$autoStage):$autoStage;
   if($current==='purchased')$current='converted';
   // Manual corrections are authoritative, including downward changes and Unqualified.
-  $c['current_tag']=$current;$c['tag_source']=$manual?'manual':'automation';$c['stage_times']=$manual?array_replace($stageTimes,(array)($prev['stage_times']??[])):$stageTimes;$c['tagged_at']=$stageTimes[$current]??r_iso($s['last']);
+  $c['current_tag']=$current;$c['tag_source']=$arkReview?r_s($prev['tag_source']??'assistant_review'):($manual?'manual':'automation');$c['stage_times']=$manual?array_replace($stageTimes,(array)($prev['stage_times']??[])):$stageTimes;$c['tagged_at']=$arkReview?r_s($prev['tagged_at']??r_iso($s['last'])):($stageTimes[$current]??r_iso($s['last']));
   $c['auto_label_reason']=match($current){'message_received'=>'first_valid_customer_message','interested'=>'two_valid_customer_messages','qualified'=>'three_plus_messages_two_way_serious_intent','converted'=>'explicit_completed_business_outcome',default=>r_s($prev['auto_label_reason']??'')};
   $c['auto_label_confidence']=match($current){'message_received'=>1.0,'interested'=>0.96,'qualified'=>0.93,'converted'=>0.99,default=>(float)($prev['auto_label_confidence']??0.8)};
   $c['updated_at']=gmdate('c');
@@ -251,5 +252,7 @@ foreach($state as $convId=>$s){
   if(r_rank($current)>=2)r_append_stage($eventsFile,$c,'qualified',$stageTimes['qualified']??$c['tagged_at'],$stageKeys);
   if(r_rank($current)>=3)r_append_stage($eventsFile,$c,'converted',$stageTimes['converted']??$c['tagged_at'],$stageKeys);
 }
-r_save($convFile,$new);
+require_once __DIR__.'/crm_lock.php';crm_data_lock();
+if(empty($GLOBALS['__crm_data_lock_held']))throw new RuntimeException('reconcile_write_lock_unavailable');
+try{$fresh=r_json($convFile);foreach($fresh as $id=>$latest)if(is_array($latest)&&($latest['client_id']??'')==='cl_76c4e019afc588'&&!empty($latest['manual_override'])&&in_array($latest['tag_source']??'',['manual','assistant_review'],true))$new[$id]=$latest;r_save($convFile,$new);}finally{crm_data_unlock();}
 echo json_encode(['ok'=>true,'raw_events'=>$eventRows,'conversations'=>count($new),'stats'=>$stats],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)."\n";
