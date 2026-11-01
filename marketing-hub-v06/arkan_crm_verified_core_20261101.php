@@ -34,7 +34,8 @@ function arc_tag_decision(array $c,string $tag,string $reference,string $now): a
  return $out;
 }
 function arc_verified_time(array $c,string $stage): string {
- if(!arc_manual($c)||arc_stage(arc_s($c['current_tag']??''))!==$stage)return '';
+ $current=arc_stage(arc_s($c['current_tag']??''));
+ if(!arc_manual($c)||($current!==$stage&&!($stage==='qualified'&&$current==='converted')))return '';
  if($stage==='converted'&&arc_s($c['conversion_evidence_reference']??'')==='')return '';
  if(($c['manual_verified_stage']??'')===$stage&&arc_s($c['manual_verified_at']??'')!=='')return arc_s($c['manual_verified_at']);
  foreach(array_reverse($c['label_history']??[]) as $h)if(($h['source']??'')==='manual'&&arc_stage(arc_s($h['tag']??''))===$stage&&arc_s($h['at']??'')!=='')return arc_s($h['at']);
