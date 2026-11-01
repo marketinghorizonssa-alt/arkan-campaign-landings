@@ -181,6 +181,7 @@ try {
 
         // 2) Build the pending events per (client, stage).
         $pending = [];
+        $arcCrmAudit=['stored_tags'=>[],'manual_verified_tags'=>[],'excluded_test_records'=>0];
         require_once __DIR__.'/arkan_crm_verified_core_20261101.php';
         $arcNumbers=gdm_json($base.'/whatsapp_numbers.json');$arcConnections=gdm_json($base.'/ycloud_connections.json');
         $arcLegacy=gdm_json($gdmHome.'/.marketing/arkan_google_offline/ledger.json');
@@ -189,6 +190,7 @@ try {
             $cid = gdm_s($c['client_id'] ?? '');
             if($cid===''){ $arcResolved=arc_client($c,$arcNumbers,$arcConnections); if($arcResolved==='cl_76c4e019afc588')$cid=$arcResolved; }
             $arcIsArkan=$cid==='cl_76c4e019afc588';
+            if($arcIsArkan){if(arc_test_record($c)){$arcCrmAudit['excluded_test_records']++;continue;}$arcTag=arc_stage(gdm_s($c['current_tag']??'message_received'));$arcCrmAudit['stored_tags'][$arcTag]=($arcCrmAudit['stored_tags'][$arcTag]??0)+1;if(in_array($arcTag,['qualified','converted'],true)&&arc_verified_time($c,$arcTag)!=='')$arcCrmAudit['manual_verified_tags'][$arcTag]=($arcCrmAudit['manual_verified_tags'][$arcTag]??0)+1;}
             $cc = $cfg['clients'][$cid] ?? null;
             if (!$cc || ($cc['enabled']??true)===false) continue;
             if (gdm_valid_inbound($c) < 1) continue;
@@ -304,7 +306,7 @@ try {
     $arcReceipt=gdm_json($arcReceiptFile,[]);
     $arcReceipt['customer_id']='9201402498';$arcReceipt['checked_at']=gmdate('c');
     $arcRun=$gdmRun['clients']['cl_76c4e019afc588']??null;
-    if(is_array($arcRun))$arcReceipt['last_scan']=$arcRun;
+    if(is_array($arcRun)){$arcReceipt['last_scan']=$arcRun;$arcReceipt['crm_audit']=$arcCrmAudit??[];}
     $arcReceipt['requests']=[];
     foreach($gdmLedger['requests'] as $arcRid=>$arcReq)if(($arcReq['client']??'')==='cl_76c4e019afc588')$arcReceipt['requests'][]=['request_id'=>$arcRid,'stage'=>$arcReq['stage'],'state'=>$arcReq['state'],'count'=>count($arcReq['event_keys']??[]),'submitted_at'=>$arcReq['submitted_at']??null,'diagnostics'=>$arcReq['diagnostics']??null];
     $arcReceipt['errors']=array_values(array_filter($gdmRun['errors'],fn($x)=>($x['client']??'')==='ARKAN'));

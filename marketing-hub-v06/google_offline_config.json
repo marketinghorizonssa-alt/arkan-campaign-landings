@@ -71,7 +71,7 @@
           "value": 0
         }
       },
-      "max_new_events_per_run": 1
+      "max_new_events_per_run": 200
     }
   }
 }

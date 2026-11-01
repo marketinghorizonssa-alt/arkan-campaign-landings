@@ -4,6 +4,7 @@ declare(strict_types=1);
 function arc_s(mixed $v): string {return is_scalar($v)?trim((string)$v):'';}
 function arc_phone(mixed $v): string {return preg_replace('/\D+/','',arc_s($v))??'';}
 function arc_origin_allowed(string $origin): bool {return $origin===''||in_array(strtolower(rtrim($origin,'/')),['https://marketing.hositee.com','https://marketing.hositee.com:443'],true);}
+function arc_test_record(array $c): bool {return !empty($c['is_test'])||!empty($c['test'])||in_array(strtolower(arc_s($c['environment']??'')),['test','sandbox'],true)||preg_match('/(^|[\s_-])(test|testing|اختبار|تجربة)([\s_-]|$)/iu',arc_s($c['contact_name']??''))===1;}
 function arc_dm_summary(array $d,int $submitted): array {
  $errors=$d['errorInfo']['errorCounts']??[];$received=(int)($d['eventsIngestionStatus']['recordCount']??0);$status=arc_s($d['requestStatus']??'');
  $failed=count($errors)===1?(int)$errors[0]['recordCount']:($status==='SUCCESS'?0:null);
