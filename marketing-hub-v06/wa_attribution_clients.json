@@ -33,6 +33,27 @@
         "https://etizan-law.com",
         "https://www.etizan-law.com"
       ]
+    },
+    "cl_d554e1c6bfe460": {
+      "name": "Biyaat",
+      "business_numbers": [
+        "+966547721414"
+      ],
+      "origins": [
+        "https://biyaat.hositee.com",
+        "https://www.biyaat.hositee.com"
+      ]
+    },
+    "cl_76c4e019afc588": {
+      "name": "ARKAN",
+      "business_numbers": [
+        "+966500989103"
+      ],
+      "origins": [
+        "https://arkan2030.com",
+        "https://www.arkan2030.com",
+        "https://arkan-realestate-solutions.hositee.com"
+      ]
     }
   }
 }

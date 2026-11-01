@@ -96,6 +96,7 @@ function r_click_time(array $c):int{
   return 0;
 }
 function r_apply_click(array &$c,array $click,string $clickId,string $method):void{
+  if(($c['client_id']??'')==='cl_76c4e019afc588')return; // ARKAN attribution is owned by the validated webhook and isolated resolver.
   $c['traffic_source_key']=r_s($click['traffic_source_key']??'website');
   $c['traffic_source_label']=r_s($click['traffic_source_label']??'Website');
   $c['traffic_source_confidence']='high';
@@ -202,9 +203,9 @@ foreach($state as $convId=>$s){
   $c['recent_messages']=array_map(fn($m)=>['direction'=>$m['direction']==='inbound'?'inbound':'outbound_app','text'=>$m['text'],'type'=>$m['type'],'at'=>$m['at'],'message_id'=>$m['msg_id']],$recent);
 
   $clickId=$s['token_click']!==''?$s['token_click']:r_s($prev['horizons_wa_click_id']??$prev['ycloud_chatlink_click_id']??'');
-  if($clickId!==''&&isset($clicks[$clickId])&&is_array($clicks[$clickId])){
+  if($s['client_id']!=='cl_76c4e019afc588'&&$clickId!==''&&isset($clicks[$clickId])&&is_array($clicks[$clickId])){
     r_apply_click($c,$clicks[$clickId],$clickId,$s['token_click']!==''?'horizons_hidden_token':'stored_click_id');$stats['token_matches']++;
-  }elseif(!in_array(strtolower(r_s($c['traffic_source_key']??'')),['google','tiktok','meta','snapchat','microsoft_ads','linkedin','x'],true)){
+  }elseif($s['client_id']!=='cl_76c4e019afc588'&&!in_array(strtolower(r_s($c['traffic_source_key']??'')),['google','tiktok','meta','snapchat','microsoft_ads','linkedin','x'],true)){
     $cand=[];
     foreach($clickByClient[$s['client_id']]??[] as $cl){
       if(r_digits(r_s($cl['business_number']??''))!==''&&r_digits(r_s($cl['business_number']??''))!==r_digits($s['business']))continue;

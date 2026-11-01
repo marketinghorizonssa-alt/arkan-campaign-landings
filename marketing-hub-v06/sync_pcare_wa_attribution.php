@@ -46,13 +46,19 @@ function norm_phone(string $v):string{
 function click_epoch(array $row):int{
     // browser_time is the actual user click time. captured_at can be delayed by the
     // P Care -> Hub sync and may arrive after the WhatsApp message.
-    foreach(['browser_time','created_at','captured_at'] as $k){
+    $server=0;
+    foreach(['captured_at','created_at'] as $k){
         $raw=trim((string)($row[$k]??''));
         if($raw==='')continue;
-        $t=strtotime($raw);
-        if($t)return $t;
+        $s=strtotime($raw);
+        if($s){$server=$s;break;}
     }
-    return 0;
+    $braw=trim((string)($row['browser_time']??''));
+    $browser=$braw!==''?(int)strtotime($braw):0;
+    // A click cannot happen after the server received it; a browser clock ahead by >60s is wrong.
+    if($browser>0&&$server>0&&$browser>$server+60)return $server;
+    if($browser>0)return $browser;
+    return $server;
 }
 function first_customer_epoch(array $conv):int{
     foreach(['first_customer_message_at'] as $key){$t=strtotime((string)($conv[$key]??''));if($t)return$t;}
@@ -108,9 +114,13 @@ function mark_unknown(array &$conv,string $reason):void{
     $conv['updated_at']=gmdate('c');
 }
 
-$f=req($feed);
-if(!$f['ok']||!is_array($f['json'])){echo json_encode(['ok'=>false,'stage'=>'feed','status'=>$f['status'],'error'=>$f['error']]);exit(1);}
-$records=is_array($f['json']['records']??null)?$f['json']['records']:[];
+// A failed P Care feed must never block the 5-minute resolver for every other client.
+$feedError=null;$records=[];
+if($feed!==''){
+    $f=req($feed);
+    if($f['ok']&&is_array($f['json']))$records=is_array($f['json']['records']??null)?$f['json']['records']:[];
+    else $feedError=['stage'=>'feed','status'=>$f['status'],'error'=>$f['error']];
+}else $feedError=['stage'=>'feed','error'=>'feed_url_missing'];
 $state=jload($stateFile);
 $sent=0;$skipped=0;$failed=0;$details=[];
 foreach($records as $clickId=>$row){
@@ -132,6 +142,7 @@ jsave($stateFile,$state);
 $base=__DIR__.'/data';
 $clickFile=$base.'/chatlink_clicks.json';
 $convFile=$base.'/conversations.json';
+require_once __DIR__.'/crm_lock.php';crm_data_lock();
 $clicks=jload($clickFile);
 $convs=jload($convFile);
 $now=time();
@@ -141,6 +152,7 @@ $pending=[];
 foreach($convs as $cid=>$conv){
     if(!is_array($conv))continue;
     $convClient=(string)($conv['client_id']??'');
+    if($convClient==='cl_76c4e019afc588')continue; // ARKAN uses the stricter isolated resolver below.
     if(!isset($attributionClients[$convClient]))continue;
     $method=(string)($conv['attribution_match_method']??'');
     $retryLate=$method==='timestamp_unknown'&&(string)($conv['traffic_source_reason']??'')==='no_click_within_5m';
@@ -157,6 +169,7 @@ foreach($clicks as $clickId=>$row){
     if(!is_array($row))continue;
     if(!empty($row['matched_at'])&&(string)($row['match_method']??'')!=='expired_no_message')continue;
     $clickClient=(string)($row['client_id']??'');
+    if($clickClient==='cl_76c4e019afc588')continue;
     if(!isset($attributionClients[$clickClient]))continue;
     $t=click_epoch($row);
     if(!$t||$t+300>$now)continue; // wait for full 5-minute window
@@ -181,6 +194,9 @@ foreach($closedClicks as $clickId=>$meta){
         foreach($convs as $otherId=>$otherConv){
             if((string)$otherId===(string)$candidateId||!is_array($otherConv))continue;
             if((string)($otherConv['client_id']??'')!==($meta['client']??''))continue;
+            // Conversations already attributed by token/native evidence used their own click.
+            $otherMethod=(string)($otherConv['attribution_match_method']??'');
+            if($otherMethod!==''&&$otherMethod!=='timestamp_pending'&&$otherMethod!=='timestamp_unknown')continue;
             if(!has_customer_message($otherConv))continue;
             $otherFirst=first_customer_epoch($otherConv);
             $otherBusiness=norm_phone((string)($otherConv['business_number']??''));
@@ -197,6 +213,26 @@ foreach($closedClicks as $clickId=>$meta){
             if($other['t']>$pending[$cid]['first']||$other['t']<$pending[$cid]['first']-300)continue;
             if($other['business']!==''&&$pending[$cid]['business']!==''&&$other['business']!==$pending[$cid]['business'])continue;
             $candidateClicks[]=$otherId;
+        }
+        // Double-clicks by the same visitor (same browser + same Google click id) count as one click.
+        if(count($candidateClicks)>1){
+            $sigs=[];$latestId='';$latestT=-1;
+            foreach($candidateClicks as $oid){
+                $r=$clicks[$oid]??[];
+                $sigs[]=(string)($r['user_agent']??'').'|'.(string)($r['gclid']??'').(string)($r['gbraid']??'').(string)($r['wbraid']??'');
+                $ot=(int)($closedClicks[$oid]['t']??0);
+                if($ot>$latestT){$latestT=$ot;$latestId=(string)$oid;}
+            }
+            $uniq=array_values(array_unique($sigs));
+            if(count($uniq)===1&&$uniq[0][0]!=='|'&&$latestId!==''){
+                foreach($candidateClicks as $oid){
+                    if((string)$oid===$latestId)continue;
+                    $clicks[$oid]['matched_at']=gmdate('c');
+                    $clicks[$oid]['match_method']='duplicate_same_visitor';
+                    $handledClicks[$oid]=true;$clickChanged=true;
+                }
+                $candidateClicks=[$latestId];$clickId=$latestId;
+            }
         }
         if(count($candidateClicks)===1){
             copy_click_attribution($convs[$cid],$clicks[$clickId],$clickId);
@@ -248,10 +284,15 @@ foreach($pending as $cid=>$p){
         $expiredUnknown++;$convChanged=true;
     }
 }
+require_once __DIR__.'/arkan_attribution_core_20261101.php';
+$arkanAttribution=ara_resolve($convs,$clicks,$now);
+if($arkanAttribution['resolved']>0){$clickChanged=true;$convChanged=true;}if($arkanAttribution['ambiguous']+$arkanAttribution['unknown']>0)$convChanged=true;
+@file_put_contents(__DIR__.'/_private_status/arkan-attribution-status.json',json_encode(['client_id'=>'cl_76c4e019afc588','checked_at'=>gmdate('c'),'registered'=>isset($attributionClients['cl_76c4e019afc588']),'window_seconds'=>300,'counts'=>$arkanAttribution,'synthetic_conversions'=>0]));
 if($clickChanged)jsave($clickFile,$clicks);
 if($convChanged)jsave($convFile,$convs);
+crm_data_unlock();
 
 echo json_encode([
-    'ok'=>$failed===0,'records'=>count($records),'sent'=>$sent,'skipped'=>$skipped,'failed'=>$failed,
+    'ok'=>$failed===0&&$feedError===null,'feed_error'=>$feedError,'records'=>count($records),'sent'=>$sent,'skipped'=>$skipped,'failed'=>$failed,
     'resolver_clients'=>array_keys($attributionClients),'resolved_5m'=>$resolved,'ambiguous_5m'=>$ambiguous,'unknown_no_click'=>$expiredUnknown,'details'=>$details
 ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);

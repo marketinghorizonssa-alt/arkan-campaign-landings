@@ -238,9 +238,20 @@ $record=[
  'user_agent'=>clean_scalar($_SERVER['HTTP_USER_AGENT']??'',1024)
 ];
 $record=array_merge($record,$flat);
+if($clientId==='cl_76c4e019afc588')$record['is_test']=!empty($j['is_test']);
+// Keep web matching keys only for the configured Etzan website and client.
+if($clientId==='cl_cbb797950cc8d4' && strtolower((string)parse_url($sourceUrl,PHP_URL_HOST))==='etizan.hositee.com' && is_array($j['tiktok_web_context']??null)){
+  $ctx=[];foreach(['ttclid','ttp','external_id','pixel_code'] as $key)$ctx[$key]=clean_scalar($j['tiktok_web_context'][$key]??'', $key==='external_id'?128:2048);
+  if(($ctx['pixel_code']??'')==='DB5V19BC77UBL2TM2QI0')$record['tiktok_web_context']=$ctx;
+}
+if($clientId==='cl_3ea5ae96e05c6b' && in_array(strtolower((string)parse_url($sourceUrl,PHP_URL_HOST)),['almowahid.sa','www.almowahid.sa'],true) && is_array($j['tiktok_web_context']??null)){
+  $ctx=[];foreach(['ttclid','ttp','external_id','pixel_code'] as $key)$ctx[$key]=clean_scalar($j['tiktok_web_context'][$key]??'', $key==='external_id'?128:2048);
+  if(($ctx['pixel_code']??'')==='DB6CTOBC77UAU0U4EV6G'){$record['tiktok_web_context']=$ctx;if(empty($record['ttclid'])&&$ctx['ttclid']!==''){$record['ttclid']=$ctx['ttclid'];}}
+}
 foreach($utm as $k=>$v)$record[$k]=$v;
 
 $mapLock=fopen($secure.'/wa_click_map.lock','c');if(!$mapLock||!flock($mapLock,LOCK_EX)){http_response_code(503);echo json_encode(['ok'=>false,'error'=>'click_map_busy']);exit;}
+require_once __DIR__.'/crm_lock.php';crm_data_lock();
 $all=load_json_file($mapFile);
 $prev=is_array($all[$clickId]??null)?$all[$clickId]:[];
 $record['created_at']=$prev['created_at']??$record['captured_at'];if(!empty($prev['browser_time']))$record['browser_time']=$prev['browser_time'];
@@ -257,7 +268,24 @@ if($convs){
   foreach($convs as $cid=>$conv){
     if(!is_array($conv))continue;
     if(clean_scalar($conv['client_id']??'')!==$clientId)continue;
-    if(clean_scalar($conv['ycloud_chatlink_click_id']??'')!==$clickId)continue;
+    $lateHidden=false;
+    if(clean_scalar($conv['ycloud_chatlink_click_id']??'')!==$clickId){
+      // Race fix: the WhatsApp webhook can arrive before this click is stored. The hidden
+      // token's click id was kept on the conversation, so attach it now instead of
+      // leaving the lead to the 5-minute timestamp fallback.
+      $pendingMethod=clean_scalar($conv['attribution_match_method']??'');
+      if(clean_scalar($conv['horizons_wa_click_id']??'')!==$clickId||!in_array($pendingMethod,['','timestamp_pending','timestamp_unknown'],true))continue;
+      $lateHidden=true;
+    }
+    if($clientId==='cl_76c4e019afc588'){require_once __DIR__.'/arkan_attribution_core_20261101.php';if(empty($conv['horizons_wa_token_decoded'])||!ara_click_valid($record,(string)($conv['business_number']??''),(string)($conv['customer_number']??''),(string)($conv['horizons_wa_token_decoded']??'')))continue;}
+    if($lateHidden){
+      $conv['ycloud_chatlink_click_id']=$clickId;
+      $conv['attribution_match_method']='horizons_hidden_token_late_click';
+      $all[$clickId]['matched_at']=gmdate('c');
+      $all[$clickId]['matched_customer']=clean_scalar($conv['customer_number']??'');
+      $all[$clickId]['match_method']='horizons_hidden_token_late_click';
+      save_json_file($mapFile,$all);
+    }
     $conv['traffic_source_key']=$src['key'];
     $conv['traffic_source_label']=$src['label'];
     $conv['traffic_source_reason']='chatlink_click_map';

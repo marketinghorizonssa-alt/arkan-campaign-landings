@@ -482,6 +482,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
             }else{
                 $chatClickMatchMethod='ycloud_hidden_token';
             }
+            if($valid&&$clientId==='cl_76c4e019afc588'){require_once __DIR__.'/arkan_attribution_core_20261101.php';$valid=($chatlink['format']??'')==='hzn1'&&ara_click_valid($candidate,$business,$customer,(string)($chatlink['decoded_token']??''));}
             if($valid)$chatClick=$candidate;
         }
     }
@@ -493,7 +494,7 @@ $handleInbound=function(array $m,bool $history=false)use(&$conversations,&$conve
     if($nativeConfirmed){
         $chatClickMatchMethod='native_confirmed';
         // A hidden token on the same message is consumed, but never allowed to override native evidence.
-        if(($chatlink['click_id']??'')!==''&&isset($clicks[$chatlink['click_id']])&&is_array($clicks[$chatlink['click_id']])){
+        if(($chatlink['click_id']??'')!==''&&isset($clicks[$chatlink['click_id']])&&is_array($clicks[$chatlink['click_id']])&&($clientId!=='cl_76c4e019afc588'||($chatClick&&($chatClick['client_id']??'')===$clientId))){
             $cid=(string)$chatlink['click_id'];
             $clicks[$cid]['matched_at']=gmdate('c');
             $clicks[$cid]['matched_customer']=$customer;
