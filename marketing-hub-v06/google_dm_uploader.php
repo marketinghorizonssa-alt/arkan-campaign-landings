@@ -305,6 +305,7 @@ try {
     $arcReceiptFile=$gdmPublicStatusDir.'/arkan-google-bridge-status.json';
     $arcReceipt=gdm_json($arcReceiptFile,[]);
     $arcReceipt['customer_id']='9201402498';$arcReceipt['checked_at']=gmdate('c');
+    $arcReceipt['last_full_scan_at']=gmdate('c',(int)($gdmLedger['last_run_at']??0));$arcReceipt['scan_due_in_seconds']=max(0,300-(time()-(int)($gdmLedger['last_run_at']??0)));
 
     $arcRun=$gdmRun['clients']['cl_76c4e019afc588']??null;
     if(is_array($arcRun)){$arcReceipt['last_scan']=$arcRun;$arcReceipt['crm_audit']=$arcCrmAudit??[];}
