@@ -196,7 +196,9 @@ foreach($clients as $clientId=>$bundle){
         $effectivePrev=$prevStage!==''?$prevStage:'new';
         $sentStages=is_array($prev['sent_stages']??null)?array_values(array_unique(array_map('strval',$prev['sent_stages']))):[];
         if($prevStage!=='' && !array_key_exists('sent_stages',$prev) && in_array($prevStage,$exportStages,true)) $sentStages[]=$prevStage;
-        $shouldRoute=!$firstRun && $effectivePrev!==$stage && in_array($stage,$exportStages,true) && !in_array($stage,$sentStages,true);
+        $needsArkanManualApproval=$clientId==='cl_76c4e019afc588' && in_array($stage,['qualified','converted'],true);
+        $deliveryApproved=!$needsArkanManualApproval || !empty($r['manual_override']);
+        $shouldRoute=!$firstRun && $effectivePrev!==$stage && in_array($stage,$exportStages,true) && !in_array($stage,$sentStages,true) && $deliveryApproved;
         if($shouldRoute){
             $eventId='ev_' . substr(lp_hmac($secret,$clientId,$leadId,$effectivePrev,$stage,lp_s($r['last_seen_at'])),0,32);
             $polarity=lp_s($config['stage_polarity'][$stage]??'neutral'); $origin=$source;
