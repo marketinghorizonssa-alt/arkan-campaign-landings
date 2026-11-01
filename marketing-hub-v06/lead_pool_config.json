@@ -80,12 +80,12 @@
       "name": "Arkan",
       "quality_profile": "arkan_v2_calibrated",
       "quality_calibrated": true,
-      "consent_verified": false,
-      "source_native_delivery": true,
-      "cross_platform_delivery": "queue_only_until_consent_verified",
       "accept_automation_stage": false,
       "qualified_conversion_requires_manual_review": true,
-      "converted_conversion_requires_contract_reference": true
+      "converted_conversion_requires_contract_reference": true,
+      "consent_verified": false,
+      "source_native_delivery": true,
+      "cross_platform_delivery": "queue_only_until_consent_verified"
     },
     "cl_0e6efd258397db": {
       "name": "Bcare",

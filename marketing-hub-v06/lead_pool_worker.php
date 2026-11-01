@@ -172,7 +172,8 @@ foreach($allLeadIds as $convId){
         'sccid'=>lp_s($tracking['sccid']??$tracking['ScCid']??$tracking['sc_click_id']??($conv['snapchat_scclid']??''))
     ];
     $campaign=['campaign_id'=>lp_s($tracking['campaign_id']??''),'campaign_name'=>lp_s($tracking['campaign_name']??''),'ad_group_id'=>lp_s($tracking['ad_group_id']??''),'ad_group_name'=>lp_s($tracking['ad_group_name']??''),'ad_id'=>lp_s($tracking['ad_id']??''),'keyword'=>lp_s($tracking['keyword']??''),'match_type'=>lp_s($tracking['match_type']??'')];
-    $phoneHash=$phone!==''?hash('sha256',$phone):'';
+    // Google Enhanced Conversions (and TikTok) require E.164 WITH the leading + before SHA-256.
+    $phoneHash=$phone!==''?hash('sha256','+'.$phone):'';
     $record=[
         'client_id'=>$clientId,'client_name'=>lp_s($e['client_name']??''),'contact_id'=>$contactId,'lead_id'=>$leadId,'conversation_id'=>$convId,
         'stage'=>$stage,'quality_score'=>(int)($e['quality_score']??0),'confidence'=>(float)($e['confidence']??0),'quality_profile'=>lp_s($cfg['quality_profile']??($calibrated?'calibrated':'uncalibrated')),
@@ -196,11 +197,16 @@ foreach($clients as $clientId=>$bundle){
         $effectivePrev=$prevStage!==''?$prevStage:'new';
         $sentStages=is_array($prev['sent_stages']??null)?array_values(array_unique(array_map('strval',$prev['sent_stages']))):[];
         if($prevStage!=='' && !array_key_exists('sent_stages',$prev) && in_array($prevStage,$exportStages,true)) $sentStages[]=$prevStage;
-        $needsArkanManualApproval=$clientId==='cl_76c4e019afc588' && in_array($stage,['qualified','converted'],true);
-        $deliveryApproved=!$needsArkanManualApproval || !empty($r['manual_override']);
-        $shouldRoute=!$firstRun && $effectivePrev!==$stage && in_array($stage,$exportStages,true) && !in_array($stage,$sentStages,true) && $deliveryApproved;
+        $shouldRoute=!$firstRun && $effectivePrev!==$stage && in_array($stage,$exportStages,true) && !in_array($stage,$sentStages,true);
+        $arcVerificationId='';$arcVerifiedAt='';
+        if($clientId==='cl_76c4e019afc588'){require_once __DIR__.'/arkan_crm_verified_core_20261101.php';
+$arcConversation=$conversationStore[$r['conversation_id']??'']??[];
+            $arcVerifiedAt=arc_verified_time($arcConversation,$stage);$arcVerificationId=lp_s($arcConversation['verification_id']??'');
+            $shouldRoute=!$firstRun && in_array($stage,['qualified','converted'],true) && $arcVerifiedAt!=='' && $arcVerificationId!=='' && ($prev['verification_id']??'')!==$arcVerificationId;
+        }
         if($shouldRoute){
             $eventId='ev_' . substr(lp_hmac($secret,$clientId,$leadId,$effectivePrev,$stage,lp_s($r['last_seen_at'])),0,32);
+            if($clientId==='cl_76c4e019afc588')$eventId='ev_'.substr(lp_hmac($secret,$clientId,$leadId,'verified',$stage,$arcVerificationId),0,32);
             $polarity=lp_s($config['stage_polarity'][$stage]??'neutral'); $origin=$source;
             $broadcastAll=(bool)($cfg['broadcast_qualified_to_all_platforms']??false);
             if($broadcastAll && in_array($stage,['qualified','converted'],true)){
@@ -235,6 +241,10 @@ foreach($clients as $clientId=>$bundle){
         }
         if($firstRun && in_array($stage,$exportStages,true) && !in_array($stage,$sentStages,true))$sentStages[]=$stage;
         $nextState[$leadId]=['stage'=>$stage,'source'=>$source,'last_seen_at'=>$r['last_seen_at'],'sent_stages'=>array_values(array_unique($sentStages)),'updated_at'=>gmdate('c')];
+        if($clientId==='cl_76c4e019afc588'){
+            unset($nextState[$leadId]['sent_stages']);
+            $nextState[$leadId]+=['observed_stage'=>$stage,'verified_stage'=>$arcVerifiedAt!==''?$stage:null,'verified_at'=>$arcVerifiedAt?:null,'verification_id'=>$arcVerificationId,'postback_state'=>$shouldRoute?'QUEUED':($prev['postback_state']??($arcVerifiedAt!==''?'BASELINED_NOT_SENT':'BLOCKED_UNVERIFIED'))];
+        }
     }
     foreach(($config['stages']??[]) as $stage)foreach(($config['sources']??[]) as $source)lp_write_jsonl($dir.'/stages/'.$stage.'/'.$source.'.jsonl',$stageSource[$stage][$source]??[]);
     lp_atomic_json($dir.'/current.json',['client_id'=>$clientId,'generated_at'=>gmdate('c'),'records'=>$records]);

@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "note": "Single source of truth for Google Ads offline conversions (Data Manager API). Each hub stage maps to exactly one conversion action.",
+  "login_customer_id": "8480913009",
+  "currency": "SAR",
+  "max_event_age_days": 85,
+  "clients": {
+    "cl_0e6efd258397db": {
+      "name": "BCARE",
+      "customer_id": "4482394160",
+      "actions": {
+        "message_started": {"id": "7789160285", "name": "BCARE | WhatsApp Message Started | Offline v1", "value": 1},
+        "interested":      {"id": "7789160288", "name": "BCARE | WhatsApp Interested | Offline v1", "value": 2},
+        "qualified":       {"id": "7789160291", "name": "BCARE | WhatsApp Qualified | Offline v1", "value": 5},
+        "converted":       {"id": "7789160294", "name": "BCARE | WhatsApp Converted | Offline v1", "value": 10}
+      }
+    },
+    "cl_3ea5ae96e05c6b": {
+      "name": "ALMOWAHID",
+      "customer_id": "4577472256",
+      "actions": {
+        "message_started": {"id": "7789308219", "name": "ALMOWAHID | WhatsApp Message Started | Offline v1", "value": 1},
+        "interested":      {"id": "7789308222", "name": "ALMOWAHID | WhatsApp Interested | Offline v1", "value": 2},
+        "qualified":       {"id": "7789308225", "name": "ALMOWAHID | WhatsApp Qualified | Offline v1", "value": 5},
+        "converted":       {"id": "7789308228", "name": "ALMOWAHID | WhatsApp Converted | Offline v1", "value": 10}
+      }
+    },
+    "cl_cbb797950cc8d4": {
+      "name": "ETIZAN",
+      "customer_id": "8433542366",
+      "actions": {
+        "message_started": {"id": "7790177464", "name": "ETIZAN | WhatsApp Message Started | Offline v1", "value": 1},
+        "interested":      {"id": "7790177467", "name": "ETIZAN | WhatsApp Interested | Offline v1", "value": 2},
+        "qualified":       {"id": "7790177470", "name": "ETIZAN | WhatsApp Qualified | Offline v1", "value": 5},
+        "converted":       {"id": "7790177473", "name": "ETIZAN | WhatsApp Converted | Offline v1", "value": 10}
+      }
+    },
+    "cl_d554e1c6bfe460": {
+      "name": "BIYAAT",
+      "customer_id": "4085241217",
+      "actions": {
+        "message_started": {"id": "7853493758", "name": "BIYAAT | WhatsApp Message Started | Offline v1", "value": 1},
+        "interested":      {"id": "7853493761", "name": "BIYAAT | WhatsApp Interested | Offline v1", "value": 2},
+        "qualified":       {"id": "7853493764", "name": "BIYAAT | WhatsApp Qualified | Offline v1", "value": 5},
+        "converted":       {"id": "7853493767", "name": "BIYAAT | WhatsApp Converted | Offline v1", "value": 10}
+      }
+    },
+    "cl_76c4e019afc588": {
+      "name": "ARKAN",
+      "customer_id": "9201402498",
+      "enabled": true,
+      "delivery_mode": "LIVE",
+      "consent_verified": true,
+      "consent_basis": "Owner confirmed direct collection and measurement consent in this chat on 2026-11-01",
+      "source_policy": "Exclude explicit TikTok; other sources are eligible for Google matching without being relabelled Google",
+      "actions": {
+        "message_started": {
+          "id": "7842377643",
+          "value": 0
+        },
+        "interested": {
+          "id": "7842424315",
+          "value": 0
+        },
+        "qualified": {
+          "id": "7842424318",
+          "value": 0
+        },
+        "converted": {
+          "id": "7842424441",
+          "value": 0
+        }
+      },
+      "max_new_events_per_run": 1
+    }
+  }
+}

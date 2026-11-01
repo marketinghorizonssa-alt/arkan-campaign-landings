@@ -1,14 +1,18 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/hz_auth.php'; if (realpath((string)($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) hz_gate(['json' => true]); // one login for the CRM UI (2026-10-18); gate only when opened directly, never when included
 
 header('Cache-Control: no-store, max-age=0');
 
 $base = __DIR__ . '/data';
 $secure = dirname(__DIR__, 4) . '/.marketing';
-$tzName = ((string)($_GET['client_id'] ?? '')) === 'cl_76c4e019afc588' ? 'Asia/Riyadh' : 'Africa/Cairo';
+// Report days follow the clients' timezone (Riyadh), same as the Google Sheets export. Override with ?tz=.
+$tzName = is_string($_GET['tz'] ?? null) && in_array($_GET['tz'], DateTimeZone::listIdentifiers(), true) ? $_GET['tz'] : 'Asia/Riyadh';
 $tz = new DateTimeZone($tzName);
 
 function lr_bootstrap_sheet_feed(string $secure): void {
+    // Disabled: sheet_feed.php is maintained in place; never overwrite it from GitHub at runtime.
+    return;
     $marker=$secure.'/.sheet_feed_live_v2';
     $target=__DIR__.'/sheet_feed.php';
     if (is_file($target) && is_file($marker)) return;
@@ -98,7 +102,7 @@ function lr_inbound_source_url(array $raw): string {
     foreach($candidates as $v) if(is_string($v)&&trim($v)!=='') return trim($v);
     return '';
 }
-function lr_source(array $firstInbound, array $messages, array $contactSource=[], array $conversationSource=[], string $clientId=''): array {
+function lr_source(array $firstInbound, array $messages, array $contactSource=[], array $conversationSource=[]): array {
     $raw = is_array($firstInbound['raw'] ?? null) ? $firstInbound['raw'] : [];
     $ref = is_array($raw['referral'] ?? null) ? $raw['referral'] : [];
     $inboundSourceUrl=lr_inbound_source_url($raw);
@@ -171,54 +175,7 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
     }
 
     // No ad/site evidence means the person contacted WhatsApp directly.
-    return $clientId==='cl_76c4e019afc588' ? ['key'=>'unknown','label'=>'Unattributed / Unknown','confidence'=>'low','reason'=>'no_confirmed_ad_or_organic_source'] : ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
-}
-// ARKAN uses conservative lead qualification. A keyword in a payment or transfer
-// message is never evidence of a completed property/finance-service contract.
-function lr_arkan_observed_stage(array $messages): array {
-    $inbound=0; $staff=false; $replyAfterStaff=false; $meaningful=0;
-    $serviceIntent=false; $financingDetails=false; $nextStep=false;
-    $docsRequested=false; $docsReceivedAfterRequest=false;
-    $serviceWords=['تمويل','مديونية','مديونيه','قرض','قروض','رهن','استقطاع','سداد مبكر','إعادة جدولة','اعادة جدولة','تعثر','عقار','تملك','شراء بيت','الالتزامات','إلتزامات','سمة'];
-    $financeDetailWords=['راتب','الدخل','الراتب','الراتبي','القسط','أقساط','اقساط','التزام','الالتزامات','التمويل الحالي','البنك','مدة القرض','مبلغ','رقم','المتبقي','المبلغ'];
-    $nextWords=['وش المطلوب','ايش المطلوب','وش الخطوة','الخطوة الجاية','كم المدة','أرسل الأوراق','ارسل الاوراق','أرسل المستندات','ارسل المستندات','ابغى اتواصل','أبغى اتواصل','كلمني','اتصلوا','دق علي','أبغى موعد','ابي موعد','حجز موعد','أرسل لك','ارسل لك','نبدأ','ابدأ'];
-    $docWords=['أرسل المستندات','ارسل المستندات','أرسل الأوراق','ارسل الاوراق','تعريف بالراتب','تقرير سمة','المستندات المطلوبة','الأوراق المطلوبة'];
-    $noise=['السلام عليكم','وعليكم السلام','مرحبا','مرحباً','هلا','اهلا','أهلا','تمام','طيب','نعم','ايوا','ايوه','أيوه','شكرا','شكرًا','شكراً','ok','okay','thanks'];
-    foreach ($messages as $m) {
-        if(!is_array($m))continue;
-        $dir=lr_s($m['direction']??''); $type=lr_lower(lr_s($m['type']??''));
-        $txt=lr_clean(lr_s($m['text']??''));
-        if($dir==='outbound'){
-            $staff=true;
-            if(lr_contains($txt,$docWords))$docsRequested=true;
-            continue;
-        }
-        if($dir!=='inbound'||!lr_valid_message_type($type))continue;
-        $inbound++;
-        if($staff)$replyAfterStaff=true;
-        if($docsRequested&&$staff&&in_array($type,['document','image'],true))$docsReceivedAfterRequest=true;
-        if($txt===''||preg_match('/^\\[(image|document|video|audio|sticker|location|contacts)\\]$/i',$txt))continue;
-        $low=lr_lower($txt);
-        $isNoise=false;
-        foreach($noise as $n)if($low===lr_lower($n)){$isNoise=true;break;}
-        if($isNoise)continue;
-        // Tracking boilerplate is an attribution clue, not proof of financial fit.
-        if(lr_contains($txt,['صادفت إعلانك على TikTok','came across your ad on TikTok']) &&
-            !lr_contains($txt,$serviceWords))continue;
-        $meaningful++;
-        if(lr_contains($txt,$serviceWords))$serviceIntent=true;
-        if(lr_contains($txt,$financeDetailWords))$financingDetails=true;
-        if(lr_contains($txt,$nextWords))$nextStep=true;
-    }
-    $stage='message_received';$reason='first_valid_customer_message';
-    if($meaningful>=1){$stage='interested';$reason='meaningful_customer_intent_needs_review';}
-    if($serviceIntent&&$replyAfterStaff&&(($docsReceivedAfterRequest)||
-        ($meaningful>=2&&$financingDetails&&$nextStep))){
-        $stage='qualified';
-        $reason=$docsReceivedAfterRequest?'requested_financial_documents_received':'specific_financial_fit_and_next_step';
-    }
-    // Converted is reserved for explicit, independently verified manual CRM outcomes.
-    return ['stage'=>$stage,'reason'=>$reason,'valid_inbound'=>$inbound];
+    return ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
 }
 function lr_stage_rank(string $s): int {
     return match($s){'message_received'=>0,'interested'=>1,'qualified'=>2,'converted'=>3,'lost'=>90,default=>-1};
@@ -244,20 +201,18 @@ function lr_observed_stage(array $messages): array {
     return ['stage'=>$stage,'reason'=>$reason,'valid_inbound'=>$valid];
 }
 function lr_stage(array $ai,array $messages=[],string $clientId=''): array {
+    if($clientId==='cl_76c4e019afc588'){require_once __DIR__.'/arkan_crm_verified_core_20261101.php';
+return arc_quality($ai,$messages);}
     $tag = lr_lower(lr_s($ai['current_tag'] ?? ''));
     if($tag==='purchased')$tag='converted';
-    $isArkan=$clientId==='cl_76c4e019afc588';
-    $observed=$isArkan?lr_arkan_observed_stage($messages):lr_observed_stage($messages);
+    $observed=lr_observed_stage($messages);
     $observedStage=$observed['stage'];
 
     if(!in_array($tag,['message_received','interested','qualified','converted','unqualified','lost'],true))$tag='';
-    $manual=($ai['tag_source']??'')==='manual'||!empty($ai['manual_override']);
-    // A saved automated tag (including old Converted false positives) must not
-    // override the audited ARKAN text evidence.
-    if($isArkan&&!$manual)$tag='';
-    $key=$tag!==''?$tag:$observedStage;
+    $manual=($ai['tag_source']??'')==='manual'||!empty($ai['manual_override']);$key=$tag!==''?$tag:$observedStage;
     if(!$manual&&!in_array($key,['lost','unqualified'],true)&&lr_stage_rank($observedStage)>lr_stage_rank($key))$key=$observedStage;
 
+    if($key==='unqualified'){$ut=lr_lower(lr_s($ai['unqualified_type']??''));if(in_array($ut,['spam','disqualified'],true))$key=$ut;}
     return [
         'key'=>$key,
         'label'=>match($key){
@@ -266,17 +221,15 @@ function lr_stage(array $ai,array $messages=[],string $clientId=''): array {
             'qualified'=>'Qualified',
             'converted'=>'Converted',
             'unqualified'=>'Unqualified',
+            'disqualified'=>'DisQualified',
+            'spam'=>'Spam',
             'lost'=>'Lost',
             default=>'Message Received'
         },
-        'score'=>isset($ai['ai_quality_score'])&&(int)$ai['ai_quality_score']>0?(int)$ai['ai_quality_score']:null,
+        'score'=>(int)($ai['ai_quality_score'] ?? 0),
         'summary'=>$manual?'تقييم يدوي محفوظ':(lr_s($ai['ai_summary'] ?? '') ?: ($key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason']??''))),
         'reason'=>$key===$observedStage?$observed['reason']:lr_s($ai['auto_label_reason'] ?? $ai['ai_reason'] ?? ''),
-        'manual_override'=>$manual,
-        'requires_review'=>$isArkan&&in_array($key,['qualified','converted'],true)&&(!$manual || ($key==='converted'&&lr_s($ai['conversion_evidence_reference']??'')==='')),
-        'manual_verified'=>$manual&&($key==='qualified'||($key==='converted'&&lr_s($ai['conversion_evidence_reference']??'')!=='')),
-        'postback_verified'=>false,
-        'method'=>$manual?'manual_override':($tag!==''?'hub_status_plus_message_reconciliation':'message_reconciliation')
+        'manual_override'=>$manual,'method'=>$manual?'manual_override':($tag!==''?'hub_status_plus_message_reconciliation':'message_reconciliation')
     ];
 }
 function lr_client_id(array $m, string $direction, array $byPhone, array $byWaba): string {
@@ -384,7 +337,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
     $start=(new DateTimeImmutable($fromStr.' 00:00:00',$tz))->getTimestamp();
     $end=(new DateTimeImmutable($toStr.' 23:59:59',$tz))->getTimestamp();
     $leads=[]; $summary=[
-        'new_customers'=>0,'messages'=>0,'paid_ads'=>0,'organic'=>0,'unknown'=>0,
+        'new_customers'=>0,'messages'=>0,'paid_ads'=>0,'organic'=>0,
         'quality'=>['message_received'=>0,'interested'=>0,'qualified'=>0,'converted'=>0,'lost'=>0],
         'sources'=>[]
     ];
@@ -395,7 +348,10 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         $messages=array_values($t['messages']);
         usort($messages,fn($a,$b)=>($a['epoch']<=>$b['epoch']));
         $messages=array_values(array_filter($messages,fn($m)=>$m['epoch']>=$firstEpoch && $m['epoch']<=$end));
-        $src=lr_source($t['first_inbound'],$messages,$contactSourceByKey[$key]??[],$aiByKey[$key]??[],$t['client_id']);
+        $arcArkan=$t['client_id']==='cl_76c4e019afc588';
+        $src=lr_source($t['first_inbound'],$arcArkan?[$t['first_inbound']]:$messages,$contactSourceByKey[$key]??[],$aiByKey[$key]??[]);
+        if($arcArkan){require_once __DIR__.'/arkan_crm_verified_core_20261101.php';
+$src=arc_source($src);}
         $quality=lr_stage($aiByKey[$key]??[],$messages,$t['client_id']);
         $messageRows=[];
         foreach($messages as $m) {
@@ -443,9 +399,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         ];
         $summary['new_customers']++;
         $summary['messages']+=count($messageRows);
-        if($src['key']==='organic')$summary['organic']++;
-        elseif($src['key']==='unknown')$summary['unknown']++;
-        elseif(in_array($src['key'],['google','meta','tiktok','snapchat','microsoft_ads','linkedin','x'],true))$summary['paid_ads']++;
+        if($src['key']==='organic') $summary['organic']++; else $summary['paid_ads']++;
         $summary['sources'][$src['key']]=($summary['sources'][$src['key']]??0)+1;
         $summary['quality'][$quality['key']]=($summary['quality'][$quality['key']]??0)+1;
     }

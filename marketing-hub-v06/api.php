@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/hz_auth.php'; if (realpath((string)($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) hz_gate(['json' => true, 'allow_actions' => ['chatlink_click']]); // one login for the CRM UI (2026-10-18); gate only when opened directly, never when included
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -253,6 +254,7 @@ if($action==='chatlink_click'&&$_SERVER['REQUEST_METHOD']==='POST'){
     elseif(str_contains($utmSource,'tiktok')){$platform='tiktok';$label='TikTok Ads';$reason='ycloud_chatlink_utm';}
     elseif(in_array($utmSource,['facebook','instagram','meta'],true)){$platform='meta';$label='Meta Ads';$reason='ycloud_chatlink_utm';}
     elseif(str_contains($utmSource,'snap')){$platform='snapchat';$label='Snapchat Ads';$reason='ycloud_chatlink_utm';}
+    require_once __DIR__.'/crm_lock.php';crm_data_lock();
     $clicks=load_json($chatlinkClicksFile,[]);
     $now=time();
     foreach($clicks as $k=>$v){$ts=strtotime((string)($v['created_at']??''));if($ts&&$now-$ts>2592000)unset($clicks[$k]);}
@@ -273,25 +275,20 @@ if($action==='events'){echo json_encode(['ok'=>true,'events'=>read_jsonl($conver
 if($action==='deliveries'){echo json_encode(['ok'=>true,'deliveries'=>read_jsonl($deliveryFile,200)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
 if($action==='raw'){echo json_encode(['ok'=>true,'events'=>read_jsonl($rawFile,50)],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
 if($action==='tag'&&$_SERVER['REQUEST_METHOD']==='POST'){
-    $body=body_json();$id=(string)($body['conversation_id']??'');$tag=strtolower(trim((string)($body['tag']??'')));$allowed=['message_received','interested','qualified','converted','purchased','unqualified','lost','auto'];if($id===''||!in_array($tag,$allowed,true)){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_input']);exit;}
-    $c=load_json($convFile,[]);if(!isset($c[$id])){http_response_code(404);echo json_encode(['ok'=>false,'error'=>'conversation_not_found']);exit;}$isManual=$tag!=='auto';if($tag==='purchased')$tag='converted';
-    $previousTag=(string)($c[$id]['current_tag']??'');
-    $previouslyManual=(($c[$id]['tag_source']??'')==='manual');
-    $nextTag=$isManual?$tag:'message_received';
-    $changed=($previousTag!==$nextTag)||($previouslyManual!==$isManual);
-    $now=gmdate('c');
-    // A manual confirmation of an old automatic stage is a real stage transition.
-    // Repeating the same manual tag remains idempotent and sends no duplicate event.
-    $isArkan=(string)($c[$id]['client_id']??'')==='cl_76c4e019afc588';
-    if($isArkan && $isManual && $tag==='converted'){
-        $evidenceRef=trim((string)($body['evidence_reference']??''));
-        if($evidenceRef==='' && (string)($c[$id]['conversion_evidence_reference']??'')===''){
-            http_response_code(422);
-            echo json_encode(['ok'=>false,'error'=>'conversion_evidence_required']);
-            exit;
-        }
-        if($evidenceRef!=='')$c[$id]['conversion_evidence_reference']=substr($evidenceRef,0,160);
-    }$c[$id]['manual_override']=$isManual;$c[$id]['manual_tag']=$isManual?$tag:'';$c[$id]['current_tag']=$isManual?$tag:'message_received';$c[$id]['tagged_at']=$now;$c[$id]['tag_source']=$isManual?'manual':'automation';$c[$id]['auto_label_reason']=$isManual?'manual_override':'manual_override_released';if($isManual&&in_array($tag,['interested','qualified','converted'],true)){$c[$id]['stage_times']=is_array($c[$id]['stage_times']??null)?$c[$id]['stage_times']:[];if($changed||empty($c[$id]['stage_times'][$tag]))$c[$id]['stage_times'][$tag]=$now;}$hist=is_array($c[$id]['label_history']??null)?$c[$id]['label_history']:[];if($changed){$hist[]=['tag'=>$tag,'source'=>'manual','reason'=>'manual_override','confidence'=>1.0,'at'=>$now];if(count($hist)>20)$hist=array_slice($hist,-20);}$c[$id]['label_history']=$hist;if(!save_json($convFile,$c)){http_response_code(500);echo json_encode(['ok'=>false,'error'=>'save_failed']);exit;}$delivery=null;
+    $body=body_json();$id=(string)($body['conversation_id']??'');$tag=strtolower(trim((string)($body['tag']??'')));$allowed=['message_received','interested','qualified','converted','purchased','unqualified','disqualified','spam','lost','auto'];if($id===''||!in_array($tag,$allowed,true)){http_response_code(422);echo json_encode(['ok'=>false,'error'=>'invalid_input']);exit;}
+    require_once __DIR__.'/crm_lock.php';crm_data_lock();
+    $c=load_json($convFile,[]);if(!isset($c[$id])){http_response_code(404);echo json_encode(['ok'=>false,'error'=>'conversation_not_found']);exit;}$changed=(($c[$id]['current_tag']??null)!==$tag);$now=gmdate('c');$isManual=$tag!=='auto';if($tag==='purchased')$tag='converted';require_once __DIR__.'/arkan_crm_verified_core_20261101.php';
+$arcClient=arc_client($c[$id],load_json($numbersFile,[]),$connections);
+    if($arcClient==='cl_76c4e019afc588'){
+        if(!arc_origin_allowed(trim((string)($_SERVER['HTTP_ORIGIN']??'')))){http_response_code(403);echo json_encode(['ok'=>false,'error'=>'csrf_origin_not_allowed']);exit;}
+        $arcRecord=$c[$id];$arcRecord['id']=$id;
+        $arcDecision=arc_tag_decision($arcRecord,$tag,trim((string)($body['evidence_reference']??'')),$now);
+        if(!$arcDecision['ok']){http_response_code(422);echo json_encode(['ok'=>false,'error'=>$arcDecision['error']]);exit;}
+        $changed=$arcDecision['changed'];$c[$id]['client_id']=$arcClient;
+        foreach(['manual_verified_stage','manual_verified_at','verification_id'] as $arcField){if(isset($arcDecision[$arcField]))$c[$id][$arcField]=$arcDecision[$arcField];elseif(!$isManual)unset($c[$id][$arcField]);}
+        if($arcDecision['evidence_reference']!=='')$c[$id]['conversion_evidence_reference']=$arcDecision['evidence_reference'];
+    }
+$c[$id]['manual_override']=$isManual;$c[$id]['manual_tag']=$isManual?$tag:'';$c[$id]['current_tag']=$isManual?$tag:'message_received';$c[$id]['unqualified_type']=in_array($tag,['spam','disqualified'],true)?$tag:'';if($c[$id]['unqualified_type']!=='')$c[$id]['current_tag']='unqualified';$c[$id]['tagged_at']=$now;$c[$id]['tag_source']=$isManual?'manual':'automation';$c[$id]['auto_label_reason']=$isManual?'manual_override':'manual_override_released';if($isManual&&in_array($tag,['interested','qualified','converted'],true)){$c[$id]['stage_times']=is_array($c[$id]['stage_times']??null)?$c[$id]['stage_times']:[];if($changed||empty($c[$id]['stage_times'][$tag]))$c[$id]['stage_times'][$tag]=$now;}$hist=is_array($c[$id]['label_history']??null)?$c[$id]['label_history']:[];if($changed){$hist[]=['tag'=>$tag,'source'=>'manual','reason'=>'manual_override','confidence'=>1.0,'at'=>$now];if(count($hist)>20)$hist=array_slice($hist,-20);}$c[$id]['label_history']=$hist;if(!save_json($convFile,$c)){http_response_code(500);echo json_encode(['ok'=>false,'error'=>'save_failed']);exit;}crm_data_unlock();$delivery=null;
     if($changed&&$isManual&&!in_array($tag,['lost','unqualified','message_received'],true)){
         $numbers=sync_detected_numbers($convFile,$numbersFile,$connections);$num=resolve_number($c[$id],$numbers);$connId=(string)($c[$id]['ycloud_connection_id']??($num['ycloud_connection_id']??''));if($connId===''&&isset($connections['yc_legacy']))$connId='yc_legacy';$clientId=(string)($num['client_id']??($connections[$connId]['client_id']??''));$numberId=(string)($num['id']??'');
         $eventId=make_id('mev');$event=['id'=>$eventId,'event'=>$tag,'conversation_id'=>$id,'client_id'=>$clientId,'number_id'=>$numberId,'ycloud_connection_id'=>$connId,'waba_id'=>$c[$id]['waba_id']??'','business_number'=>$c[$id]['business_number']??'','customer_number'=>$c[$id]['customer_number']??'','contact_name'=>$c[$id]['contact_name']??'','ctwa_clid'=>$c[$id]['ctwa_clid']??null,'source'=>'manual_tag','created_at'=>$now];append_jsonl($conversionFile,$event);
