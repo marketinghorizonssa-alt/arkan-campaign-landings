@@ -12,10 +12,10 @@ function as_fetch(string $url):string{
  $ctx=stream_context_create(['http'=>['timeout'=>35,'follow_location'=>0,'header'=>"User-Agent: ARKAN-Authorized-Static-Deployment\r\n"]]);$data=@file_get_contents($url,false,$ctx);if(!is_string($data)||$data==='')throw new RuntimeException('download_failed');return $data;
 }
 function as_mkdir(string $dir,int $mode):void{if(!is_dir($dir)&&!mkdir($dir,$mode,true))throw new RuntimeException('mkdir_failed');if(is_link($dir))throw new RuntimeException('symlink_denied');}
-$release=$home.'/private/arkan-static-20261101-'.substr($commit,0,12);$installed=[];$had=[];$log=['domain'=>'arkan2030.com','version'=>'20261101-search-5','commit'=>$commit,'state'=>'preparing','files'=>0,'updated_at'=>gmdate('c')];
+$release=$home.'/private/arkan-static-20261101-'.substr($commit,0,12);$installed=[];$had=[];$log=['domain'=>'arkan2030.com','version'=>'20261101-float-1','commit'=>$commit,'state'=>'preparing','files'=>0,'updated_at'=>gmdate('c')];
 try{
  as_mkdir($release,0700);$lock=fopen($release.'/install.lock','c');if(!$lock||!flock($lock,LOCK_EX|LOCK_NB))exit(0);
- $manifest=json_decode(as_fetch($base.'manifest.json'),true,512,JSON_THROW_ON_ERROR);if(($manifest['domain']??'')!=='arkan2030.com'||($manifest['version']??'')!=='20261101-search-5')throw new RuntimeException('manifest_scope_mismatch');
+ $manifest=json_decode(as_fetch($base.'manifest.json'),true,512,JSON_THROW_ON_ERROR);if(($manifest['domain']??'')!=='arkan2030.com'||($manifest['version']??'')!=='20261101-float-1')throw new RuntimeException('manifest_scope_mismatch');
  foreach($manifest['files'] as $file){$path=(string)$file['path'];if(str_contains($path,'..')||str_starts_with($path,'/')||str_contains($path,'\\')||preg_match('~^(crm|sales|violations)(/|$)~i',$path)||!preg_match('~^(?:index\.html|robots\.txt|sitemap\.xml|assets/[A-Za-z0-9._-]+|[^/.]+/index\.html)$~u',$path)||str_ends_with($path,'.php'))throw new RuntimeException('path_not_allowed');
   $target=$root.'/'.$path;if(is_link($target))throw new RuntimeException('file_symlink_denied');$parent=dirname($target);if(is_dir($parent)&&!str_starts_with((string)realpath($parent),$root))throw new RuntimeException('path_escape');
   $source=($file['kind']??'')==='original_asset'?'https://arkan-realestate-solutions.hositee.com/assets/'.$file['source']:$base.'public/'.implode('/',array_map('rawurlencode',explode('/',$path)));$data=as_fetch($source);
