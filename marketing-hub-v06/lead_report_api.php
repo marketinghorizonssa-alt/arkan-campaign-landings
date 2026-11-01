@@ -351,7 +351,8 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         $arcArkan=$t['client_id']==='cl_76c4e019afc588';
         $src=lr_source($t['first_inbound'],$arcArkan?[$t['first_inbound']]:$messages,$contactSourceByKey[$key]??[],$aiByKey[$key]??[]);
         if($arcArkan){require_once __DIR__.'/arkan_crm_verified_core_20261101.php';
-$src=arc_source($src);}
+$src=arc_source($src);$arcReviewedSource=arc_assistant_review($aiByKey[$key]??[]);$arcReviewedSourceKey=$arcReviewedSource['reviewed_source']??'';
+if(in_array($arcReviewedSourceKey,['google','referral','tiktok'],true))$src=['key'=>$arcReviewedSourceKey,'label'=>$arcReviewedSourceKey==='referral'?'إحالة شخصية / شريك':ucfirst($arcReviewedSourceKey),'confidence'=>'high','reason'=>'assistant_review_of_explicit_conversation_evidence','original_source'=>$src];}
         $quality=lr_stage($aiByKey[$key]??[],$messages,$t['client_id']);
         $messageRows=[];
         foreach($messages as $m) {
@@ -506,3 +507,4 @@ try{
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok'=>false,'error'=>$e->getMessage()],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 }
+

@@ -129,6 +129,7 @@ if(is_file($attrFile)&&($fh=@fopen($attrFile,'rb'))){while(($line=fgets($fh))!==
 
 $allLeadIds=array_values(array_unique(array_merge(array_keys($baseByLead),array_keys($evalByLead),array_keys($identity))));
 $clients=[];$quarantine=[];
+require_once __DIR__.'/arkan_crm_verified_core_20261101.php';
 foreach($allLeadIds as $convId){
     $b=$baseByLead[$convId]??[]; $e=$evalByLead[$convId]??[]; $id=$identity[$convId]??[];
     $clientId=lp_s($e['client_id']??$b['client_id']??$id['client_id']??'');
@@ -140,7 +141,7 @@ foreach($allLeadIds as $convId){
     $conv=is_array($conversationStore[$convId]??null)?$conversationStore[$convId]:[];
     $manualTag=strtolower(lp_s($conv['current_tag']??$b['crm_status']??''));$tagSource=strtolower(lp_s($conv['tag_source']??$b['tag_source']??''));
     $manual=false; $manualStage='';
-    if($manualTag!=='' && $tagSource==='manual'){
+    if($manualTag!=='' && ($tagSource==='manual'||($clientId==='cl_76c4e019afc588'&&arc_assistant_review($conv)))){
         $manual=true; $manualStage=match($manualTag){'purchased','converted'=>'converted','message_received'=>'message_received','interested'=>'interested','qualified'=>'qualified','lost'=>'lost','unqualified'=>'unqualified',default=>''};
     }
     $calibrated=(bool)($cfg['quality_calibrated']??false);
@@ -256,3 +257,4 @@ $arcConversation=$conversationStore[$r['conversation_id']??'']??[];
 }
 if($quarantine)lp_write_jsonl($poolRoot.'/_quarantine/missing_client.jsonl',$quarantine);
 echo json_encode($result,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)."\n";
+
