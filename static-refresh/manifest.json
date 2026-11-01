@@ -77,8 +77,8 @@
     },
     {
       "path": "assets/horizons-wa-attribution.js",
-      "sha256": "7cad11cf81fb81bcbed741e1084286f8cbc228ca40e28f781c06caa26eeac2be",
-      "bytes": 6105,
+      "sha256": "005613d3ef696a966443df187b83ff01a209d083ba9c52fb08b4849cc0510baa",
+      "bytes": 6049,
       "kind": "repo"
     },
     {
@@ -96,8 +96,8 @@
     },
     {
       "path": "robots.txt",
-      "sha256": "913d259adcd8d189f6c13f68e95c05cfd10b44b4bdb947b51e31c3f25abc413d",
-      "bytes": 129,
+      "sha256": "f1be41743f6aab3e9835b3f3c2ff98787c04323233a349d0ba39647b3725f7a4",
+      "bytes": 123,
       "kind": "repo"
     },
     {
