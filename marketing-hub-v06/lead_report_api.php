@@ -98,7 +98,7 @@ function lr_inbound_source_url(array $raw): string {
     foreach($candidates as $v) if(is_string($v)&&trim($v)!=='') return trim($v);
     return '';
 }
-function lr_source(array $firstInbound, array $messages, array $contactSource=[], array $conversationSource=[]): array {
+function lr_source(array $firstInbound, array $messages, array $contactSource=[], array $conversationSource=[], string $clientId=''): array {
     $raw = is_array($firstInbound['raw'] ?? null) ? $firstInbound['raw'] : [];
     $ref = is_array($raw['referral'] ?? null) ? $raw['referral'] : [];
     $inboundSourceUrl=lr_inbound_source_url($raw);
@@ -171,7 +171,7 @@ function lr_source(array $firstInbound, array $messages, array $contactSource=[]
     }
 
     // No ad/site evidence means the person contacted WhatsApp directly.
-    return ['key'=>'unknown','label'=>'Unattributed / Unknown','confidence'=>'low','reason'=>'no_confirmed_ad_or_organic_source'];
+    return $clientId==='cl_76c4e019afc588' ? ['key'=>'unknown','label'=>'Unattributed / Unknown','confidence'=>'low','reason'=>'no_confirmed_ad_or_organic_source'] : ['key'=>'organic','label'=>'Organic / Direct','confidence'=>'medium','reason'=>'direct_whatsapp_no_ad_or_site_signal'];
 }
 // ARKAN uses conservative lead qualification. A keyword in a payment or transfer
 // message is never evidence of a completed property/finance-service contract.
@@ -394,7 +394,7 @@ function lr_build(string $clientFilter, string $fromStr, string $toStr, DateTime
         $messages=array_values($t['messages']);
         usort($messages,fn($a,$b)=>($a['epoch']<=>$b['epoch']));
         $messages=array_values(array_filter($messages,fn($m)=>$m['epoch']>=$firstEpoch && $m['epoch']<=$end));
-        $src=lr_source($t['first_inbound'],$messages,$contactSourceByKey[$key]??[],$aiByKey[$key]??[]);
+        $src=lr_source($t['first_inbound'],$messages,$contactSourceByKey[$key]??[],$aiByKey[$key]??[],$t['client_id']);
         $quality=lr_stage($aiByKey[$key]??[],$messages,$t['client_id']);
         $messageRows=[];
         foreach($messages as $m) {
