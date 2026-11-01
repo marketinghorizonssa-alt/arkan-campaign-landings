@@ -5,7 +5,7 @@ header('Cache-Control: no-store, max-age=0');
 
 $base = __DIR__ . '/data';
 $secure = dirname(__DIR__, 4) . '/.marketing';
-$tzName = 'Africa/Cairo';
+$tzName = ((string)($_GET['client_id'] ?? '')) === 'cl_76c4e019afc588' ? 'Asia/Riyadh' : 'Africa/Cairo';
 $tz = new DateTimeZone($tzName);
 
 function lr_bootstrap_sheet_feed(string $secure): void {
