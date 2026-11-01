@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /crm/
+Disallow: /sales/
+Disallow: /violations/
+Sitemap: https://arkan2030.com/sitemap.xml

@@ -1,0 +1,164 @@
+{
+  "domain": "arkan2030.com",
+  "version": "20261101-search-5",
+  "files": [
+    {
+      "path": "assets/arkan-attribution.js",
+      "sha256": "1234b16e85544b9ed23f4196e011fb2a0e9a9503db2e5818e655b883fef82b2d",
+      "bytes": 2304,
+      "kind": "repo"
+    },
+    {
+      "path": "assets/arkan-site.css",
+      "sha256": "3f3f021ad09b6b3a957f45152f3f28a69be3373ec2bb54bd615aa694689f0691",
+      "bytes": 17772,
+      "kind": "repo"
+    },
+    {
+      "path": "assets/arkan-site.js",
+      "sha256": "58dd0e502fc9e2b0e415bbfc7cd306dd31ed2136514ced1a2e75664b52d6bc1d",
+      "bytes": 7173,
+      "kind": "repo"
+    },
+    {
+      "path": "assets/arkan-thank-you.js",
+      "sha256": "ac708d34bc8138f1970d7f5e43cb917a688afb438b3045947c087c810ed17097",
+      "bytes": 615,
+      "kind": "repo"
+    },
+    {
+      "path": "assets/beiruti-arabic.woff2",
+      "sha256": "39b09ced8d1aed71d1533904fbd3f1e49fcee0211741cd28028f018ef19cc187",
+      "bytes": 57144,
+      "kind": "original_asset",
+      "source": "fonts/beiruti-arabic.woff2"
+    },
+    {
+      "path": "assets/hero-debt.webp",
+      "sha256": "ff91a3b11e793d5b2a0358b5a8632906598f0d912d9e74282b3fba636a3f76a6",
+      "bytes": 106832,
+      "kind": "original_asset",
+      "source": "hero-debt.webp"
+    },
+    {
+      "path": "assets/hero-finance.webp",
+      "sha256": "10749407232fceea7c7dbe8042ccdb9164aafb3b2530f8f24c01a25bcf9e3a32",
+      "bytes": 91152,
+      "kind": "original_asset",
+      "source": "hero-finance.webp"
+    },
+    {
+      "path": "assets/hero-home.webp",
+      "sha256": "e6a2637029bed587fadcfb2e7c2bf3a5126a10d07f5cf866467464fc9cf90d6e",
+      "bytes": 16654,
+      "kind": "original_asset",
+      "source": "hero-home.webp"
+    },
+    {
+      "path": "assets/hero-obligations.webp",
+      "sha256": "aded5ee03049de2ac822393d97c7d05c2b3bb6e5d4f4eb20761de70961618714",
+      "bytes": 55428,
+      "kind": "original_asset",
+      "source": "hero-obligations.webp"
+    },
+    {
+      "path": "assets/hero-property.webp",
+      "sha256": "7ed7c42488118da461f50b614d43b13df8025b5339f6cfbbd082bd7c0fe83db5",
+      "bytes": 114568,
+      "kind": "original_asset",
+      "source": "hero-property.webp"
+    },
+    {
+      "path": "assets/hero-rejection.webp",
+      "sha256": "ea8b6e39ccd6c0636e426ea768a3110549831bec9bf4e8d7a44c1b2423b46e27",
+      "bytes": 74770,
+      "kind": "original_asset",
+      "source": "hero-rejection.webp"
+    },
+    {
+      "path": "assets/horizons-wa-attribution.js",
+      "sha256": "7cad11cf81fb81bcbed741e1084286f8cbc228ca40e28f781c06caa26eeac2be",
+      "bytes": 6105,
+      "kind": "repo"
+    },
+    {
+      "path": "assets/logo-360.webp",
+      "sha256": "2b78079d2fbd51e6d1776ae4f1af28ceb004d9ee8bff969e8b5e9ebd997f39a9",
+      "bytes": 13300,
+      "kind": "original_asset",
+      "source": "logo-360.webp"
+    },
+    {
+      "path": "index.html",
+      "sha256": "1a7b9ad46d72e67531dbe9e56c5488b29257eb4dc36e478d5d585dce412ba69c",
+      "bytes": 22650,
+      "kind": "repo"
+    },
+    {
+      "path": "robots.txt",
+      "sha256": "913d259adcd8d189f6c13f68e95c05cfd10b44b4bdb947b51e31c3f25abc413d",
+      "bytes": 129,
+      "kind": "repo"
+    },
+    {
+      "path": "sitemap.xml",
+      "sha256": "6cc8c8206cade1078ce15ae7d71b2c9a8e9955e9ae75be271afaaa80414fc01f",
+      "bytes": 810,
+      "kind": "repo"
+    },
+    {
+      "path": "تم-استلام-الطلب/index.html",
+      "sha256": "73ff21f58f7c0785077d662528bf09a26905ca1acac40ad51e12f267251d5686",
+      "bytes": 2131,
+      "kind": "repo"
+    },
+    {
+      "path": "تمويل-عقاري-مع-التزامات/index.html",
+      "sha256": "65085b7953f9714de11471da1f210800398962e24bf906650b0cbaf6f8cb8f0e",
+      "bytes": 22804,
+      "kind": "repo"
+    },
+    {
+      "path": "حلول-التمويل-العقاري/index.html",
+      "sha256": "383d2046e78f716ec223137cbe91a3e104bdd4f1bfce1bd1fc199d956dfc0be8",
+      "bytes": 22613,
+      "kind": "repo"
+    },
+    {
+      "path": "رفض-التمويل-العقاري/index.html",
+      "sha256": "ecbe52f6341d90a8cb6badfb2ef866fbfcd10aad5d74bcc622193a365151a27f",
+      "bytes": 23016,
+      "kind": "repo"
+    },
+    {
+      "path": "سياسة-الخصوصية/index.html",
+      "sha256": "6f42015297b584148adacc11ba4abd7ac2c262b89f2ab244ec4c9aae7d777103",
+      "bytes": 6655,
+      "kind": "repo"
+    },
+    {
+      "path": "شراء-عقار-بالتمويل/index.html",
+      "sha256": "d5fb2427ea78c1b33a8d366d8ffc6761a917d18e0bef055c1aa76ce43f1b6ed7",
+      "bytes": 22554,
+      "kind": "repo"
+    },
+    {
+      "path": "شراء-مديونية-عقارية/index.html",
+      "sha256": "126312df3789e2039d0d425a8f37e1a652eaf9ed819105b47aa93567b9264f8e",
+      "bytes": 22696,
+      "kind": "repo"
+    },
+    {
+      "path": "فك-الرهن-وإعادة-التمويل/index.html",
+      "sha256": "1a142fe6f0aa670bd51d7226c5415562f1d522ea751843e420b0df3a9f014951",
+      "bytes": 22753,
+      "kind": "repo"
+    },
+    {
+      "path": "نقل-المديونية-العقارية/index.html",
+      "sha256": "2cc14c68a5eebc296f6b7f10df94ff9cefc302e5f26d7ad00bc69cde67318a63",
+      "bytes": 22772,
+      "kind": "repo"
+    }
+  ]
+}
