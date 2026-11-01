@@ -38,7 +38,7 @@
 <div class="grid">
 <div class="metric-card"><div class="muted">عملاء جدد لأول مرة</div><div class="metric" id="mNew">—</div></div>
 <div class="metric-card"><div class="muted">من إعلانات</div><div class="metric" id="mPaid">—</div></div>
-<div class="metric-card"><div class="muted">Organic / Direct</div><div class="metric" id="mOrganic">—</div></div>
+<div class="metric-card"><div class="muted">Organic مؤكد</div><div class="metric" id="mOrganic">—</div></div><div class="metric-card"><div class="muted">غير منسوب / Unknown</div><div class="metric" id="mUnknown">—</div></div>
 <div class="metric-card"><div class="muted">Message Received</div><div class="metric" id="mMessageReceived">—</div></div>
 <div class="metric-card"><div class="muted">Interested</div><div class="metric" id="mInterested">—</div></div>
 <div class="metric-card"><div class="muted">Qualified</div><div class="metric" id="mQualified">—</div></div>
@@ -46,7 +46,7 @@
 </div>
 
 <section class="card">
-<div class="section-title"><div><b>مصادر الإحالات</b><div class="muted" style="font-size:12px;margin-top:4px">قاعدة الإسناد: Metadata وClick IDs وUTMs المسجلة مع ضغطة واتساب لها الأولوية. بعدها إشارات المنصات الأصلية من YCloud/WhatsApp. بدون أي إشارة حملة = Organic / Direct.</div></div><div id="sources"></div></div>
+<div class="section-title"><div><b>مصادر الإحالات</b><div class="muted" style="font-size:12px;margin-top:4px">قاعدة الإسناد: Metadata وClick IDs وUTMs المسجلة مع ضغطة واتساب لها الأولوية. بعدها إشارات المنصات الأصلية من YCloud/WhatsApp. بدون إشارة موثوقة = Unknown / Unattributed، وليس عميلًا عضويًا مؤكدًا.</div></div><div id="sources"></div></div>
 </section>
 
 <section class="card">
@@ -57,7 +57,7 @@
 <button class="btn warn" onclick="exportDrive()">تحديث وفتح Google Sheet</button>
 </div>
 </div>
-<div class="notice" style="margin-top:12px">اضغط على أي صف لفتح المحادثة. زر Google Sheet يحدّث الـLive Sheet بنفس العميل والفترة ويفتحه. أول مرة فقط Google قد يطلب Allow access للـExternal URL.</div>
+<div class="notice" style="margin-top:12px">تنبيه الجودة: الحالات Qualified وConverted الآلية لأركان لا تُرسل كتحويلات Google قبل مراجعة المحادثة وإثبات النتيجة ومطابقة الإعلان. علامة (مراجعة) تعني التصنيف المقترح فقط. عند غياب تقييم Score ستظهر علامة —. اضغط على الصف للمحادثة.</div>
 <div id="tableWrap"><div class="empty">اختر العميل والتاريخ واضغط إظهار التقرير.</div></div>
 </section>
 </main>
@@ -92,12 +92,12 @@ function evaluationHtml(l,i){
  return '<div class="attrbox"><b>تغيير التقييم يدويًا</b><div class="toolbar" style="margin-top:10px"><select class="select" id="evaluation_'+i+'">'+options.map(([key,label])=>'<option value="'+key+'" '+(key===l.quality.key?'selected':'')+'>'+label+'</option>').join('')+'</select><button class="btn primary" onclick="saveEvaluation('+i+')">حفظ التقييم</button></div><div class="status" style="margin-top:8px">'+(l.quality.manual_override?'اختيارك اليدوي محفوظ.':'اختيارك اليدوي له الأولوية على التقييم التلقائي.')+'</div></div>';
 }
 async function saveEvaluation(i){const lead=R?.leads?.[i];if(!lead?.conversation_id)return;const select=$('evaluation_'+i);select.disabled=true;try{await j('api.php?action=tag',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id:lead.conversation_id,tag:select.value})});await runReport();toggleDetail(i);toast('تم حفظ التقييم')}catch(e){toast('تعذر حفظ التقييم: '+e.message)}finally{select.disabled=false}}
-function render(){const s=R.summary||{},q=s.quality||{};$('mNew').textContent=s.new_customers??0;$('mPaid').textContent=s.paid_ads??0;$('mOrganic').textContent=s.organic??0;$('mMessageReceived').textContent=q.message_received??0;$('mInterested').textContent=q.interested??0;$('mQualified').textContent=q.qualified??0;$('mConverted').textContent=q.converted??0;$('generated').textContent='آخر تحديث: '+(R.generated_at||'');$('definition').textContent=R.definition||'';
-const labels={meta:'Meta Ads',tiktok:'TikTok Ads',google:'Google Ads',snapchat:'Snapchat Ads',microsoft_ads:'Microsoft Ads',linkedin:'LinkedIn Ads',x:'X Ads',referral:'Referral',organic:'Organic / Direct'};
+function render(){const s=R.summary||{},q=s.quality||{};$('mNew').textContent=s.new_customers??0;$('mPaid').textContent=s.paid_ads??0;$('mOrganic').textContent=s.organic??0;$('mUnknown').textContent=s.unknown??0;$('mMessageReceived').textContent=q.message_received??0;$('mInterested').textContent=q.interested??0;$('mQualified').textContent=q.qualified??0;$('mConverted').textContent=q.converted??0;$('generated').textContent='آخر تحديث: '+(R.generated_at||'');$('definition').textContent=R.definition||'';
+const labels={meta:'Meta Ads',tiktok:'TikTok Ads',google:'Google Ads',snapchat:'Snapchat Ads',microsoft_ads:'Microsoft Ads',linkedin:'LinkedIn Ads',x:'X Ads',referral:'Referral',organic:'Organic / Direct',unknown:'Unattributed / Unknown'};
 $('sources').innerHTML=Object.entries(s.sources||{}).map(([k,v])=>'<span class="badge '+sourceClass(k)+'">'+esc(labels[k]||k)+' '+v+'</span>').join('')||'<span class="muted">لا توجد إحالات</span>';
 if(!(R.leads||[]).length){$('tableWrap').innerHTML='<div class="empty">مفيش عملاء جدد لأول مرة في الفترة دي.</div>';return}
 let h='<div style="overflow:auto"><table><thead><tr><th>#</th><th>الرقم</th><th>أول تواصل</th><th>المصدر</th><th>الحالة</th><th>Score</th><th>الرسائل</th><th>ملخص</th></tr></thead><tbody>';
-R.leads.forEach((l,i)=>{h+='<tr class="leadrow" onclick="toggleDetail('+i+')"><td>'+(i+1)+'</td><td class="phone">'+esc(l.customer_phone)+'</td><td>'+esc(l.first_contact_at)+'</td><td><span class="badge '+sourceClass(l.source.key)+'">'+esc(l.source.label)+'</span><div class="muted" style="font-size:11px">'+esc(l.source.confidence)+'</div></td><td><span class="badge '+stageClass(l.quality.key)+'">'+esc(l.quality.label)+'</span></td><td>'+esc(l.quality.score)+'</td><td>'+esc(l.message_count)+'</td><td>'+esc(l.quality.summary||l.quality.reason||'—')+'</td></tr>';
+R.leads.forEach((l,i)=>{h+='<tr class="leadrow" onclick="toggleDetail('+i+')"><td>'+(i+1)+'</td><td class="phone">'+esc(l.customer_phone)+'</td><td>'+esc(l.first_contact_at)+'</td><td><span class="badge '+sourceClass(l.source.key)+'">'+esc(l.source.label)+'</span><div class="muted" style="font-size:11px">'+esc(l.source.confidence)+'</div></td><td><span class="badge '+stageClass(l.quality.key)+'">'+esc(l.quality.label)+'</span>'+(l.quality.requires_review?'<div class="muted">يتطلب مراجعة</div>':'')+'</td><td>'+esc(l.quality.score??'—')+'</td><td>'+esc(l.message_count)+'</td><td>'+esc(l.quality.summary||l.quality.reason||'—')+'</td></tr>';
 h+='<tr class="details" id="d'+i+'"><td colspan="8">'+evaluationHtml(l,i)+attributionHtml(l)+'<div class="conv">'+(l.messages||[]).map(m=>'<div class="msg '+esc(m.direction)+'"><div>'+esc(m.text||('['+m.type+']'))+'</div><div class="msgmeta">'+esc(m.at)+' • '+esc(m.direction)+' • '+esc(m.type)+'</div></div>').join('')+'</div></td></tr>'});
 h+='</tbody></table></div>';$('tableWrap').innerHTML=h}
 function toggleDetail(i){const x=$('d'+i);if(x)x.classList.toggle('open')}
