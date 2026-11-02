@@ -1,6 +1,6 @@
 {
   "domain": "arkan2030.com",
-  "version": "20261102-form-1",
+  "version": "20261102-seo-1",
   "files": [
     {
       "path": "assets/arkan-attribution.js",
@@ -90,8 +90,8 @@
     },
     {
       "path": "index.html",
-      "sha256": "7d2512262672e952835a49d69e91eb6a8aa7b50be1beaf9542d6ea4b70079c57",
-      "bytes": 23272,
+      "sha256": "ae563c2f33e05530c446a6ac00c50503136b16a780f49b822c4145574585c096",
+      "bytes": 23990,
       "kind": "repo"
     },
     {
@@ -108,56 +108,56 @@
     },
     {
       "path": "تم-استلام-الطلب/index.html",
-      "sha256": "b09d7a6dc7d76f8dac4cbad052093893983c7bbd717055a1cd7aade118958234",
-      "bytes": 3515,
+      "sha256": "9de03a85078e9638eb624a54775f139e131aa0a33a2fa6e478bbe2d7433caecd",
+      "bytes": 3509,
       "kind": "repo"
     },
     {
       "path": "تمويل-عقاري-مع-التزامات/index.html",
-      "sha256": "a8d58e69c3c8a041b119564babbc483fe02a3cea8e25ab56d11da50f94b205de",
-      "bytes": 23426,
+      "sha256": "57e61bd8c016dd3832120654a67933b4c2b9cc2868d03c532fd2ce0d4d2c5883",
+      "bytes": 24546,
       "kind": "repo"
     },
     {
       "path": "حلول-التمويل-العقاري/index.html",
-      "sha256": "0e5de8d9811e53cae7feb1f6e297696ed4610abca7ede0c7bd966cf96389e88e",
-      "bytes": 23235,
+      "sha256": "9a1a69a3672ee2b122927cad2dbe3ecfac186158b240039d8e21f7f48260d8d4",
+      "bytes": 26750,
       "kind": "repo"
     },
     {
       "path": "رفض-التمويل-العقاري/index.html",
-      "sha256": "9ad782853eecfe5745aef460a0774e8a5205ba564291b03bc6dbf5a2249be4e2",
-      "bytes": 23638,
+      "sha256": "defad2a186ca1d0b6f8c786254cbcb639f8d260ab6fa035ccf9248520d75c050",
+      "bytes": 24788,
       "kind": "repo"
     },
     {
       "path": "سياسة-الخصوصية/index.html",
-      "sha256": "362a42a0e74f3d63a48f785341fc19e3742e779a68404e7bd3aac36e84c6ca6e",
-      "bytes": 8032,
+      "sha256": "b00c2f04367b24b7d46ed2b9d4f54feb5e6af7820788bf99f27a4a79ac8bb494",
+      "bytes": 8027,
       "kind": "repo"
     },
     {
       "path": "شراء-عقار-بالتمويل/index.html",
-      "sha256": "dea80c2ae1507bf4e7dd2dfc59a4cc62500886c5849b027d3762e689879d7493",
-      "bytes": 23176,
+      "sha256": "f657c9698ee557559212979fcdbedd53de02726b3c752b5cbfec49c41f0deab3",
+      "bytes": 24262,
       "kind": "repo"
     },
     {
       "path": "شراء-مديونية-عقارية/index.html",
-      "sha256": "19289f48a15840ac630958becb1ad22e054edb00527a971890b65a0cf839f629",
-      "bytes": 23318,
+      "sha256": "942f3485ea9c5304c30d5dd8429cfca3b0e8a0fa302dc8e7ec53034ceda3f5c6",
+      "bytes": 26940,
       "kind": "repo"
     },
     {
       "path": "فك-الرهن-وإعادة-التمويل/index.html",
-      "sha256": "e643fc346ba3c868629e9d5f3bb6822bc0e593fe28074432e33a07942d1db127",
-      "bytes": 23375,
+      "sha256": "3a84a97a98e779ded904af0de039d5b12313652632927aea3168fa761bf0c124",
+      "bytes": 26851,
       "kind": "repo"
     },
     {
       "path": "نقل-المديونية-العقارية/index.html",
-      "sha256": "a1fc944260c5be617326ab1f7b4e3c9eaf13ff027403ed1f99803c71e6376d15",
-      "bytes": 23394,
+      "sha256": "6d0d5f311b690238f68f26f7dd678c015c6bed3676bfbe83760c8f972382284f",
+      "bytes": 26802,
       "kind": "repo"
     }
   ]
