@@ -25,7 +25,7 @@ def header():return '<a class="skip" href="#main">انتقل للمحتوى</a><
 def form(p):
  original=(ORIG/'main-index.html').read_text(encoding='utf-8');m=re.search(r'<form\b.*?</form>',original,re.S);assert m
  f=m[0];f=re.sub(r'(<input[^>]+name="landing_page_id"[^>]+value=")[^"]*',r'\g<1>'+p['pid'],f)
- f=re.sub(r'\schecked(?:="[^"]*")?','',f)
+ f=f.replace('<form id="leadForm" novalidate>','<form id="leadForm" autocomplete="on" novalidate>')
  f=re.sub(r'<h2>.*?</h2>','',f)
  return '<aside class="form-card" id="form"><span class="eyebrow dark">الخطوة الأولى</span><h2>خلّنا نفهم حالتك</h2><p class="form-intro">ابدأ بتقييم أولي مجاني. يتواصل معك الفريق لفهم التفاصيل والخطوة المناسبة.</p>'+f+'<p class="form-foot">'+icon('shield')+'بياناتك لمتابعة طلبك لدى أركان.</p></aside>'
 def footer(p):return '<footer class="footer"><div class="container footer-grid"><div><img src="/assets/logo-360.webp" width="180" height="70" alt="أركان التنفيذية" loading="lazy"><p>صورة مالية أوضح.<br>وخطوة عقارية على بيّنة.</p></div><div><strong>مساراتنا</strong>'+nav+'</div><div><strong>تواصل مع أركان</strong><a href="tel:+'+phone+'" class="track-call"><bdi>0500 989 103</bdi></a><a href="'+wa(p)+'" class="track-whatsapp" target="_blank" rel="noopener">تواصل عبر واتساب</a><a href="/سياسة-الخصوصية/">سياسة الخصوصية</a><span>نخدم الغربية والجنوبية</span></div></div><div class="container footer-bottom"><span>© 2026 أركان التنفيذية</span><span>حلول واستشارات مالية وعقارية</span></div></footer>'
@@ -72,5 +72,5 @@ for name in ['arkan-site.css','arkan-site.js','arkan-attribution.js','arkan-than
 for page in OUT.rglob('*.html'):
  s=page.read_text(encoding='utf-8')
  if 'class="floating-contact"' not in s:s=s.replace('</main>','</main>'+floating(home),1)
- s=s.replace('?v=20261101"','?v=20261101-float-1"')
- page.write_text(s.replace('<head>','<head><meta name="arkan-site-version" content="20261101-float-1">',1),encoding='utf-8')
+ s=s.replace('?v=20261101"','?v=20261102-form-1"')
+ page.write_text(s.replace('<head>','<head><meta name="arkan-site-version" content="20261102-form-1">',1),encoding='utf-8')

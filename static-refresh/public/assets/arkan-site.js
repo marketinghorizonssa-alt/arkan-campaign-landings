@@ -7,7 +7,16 @@
  var tracking=session.get('arkan_tracking_token')||id('ARK-AT-'),sid=session.get('arkan_session_id')||id('ark_session_');session.set('arkan_tracking_token',tracking);session.set('arkan_session_id',sid);
  function push(event,detail){w.dataLayer=w.dataLayer||[];w.dataLayer.push(Object.assign({event:event},detail||{}));}
  // The verified published GTM container owns Ads conversion dispatch. Never add a second direct gtag sender.
- function conversion(kind,token){if(kind==='form')d.dispatchEvent(new CustomEvent('arkan:lead-success',{detail:{lead_token:token||'',landing_page_id:cfg.pageId||'',duplicate:false}}));}
+ function conversion(kind,token){
+  if(kind!=='form')return Promise.resolve();
+  var detail={lead_token:token||'',landing_page_id:cfg.pageId||'',duplicate:false};
+  if(w.__arkanGtmListenerInstalled){d.dispatchEvent(new CustomEvent('arkan:lead-success',{detail:detail}));return Promise.resolve();}
+  // Queue the same GTM event if its DOM listener has not loaded yet. Use only one route.
+  return new Promise(function(resolve){var done=false;function finish(){if(!done){done=true;resolve();}}
+   push('lead_form_success',Object.assign({page_path:location.pathname,eventCallback:finish,eventTimeout:1200},detail));
+   w.setTimeout(finish,1500);if(typeof w.__loadArkanGtm==='function')w.__loadArkanGtm();
+  });
+ }
  var form=d.getElementById('leadForm'),status=d.getElementById('formStatus');
  function register(keepalive){if(!form)return Promise.resolve();return fetch(cfg.endpoint+'?mode=attribution',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},credentials:'omit',keepalive:!!keepalive,body:JSON.stringify(Object.assign({},state,{event_type:'attribution_capture',ref_token:tracking,captured_at:new Date().toISOString(),landing_page_id:form.elements.landing_page_id.value,landing_path:location.pathname,first_landing_url:state.first_landing_url}))}).catch(function(){return null;});}
  if(form){api.fields.forEach(function(k){if(form.elements[k])form.elements[k].value=state[k]||'';});if(form.elements.landing_path)form.elements.landing_path.value=location.pathname;if(form.elements.referrer)form.elements.referrer.value=d.referrer||'';register(false);}
@@ -17,12 +26,15 @@
  function clear(){form.querySelectorAll('[aria-invalid]').forEach(function(x){x.removeAttribute('aria-invalid');});form.querySelectorAll('[data-field-error]').forEach(function(x){x.remove();});if(status)status.textContent='';}
  function error(field,message){var el=form.elements[field]||form.elements.full_name;el.setAttribute('aria-invalid','true');var note=d.createElement('span');note.dataset.fieldError=field;note.setAttribute('role','alert');note.style.cssText='font-size:13px;color:#9b341d';note.textContent=message;(el.closest('.field')||el.closest('.consent')||el.parentElement).appendChild(note);if(status)status.textContent=message;el.focus();el.scrollIntoView({block:'center',behavior:'smooth'});return false;}
  function valid(){if(form.elements.full_name.value.trim().length<2)return error('full_name','اكتب اسمك عشان نقدر نتابع طلبك.');var p=form.elements.phone.value.replace(/\D/g,'');if(p.length<7||p.length>15)return error('phone','تأكد من كتابة رقم الجوال بشكل صحيح.');if(!form.elements.city.value.trim())return error('city','اختر أو اكتب مدينتك.');if(!form.elements.property_type.value&&!form.elements.employer_type.value)return error('property_type','اختر نوع العقار أو جهة العمل على الأقل.');if(!form.elements.privacy_consent.checked)return error('privacy_consent','وافق على سياسة الخصوصية والتواصل بخصوص الطلب.');return true;}
- var draftFields=['full_name','phone','city','property_type','employer_type'],draft=obj(session.get('arkan_lead_draft_v3'));draftFields.forEach(function(k){if(draft[k])form.elements[k].value=draft[k];});
- form.addEventListener('input',function(){clear();var v={};draftFields.forEach(function(k){v[k]=form.elements[k].value;});session.set('arkan_lead_draft_v3',JSON.stringify(v));});form.addEventListener('change',clear);
+ var draftFields=['full_name','phone','city','property_type','employer_type'],draft=obj(session.get('arkan_lead_draft_v3')),saved=obj(session.get('arkan_lead_preview'));
+ draftFields.forEach(function(k){var el=form.elements[k],value=Object.prototype.hasOwnProperty.call(draft,k)?draft[k]:saved[k];if(!el||el.value||typeof value!=='string')return;if(el.options&&!Array.from(el.options).some(function(o){return o.value===value;}))return;el.value=value;});
+ var privacyChoice=session.get('arkan_privacy_choice_v1');if(privacyChoice==='0')form.elements.privacy_consent.checked=false;
+ function remember(){clear();var v={};draftFields.forEach(function(k){v[k]=form.elements[k].value;});session.set('arkan_lead_draft_v3',JSON.stringify(v));session.set('arkan_privacy_choice_v1',form.elements.privacy_consent.checked?'1':'0');}
+ form.addEventListener('input',remember);form.addEventListener('change',remember);
  var busy=false;form.addEventListener('submit',async function(e){e.preventDefault();clear();if(busy||!valid())return;busy=true;var button=form.querySelector('button[type=submit]'),label=button.textContent;button.disabled=true;button.textContent='جاري تسجيل طلبك…';
   var data=Object.assign(Object.fromEntries(new FormData(form).entries()),state,{privacy_consent:'1',privacy_version:cfg.privacyVersion,consent_at:new Date().toISOString(),submitted_at_client:new Date().toISOString(),page_url:location.href,landing_path:location.pathname,referrer:d.referrer||'',session_id:sid,tracking_token:tracking,form_id:'arkan_landing_form_v1'});
   try{await register(false);var r=await fetch(cfg.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},credentials:'omit',body:JSON.stringify(data)}),result=await r.json();if(!r.ok||!result.ok){if(r.status===422&&result.field){error(result.field,result.message||'راجع البيانات المطلوبة.');throw new Error('validation');}throw new Error('request_failed');}session.remove('arkan_lead_draft_v3');session.set('arkan_lead_preview',JSON.stringify(Object.assign({},data,{lead_id:result.lead_token||''})));session.set('arkan_lead_token',result.lead_token||'');
-   if(!result.duplicate){conversion('form',result.lead_token||'');push('arkan:lead-success',{lead_token:result.lead_token||'',landing_page_id:data.landing_page_id,duplicate:false});}
+   if(!result.duplicate){await conversion('form',result.lead_token||'');push('arkan:lead-success',{lead_token:result.lead_token||'',landing_page_id:data.landing_page_id,duplicate:false});}
    w.setTimeout(function(){location.href=cfg.thankYou;},500);
   }catch(ex){if(ex.message!=='validation'&&status)status.textContent='تعذر تسجيل الطلب الآن. جرّب مرة ثانية، أو تواصل معنا عبر واتساب.';busy=false;button.disabled=false;button.textContent=label;}
  });
